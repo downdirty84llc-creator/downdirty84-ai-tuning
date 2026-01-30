@@ -1,0 +1,121 @@
+{
+  "summary": {
+    "blockers": 0,
+    "warnings": 1,
+    "info": 1
+  },
+  "items": [
+    {
+      "id": "2a7b1d4b-2f40-4f1d-9fd1-1b3a1d6a6b9c",
+      "severity": "WARN",
+      "code": "D1_CRUISE_SURGE",
+      "title": "Cruise surge / closed-loop oscillation",
+      "summary": "Fuel trims oscillate significantly during steady cruise, consistent with airflow modeling error or O2 control instability.",
+      "evidence": {
+        "ranges": [
+          [
+            512.0,
+            548.5
+          ]
+        ]
+      },
+      "stats": {
+        "stftP2PBank1Pct": 14.8,
+        "stftP2PBank2Pct": 12.3
+      },
+      "tags": [
+        "GM",
+        "P59"
+      ],
+      "charts": [
+        "gpec_surge_primary"
+      ],
+      "actions": [
+        {
+          "type": "RELOG",
+          "priority": 1,
+          "text": "Collect more steady-state cruise segments (multiple gears/speeds)."
+        }
+      ]
+    },
+    {
+      "id": "4d6ac6c2-9f90-4a5f-a2ad-ec5d7df0d8b0",
+      "severity": "INFO",
+      "code": "R0_MISSING_CHANNELS",
+      "title": "Optional channels not present",
+      "summary": "Some optional channels are missing. Findings are still valid, but additional channels can improve confidence.",
+      "evidence": {
+        "ranges": []
+      },
+      "stats": {},
+      "tags": [
+        "GM"
+      ],
+      "charts": [],
+      "actions": [
+        {
+          "type": "NOTE",
+          "priority": 1,
+          "text": "If available, add fuel pressure and injector duty channels on the next log."
+        }
+      ]
+    }
+  ],
+  "chartSpecs": [
+    {
+      "chartId": "gpec_surge_primary",
+      "title": "Fuel Trims Oscillation (Cruise)",
+      "x": {
+        "key": "t",
+        "label": "Time",
+        "unit": "s"
+      },
+      "y": [
+        {
+          "key": "stft_bank1",
+          "label": "STFT B1",
+          "unit": "%",
+          "preferredAxis": "left"
+        },
+        {
+          "key": "stft_bank2",
+          "label": "STFT B2",
+          "unit": "%",
+          "preferredAxis": "left"
+        },
+        {
+          "key": "rpm",
+          "label": "RPM",
+          "unit": "rpm",
+          "preferredAxis": "right"
+        },
+        {
+          "key": "tps",
+          "label": "Throttle",
+          "unit": "%",
+          "preferredAxis": "right"
+        }
+      ],
+      "evidence": {
+        "ranges": [
+          [
+            512.0,
+            548.5
+          ]
+        ]
+      },
+      "thresholdBands": [
+        {
+          "key": "stft_bank1",
+          "min": -10.0,
+          "max": 10.0,
+          "label": "Typical Range"
+        }
+      ],
+      "view": {
+        "defaultZoom": "EVIDENCE_ONLY",
+        "paddingSec": 3.0
+      }
+    }
+  ]
+}

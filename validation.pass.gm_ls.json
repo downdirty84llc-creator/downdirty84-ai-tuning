@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "wbStatus": "OK",
+  "missingChannels": [],
+  "vehicleProfileDetected": {
+    "platform": "GM",
+    "family": "P59",
+    "engine": "LS",
+    "toolchain": "HPT"
+  },
+  "recommendedLogPreset": "GM_LS_BASE",
+  "nextLogPlan": {
+    "planId": "GM_LS_COVERAGE_STEADY_STATE",
+    "title": "Next log \u2014 build steady-state coverage",
+    "bullets": [
+      {
+        "kind": "info",
+        "text": "Collect steady cruise segments at multiple speeds/gears for consistent airflow modeling."
+      }
+    ],
+    "routine": [
+      "Warm up fully (ECT stable).",
+      "Cruise 10\u201312 minutes steady at several different speeds/gears (hold each for 10\u201320 seconds).",
+      "4\u20136 smooth roll-ins 10%\u219235% throttle.",
+      "Upload the log."
+    ],
+    "safetyNotes": [
+      "Avoid WOT unless explicitly instructed."
+    ],
+    "recommendedLogPreset": "GM_LS_BASE"
+  }
+}
