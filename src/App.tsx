@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "./app/pages/Login";
-import AuthCallback from "./app/pages/AuthCallback";
-import Dashboard from "./app/pages/Dashboard";
-import Admin from "./app/pages/Admin";
+import Login from "./Login";
+import AuthCallback from "./AuthCallback";
+import Dashboard from "./Dashboard";
+import Admin from "./Admin";
 
 export default function App() {
   return (

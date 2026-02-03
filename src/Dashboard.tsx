@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiGet, apiFetch } from "../api/client";
-import { createJob, listJobs, analyzeJob, Job } from "../api/jobs";
-import { uploadFile, listJobUploads } from "../api/uploads";
+import { apiGet, apiFetch } from "./client";
+import { createJob, listJobs, analyzeJob, Job } from "./jobs";
+import { uploadFile, listJobUploads } from "./uploads";
 
 type Me = { id: string; email: string };
 

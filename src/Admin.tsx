@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { adminGetJob, adminListJobs, adminPatchJob } from "../api/admin";
+import { adminGetJob, adminListJobs, adminPatchJob } from "./admin";
 
 const STATUSES = ["NEW","FILES_RECEIVED","ANALYZING","IN_PROGRESS","DELIVERED","COMPLETE"];
 
