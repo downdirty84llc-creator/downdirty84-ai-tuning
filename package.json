@@ -1,0 +1,46 @@
+{
+  "name": "downdirty84-ai-tuning-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "api:dev": "tsx server.ts",
+    "api:build": "tsc -p tsconfig.api.json",
+    "api:start": "node dist-api/server.js",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test:auth-boundary": "node scripts/auth-boundary-smoke.mjs",
+    "test:auth-boundary:ps": "powershell -ExecutionPolicy Bypass -File ./scripts/run-auth-boundary-smoke.ps1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.997.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^8.0.1",
+    "pg": "^8.19.0",
+    "pg-mem": "^3.0.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "stripe": "^20.3.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}

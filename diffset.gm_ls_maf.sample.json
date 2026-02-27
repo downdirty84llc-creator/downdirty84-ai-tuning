@@ -1,0 +1,88 @@
+{
+  "diffSetId": "00000000-0000-0000-0000-000000000000",
+  "jobId": null,
+  "runId": null,
+  "name": "GM LS MAF Suggestions (v1)",
+  "source": "MAF_SUGGESTION_WB",
+  "createdAt": null,
+  "items": [
+    {
+      "itemId": 1,
+      "type": "CURVE_POINT",
+      "path": "Airflow.MAF.Curve",
+      "coordinates": {
+        "x": 3000,
+        "y": null
+      },
+      "valueMode": "MULTIPLIER",
+      "before": null,
+      "after": 1.052,
+      "units": "multiplier",
+      "confidence": 0.83,
+      "reason": "WB-based error +5.2% steady-state; median/MAD filtered",
+      "applyNotes": "Multiply MAF g/s at ~3000 Hz by 1.052",
+      "status": "APPROVED",
+      "tags": [
+        "GM",
+        "LS",
+        "P59",
+        "MAF"
+      ],
+      "provenance": {
+        "binWidthHz": 200,
+        "seconds": 12.4,
+        "mad": 0.8,
+        "stability": 0.9
+      }
+    },
+    {
+      "itemId": 2,
+      "type": "CURVE_POINT",
+      "path": "Airflow.MAF.Curve",
+      "coordinates": {
+        "x": 3200,
+        "y": null
+      },
+      "valueMode": "MULTIPLIER",
+      "before": null,
+      "after": 1.052,
+      "units": "multiplier",
+      "confidence": 0.8,
+      "reason": "WB-based error +5.2% steady-state; smoothed and step-clamped",
+      "applyNotes": "Multiply MAF g/s at ~3200 Hz by 1.052",
+      "status": "APPROVED",
+      "tags": [
+        "GM",
+        "LS",
+        "P59",
+        "MAF"
+      ]
+    },
+    {
+      "itemId": 3,
+      "type": "CURVE_POINT",
+      "path": "Airflow.MAF.Curve",
+      "coordinates": {
+        "x": 3600,
+        "y": null
+      },
+      "valueMode": "MULTIPLIER",
+      "before": null,
+      "after": 1.015,
+      "units": "multiplier",
+      "confidence": 0.81,
+      "reason": "WB-based error +1.5% steady-state; filtered",
+      "applyNotes": "Multiply MAF g/s at ~3600 Hz by 1.015",
+      "status": "APPROVED",
+      "tags": [
+        "GM",
+        "LS",
+        "P59",
+        "MAF"
+      ]
+    }
+  ],
+  "diagnostics": {
+    "mode": "WB"
+  }
+}
