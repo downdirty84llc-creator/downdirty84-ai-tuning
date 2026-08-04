@@ -1,15 +1,22 @@
 # Dependencies
 node_modules/
-package-lock.json
+
+# Lockfiles ARE committed — they are what makes a build reproducible.
+# (package-lock.json was previously ignored here while also being tracked.)
 
 # Build output
 dist/
 build/
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # Environment
 .env
-.env.local
+.env.*
+!.env.example
+
+# Local upload fallback (see services/uploads/storage.ts)
+tmp_uploads/
 
 # IDE
 .vscode/

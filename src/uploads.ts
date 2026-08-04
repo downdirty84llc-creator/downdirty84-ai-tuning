@@ -6,7 +6,9 @@ export async function uploadFile(opts: { file: File; jobId: string; kind?: strin
   form.append("jobId", opts.jobId);
   form.append("kind", opts.kind || "LOG");
 
-  const res = await apiFetch("/api/v1/uploads", { method: "POST", body: form, headers: {} as any });
+  // No headers override needed: apiFetch detects FormData and lets the browser
+  // set Content-Type with the multipart boundary.
+  const res = await apiFetch("/api/v1/uploads", { method: "POST", body: form });
   return res.json() as Promise<{ uploadId: string; filename: string; sizeBytes: number }>;
 }
 
