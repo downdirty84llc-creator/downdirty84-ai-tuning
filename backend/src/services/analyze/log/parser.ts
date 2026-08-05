@@ -79,6 +79,59 @@ function findHeader(rows: string[][]): { headerIdx: number; firstDataIdx: number
   throw new LogParseError("Could not locate a header row followed by numeric data.");
 }
 
+export type FileKind =
+  | { kind: "TEXT" }
+  | { kind: "HPT_TUNE"; message: string }
+  | { kind: "BINARY"; message: string };
+
+/** How a customer exports a datalog from VCM Scanner, worth repeating verbatim. */
+const HOW_TO_EXPORT =
+  "In VCM Scanner, open your log and use File → Export → CSV (or save the .hpl and export it), " +
+  "then upload that file.";
+
+/**
+ * Classify an upload before parsing.
+ *
+ * The point is the error message. A customer who uploads the wrong file needs
+ * to be told which file to send instead — not that a header row was missing.
+ */
+export function detectFileKind(buf: Buffer): FileKind {
+  // HP Tuners tune/calibration file. Encrypted proprietary container; contains
+  // the calibration tables, not logged data. Nothing here can be analysed, and
+  // no amount of parsing will change that.
+  if (buf.length >= 4 && buf.subarray(0, 4).toString("latin1") === "HPT ") {
+    return {
+      kind: "HPT_TUNE",
+      message:
+        "This is an HP Tuners tune file (.hpt) — the calibration itself, not a datalog. " +
+        "It contains the tables in the vehicle, not any recorded driving data, so there is " +
+        "nothing in it to analyse. Please send a datalog instead: " +
+        HOW_TO_EXPORT
+    };
+  }
+
+  // Any other binary. Sampling the head is enough — a CSV is text throughout.
+  const sample = buf.subarray(0, Math.min(buf.length, 8192));
+  let nonPrintable = 0;
+  for (const b of sample) {
+    // Tab, LF, CR and printable ASCII are expected; anything else is not.
+    const ok = b === 9 || b === 10 || b === 13 || (b >= 32 && b <= 126) || b >= 128;
+    if (!ok) nonPrintable++;
+  }
+  const hasNulls = sample.includes(0);
+  if (hasNulls || nonPrintable / Math.max(1, sample.length) > 0.1) {
+    return {
+      kind: "BINARY",
+      message:
+        "This file is binary, not a text datalog. If it is an HP Tuners .hpl log or a Holley " +
+        "native log, it needs exporting to CSV first. " +
+        HOW_TO_EXPORT
+    };
+  }
+
+  return { kind: "TEXT" };
+}
+
 function detectToolchain(text: string): Toolchain {
   const head = text.slice(0, 2000).toLowerCase();
   if (head.includes("hp tuners") || head.includes("vcm scanner") || head.includes("hptuners")) {
@@ -99,11 +152,26 @@ function detectToolchain(text: string): Toolchain {
  * reads as real data to every rule downstream.
  */
 export function parseLog(content: string | Buffer): ParsedLog {
-  const text = typeof content === "string" ? content : content.toString("utf8");
+  const buf = typeof content === "string" ? Buffer.from(content, "utf8") : content;
+
+  // Identify obviously-wrong uploads before trying to read them as CSV.
+  // Without this, an HP Tuners tune file fails with "could not locate a header
+  // row", which is true and useless — the customer has no idea they sent the
+  // wrong artefact. This is a common mistake: .hpt (tune) and .hpl (log) differ
+  // by one letter and live side by side in the same folder.
+  const kind = detectFileKind(buf);
+  if (kind.kind !== "TEXT") throw new LogParseError(kind.message);
+
+  const text = buf.toString("utf8");
   if (text.trim() === "") throw new LogParseError("Log file is empty.");
 
   const lines = text.split(/\r\n|\r|\n/).filter((l) => l.trim() !== "");
-  if (lines.length < 2) throw new LogParseError("Log file has no data rows.");
+  if (lines.length < 2) {
+    throw new LogParseError(
+      "This file has no data rows. A datalog should have one row per sample, " +
+        "usually thousands of them."
+    );
+  }
 
   const rows = lines.map(splitCsvLine);
   const { headerIdx, firstDataIdx } = findHeader(rows);

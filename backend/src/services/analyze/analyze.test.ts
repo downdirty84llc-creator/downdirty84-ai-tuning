@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { parseLog, LogParseError } from "./log/parser.js";
+import { parseLog, LogParseError, detectFileKind } from "./log/parser.js";
 import { makeSyntheticLog } from "./log/synthetic.js";
 import { resolveChannel, detectLambda } from "./log/channels.js";
 import { findSustained, mad, median, rejectOutliers, peakToPeak } from "./log/series.js";
@@ -110,6 +110,37 @@ test("converts lambda to AFR and says so", () => {
 test("rejects empty and headerless input", () => {
   assert.throws(() => parseLog(""), LogParseError);
   assert.throws(() => parseLog("1,2,3\n4,5,6"), LogParseError);
+});
+
+test("identifies an HP Tuners tune file and says what to send instead", () => {
+  // Real .hpt files start with this magic, then an encrypted payload. Customers
+  // send these by mistake — .hpt (tune) and .hpl (log) sit in the same folder
+  // and differ by one letter. Only the 4-byte signature is reproduced here; no
+  // customer calibration is stored in this repo.
+  const fake = Buffer.concat([Buffer.from("HPT "), Buffer.alloc(4096, 0xa7)]);
+  assert.equal(detectFileKind(fake).kind, "HPT_TUNE");
+  try {
+    parseLog(fake);
+    assert.fail("should have thrown");
+  } catch (err) {
+    const msg = (err as Error).message;
+    assert.match(msg, /tune file/i);
+    assert.match(msg, /not a datalog/i);
+    assert.match(msg, /VCM Scanner/); // tells them where to go
+    assert.doesNotMatch(msg, /header row/i); // the old, useless message
+  }
+});
+
+test("identifies a generic binary upload", () => {
+  const bin = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(2048, 0), Buffer.alloc(2048, 0xff)]);
+  assert.equal(detectFileKind(bin).kind, "BINARY");
+  assert.throws(() => parseLog(bin), /binary, not a text datalog/i);
+});
+
+test("does not mistake a normal CSV for binary", () => {
+  assert.equal(detectFileKind(Buffer.from(makeSyntheticLog())).kind, "TEXT");
+  // UTF-8 accents and CRLF line endings must still read as text.
+  assert.equal(detectFileKind(Buffer.from("Temps,RPM\r\n20,800\r\n21,810\r\n", "utf8")).kind, "TEXT");
 });
 
 test("handles quoted fields containing commas", () => {
