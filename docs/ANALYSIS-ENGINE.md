@@ -152,7 +152,25 @@ passes a dangerous condition silently.
 
 Two inputs, both of which are yours to supply:
 
-### 0. Why .hpl is not read natively
+### 0a. Toolchains actually in use at DD84
+
+Evidence from real customer files, not assumption:
+
+| Toolchain | Seen as | Platform |
+| --- | --- | --- |
+| HP Tuners VCM Suite | `.hpt` calibration, `.hpl` log | GM — 2008 2500, 6.0 |
+| Holley / FAST Terminator X | `.terx` calibration | Ford F100 swap |
+
+The MVP scope targets GM LS for the only write-intent feature, which matches
+the HP Tuners side. The Holley side is real too, so the parser recognises
+`.terx` and points at the Holley EFI CSV export.
+
+Both of the above are **calibration** formats. Customers send them when asked
+for a log, consistently — the tune is what they think of as "their tune", it
+lives beside the log, and HP Tuners' two extensions differ by one letter.
+`log/signatures.ts` holds the table; adding a vendor is a row, not new logic.
+
+### 0b. Why .hpl is not read natively
 
 The `.hpl` container is decoded — `SS\0\0SYNC` header, a channel table, then
 `CDG\0` blocks of raw deflate, all round-tripping to their declared lengths.

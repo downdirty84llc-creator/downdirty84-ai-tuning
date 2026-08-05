@@ -6,6 +6,7 @@ import {
   type Channel
 } from "./channels.js";
 import { isHplFile, readHplInventory, describeHpl } from "./hpl.js";
+import { matchTuneSignature, describeTuneFile } from "./signatures.js";
 
 export type Toolchain = "HPT" | "HOLLEY" | "UNKNOWN";
 
@@ -82,7 +83,7 @@ function findHeader(rows: string[][]): { headerIdx: number; firstDataIdx: number
 
 export type FileKind =
   | { kind: "TEXT" }
-  | { kind: "HPT_TUNE"; message: string }
+  | { kind: "TUNE_FILE"; signatureId: string; message: string }
   | { kind: "HPL_LOG"; message: string }
   | { kind: "BINARY"; message: string };
 
@@ -98,18 +99,12 @@ const HOW_TO_EXPORT =
  * to be told which file to send instead — not that a header row was missing.
  */
 export function detectFileKind(buf: Buffer): FileKind {
-  // HP Tuners tune/calibration file. Encrypted proprietary container; contains
-  // the calibration tables, not logged data. Nothing here can be analysed, and
-  // no amount of parsing will change that.
-  if (buf.length >= 4 && buf.subarray(0, 4).toString("latin1") === "HPT ") {
-    return {
-      kind: "HPT_TUNE",
-      message:
-        "This is an HP Tuners tune file (.hpt) — the calibration itself, not a datalog. " +
-        "It contains the tables in the vehicle, not any recorded driving data, so there is " +
-        "nothing in it to analyse. Please send a datalog instead: " +
-        HOW_TO_EXPORT
-    };
+  // Calibration files, by vendor signature. These hold the tables that live in
+  // the vehicle, not recorded driving, so there is nothing in them to analyse
+  // regardless of effort. See signatures.ts to add a toolchain.
+  const tune = matchTuneSignature(buf);
+  if (tune) {
+    return { kind: "TUNE_FILE", signatureId: tune.id, message: describeTuneFile(tune) };
   }
 
   // HP Tuners native log. The container is readable (see hpl.ts) but the file

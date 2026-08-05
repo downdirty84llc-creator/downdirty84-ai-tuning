@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { parseLog, LogParseError, detectFileKind } from "./log/parser.js";
 import { isHplFile, readHplInventory, HPL_MAGIC } from "./log/hpl.js";
+import { TUNE_SIGNATURES, describeTuneFile } from "./log/signatures.js";
 import { makeSyntheticLog } from "./log/synthetic.js";
 import { resolveChannel, detectLambda } from "./log/channels.js";
 import { findSustained, mad, median, rejectOutliers, peakToPeak } from "./log/series.js";
@@ -119,7 +120,7 @@ test("identifies an HP Tuners tune file and says what to send instead", () => {
   // and differ by one letter. Only the 4-byte signature is reproduced here; no
   // customer calibration is stored in this repo.
   const fake = Buffer.concat([Buffer.from("HPT "), Buffer.alloc(4096, 0xa7)]);
-  assert.equal(detectFileKind(fake).kind, "HPT_TUNE");
+  assert.equal(detectFileKind(fake).kind, "TUNE_FILE");
   try {
     parseLog(fake);
     assert.fail("should have thrown");
@@ -146,6 +147,29 @@ test("identifies an HP Tuners .hpl log by signature", () => {
 test("hpl reader refuses a malformed file rather than inventing an inventory", () => {
   assert.equal(readHplInventory(Buffer.alloc(64)), null); // not an .hpl at all
   assert.equal(readHplInventory(Buffer.concat([HPL_MAGIC, Buffer.alloc(8)])), null); // no table
+});
+
+test("identifies a Holley/FAST Terminator X calibration", () => {
+  // Magic 0xDEEDBEAF LE. Unlike .hpt this format is not encrypted, but it is
+  // still a calibration — fuel, spark, sensor and transmission tables — with no
+  // recorded driving in it.
+  const fake = Buffer.concat([Buffer.from([0xaf, 0xbe, 0xed, 0xde]), Buffer.alloc(2048, 0x20)]);
+  const kind = detectFileKind(fake);
+  assert.equal(kind.kind, "TUNE_FILE");
+  assert.equal((kind as { signatureId: string }).signatureId, "TERX_TUNE");
+  assert.match((kind as { message: string }).message, /Terminator X/);
+  assert.match((kind as { message: string }).message, /Holley EFI/);
+  assert.match((kind as { message: string }).message, /not a datalog/);
+});
+
+test("every tune signature names the artefact and the fix", () => {
+  // Guards the whole table: a new vendor row cannot ship a vague message.
+  for (const sig of TUNE_SIGNATURES) {
+    const msg = describeTuneFile(sig);
+    assert.match(msg, /not a datalog/, `${sig.id} does not say it is not a datalog`);
+    assert.match(msg, /CSV/, `${sig.id} does not point at a CSV export`);
+    assert.ok(msg.length > 80, `${sig.id} message is too terse to act on`);
+  }
 });
 
 test("identifies a generic binary upload", () => {
