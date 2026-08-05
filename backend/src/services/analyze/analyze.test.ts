@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { parseLog, LogParseError, detectFileKind } from "./log/parser.js";
+import { isHplFile, readHplInventory, HPL_MAGIC } from "./log/hpl.js";
 import { makeSyntheticLog } from "./log/synthetic.js";
 import { resolveChannel, detectLambda } from "./log/channels.js";
 import { findSustained, mad, median, rejectOutliers, peakToPeak } from "./log/series.js";
@@ -129,6 +130,22 @@ test("identifies an HP Tuners tune file and says what to send instead", () => {
     assert.match(msg, /VCM Scanner/); // tells them where to go
     assert.doesNotMatch(msg, /header row/i); // the old, useless message
   }
+});
+
+test("identifies an HP Tuners .hpl log by signature", () => {
+  // Only the 8-byte container signature is reproduced. No customer log is
+  // stored in this repo, and none should be.
+  const fake = Buffer.concat([HPL_MAGIC, Buffer.alloc(2048, 0x11)]);
+  assert.equal(isHplFile(fake), true);
+  const kind = detectFileKind(fake);
+  assert.equal(kind.kind, "HPL_LOG");
+  assert.match((kind as { message: string }).message, /VCM Scanner/);
+  assert.match((kind as { message: string }).message, /CSV/);
+});
+
+test("hpl reader refuses a malformed file rather than inventing an inventory", () => {
+  assert.equal(readHplInventory(Buffer.alloc(64)), null); // not an .hpl at all
+  assert.equal(readHplInventory(Buffer.concat([HPL_MAGIC, Buffer.alloc(8)])), null); // no table
 });
 
 test("identifies a generic binary upload", () => {

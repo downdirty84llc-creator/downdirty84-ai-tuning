@@ -152,6 +152,27 @@ passes a dangerous condition silently.
 
 Two inputs, both of which are yours to supply:
 
+### 0. Why .hpl is not read natively
+
+The `.hpl` container is decoded — `SS\0\0SYNC` header, a channel table, then
+`CDG\0` blocks of raw deflate, all round-tripping to their declared lengths.
+`log/hpl.ts` reads it.
+
+What stops it going further is that **.hpl identifies channels by number, not
+by name**. Each definition carries a unit and a PID; the PID resolves to a name
+only inside HP Tuners' own database, which is not in the log. In the reference
+file that left **7 channels sharing `%`, 4 sharing `g/s`, 3 sharing `°C`**, and
+two each sharing `kPa`, `V`, `mV` and `°`.
+
+There is no sound way to pick which `%` is short-term fuel trim bank 1. Swapping
+banks, or reading intake air temperature as coolant, feeds a safety rule from
+the wrong signal and produces a confident wrong answer — the failure this engine
+exists to prevent. So the reader stops at the inventory and asks for CSV.
+
+**How .hpl becomes fully supported:** a CSV export of the *same drive* as an
+.hpl can be correlated series-by-series to derive a PID → name dictionary. With
+that in place, .hpl reads natively and customers skip the export step.
+
 ### 1. Real log samples
 
 The channel registry is seeded with the column names HP Tuners and Holley

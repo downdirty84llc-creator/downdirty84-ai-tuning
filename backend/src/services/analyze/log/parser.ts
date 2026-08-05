@@ -5,6 +5,7 @@ import {
   STOICH_GASOLINE,
   type Channel
 } from "./channels.js";
+import { isHplFile, readHplInventory, describeHpl } from "./hpl.js";
 
 export type Toolchain = "HPT" | "HOLLEY" | "UNKNOWN";
 
@@ -82,6 +83,7 @@ function findHeader(rows: string[][]): { headerIdx: number; firstDataIdx: number
 export type FileKind =
   | { kind: "TEXT" }
   | { kind: "HPT_TUNE"; message: string }
+  | { kind: "HPL_LOG"; message: string }
   | { kind: "BINARY"; message: string };
 
 /** How a customer exports a datalog from VCM Scanner, worth repeating verbatim. */
@@ -107,6 +109,20 @@ export function detectFileKind(buf: Buffer): FileKind {
         "It contains the tables in the vehicle, not any recorded driving data, so there is " +
         "nothing in it to analyse. Please send a datalog instead: " +
         HOW_TO_EXPORT
+    };
+  }
+
+  // HP Tuners native log. The container is readable (see hpl.ts) but the file
+  // names its channels by number only, so the message reports what is actually
+  // in their log rather than a generic rejection.
+  if (isHplFile(buf)) {
+    const inv = readHplInventory(buf);
+    return {
+      kind: "HPL_LOG",
+      message: inv
+        ? describeHpl(inv)
+        : "This is an HP Tuners VCM Scanner log (.hpl). Please export it to CSV — " +
+          "in VCM Scanner, File → Export → CSV — and upload that instead."
     };
   }
 
