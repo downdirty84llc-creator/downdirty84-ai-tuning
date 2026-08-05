@@ -1,9 +1,14 @@
 # Down Dirty 84 — AI Tuning MVP
 
-> **Status:** the analysis pipeline is still a stub. `POST /jobs/:id/analyze`
-> walks a run through its states on a timer and serves fixture output — no log
-> parsing, no MAF math, no findings engine. Everything around it (auth, jobs,
-> uploads, persistence, the release gate, exports, billing) is real.
+> **Status:** the analysis pipeline is live. `POST /jobs/:id/analyze` reads the
+> customer's uploaded log, parses it, validates it, runs the safety and
+> drivability rules, and persists real findings. MAF suggestions are computed
+> from wideband data. No route serves fixtures.
+>
+> It runs on **conservative default thresholds** that have not been confirmed
+> against a specific platform. Every report says so via
+> `R3_THRESHOLDS_UNCONFIRMED`, and a clean result under defaults is not a
+> clearance. See `docs/ANALYSIS-ENGINE.md`.
 
 ## Layout
 

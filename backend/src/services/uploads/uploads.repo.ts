@@ -41,6 +41,18 @@ export async function listUploadsForJob(userId: string, jobId: string): Promise<
   );
 }
 
+/**
+ * Fetch specific uploads, scoped to the owner. Used by the analysis engine to
+ * resolve the ids a customer submitted into storage keys it can read.
+ */
+export async function getUploadsByIds(userId: string, uploadIds: string[]): Promise<UploadRow[]> {
+  if (uploadIds.length === 0) return [];
+  return query<UploadRow>(
+    `SELECT * FROM uploads WHERE user_id=$1 AND id = ANY($2::uuid[]) ORDER BY created_at ASC`,
+    [userId, uploadIds]
+  );
+}
+
 export async function attachUploadsToJob(userId: string, jobId: string, uploadIds: string[]): Promise<void> {
   await query(
     `UPDATE uploads SET job_id=$1 WHERE user_id=$2 AND id = ANY($3::uuid[])`,

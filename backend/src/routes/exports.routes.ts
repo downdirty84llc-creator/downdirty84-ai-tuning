@@ -37,7 +37,7 @@ exportsRouter.post("/diffsets/:diffSetId/export/summary", requireAuth, wrap(asyn
   if (!assertReleased(res, diff)) return;
 
   const brand = getBrandProfile();
-  const text = renderSummaryText(diff.payload, { brand });
+  const text = renderSummaryText({ ...diff.payload, diffSetId: diff.diffSetId }, { brand });
 
   return res.json({ text, releasedAt: diff.releasedAt });
 }));
@@ -58,7 +58,13 @@ exportsRouter.post("/diffsets/:diffSetId/export/csv", requireAuth, wrap(async (r
     return badRequest(res, "minConfidence must be between 0 and 1.", { minConfidence });
   }
 
-  const csv = exportCsv(diff.payload, { includeSuggested, minConfidence });
+  // The stored payload predates the database-assigned id, so stamp it on for
+  // the export — otherwise every row's diffSetId column ships empty and the
+  // change list cannot be traced back to the record it came from.
+  const csv = exportCsv(
+    { ...diff.payload, diffSetId: diff.diffSetId },
+    { includeSuggested, minConfidence }
+  );
 
   const fileName = `DownDirty84_Job_${String(diff.jobId ?? "").slice(0, 8)}_Rev_1_ChangeList.csv`;
   res.setHeader("Content-Type", "text/csv; charset=utf-8");

@@ -2,21 +2,24 @@
  * Safety and drivability thresholds.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- *  THESE SHIP UNSET ON PURPOSE. DO NOT FILL THEM IN WITH PLAUSIBLE-LOOKING
- *  NUMBERS TO MAKE THE TESTS GO GREEN.
+ *  The system runs on CONSERVATIVE_DEFAULTS until the owner confirms values
+ *  here. Every report produced under defaults is marked UNCONFIRMED.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * A wrong threshold here does not produce a slightly-off report. It passes a
+ * A wrong threshold does not produce a slightly-off report. It passes a
  * dangerous condition silently — a lean-under-load event that should have
  * blocked a WOT pull gets reported as fine. These are engineering judgment
  * about specific platforms, fuel, and hardware, and they belong to the owner
  * in the same way the price book does.
  *
- * A rule whose thresholds are null does not quietly pass. It is skipped, and
- * the run reports `R1_THRESHOLD_UNSET` naming the rule. Diffgen refuses to run
- * while any safety rule is unevaluated, because a MAF correction derived from a
- * log whose safety was never assessed is exactly the artefact this system
- * exists to prevent.
+ * The defaults exist so the pipeline is usable, and they are deliberately
+ * biased toward over-flagging: a false blocker is an annoyance, a missed one
+ * is the failure this system exists to prevent. See thresholds.defaults.ts for
+ * each value and why it sits where it does.
+ *
+ * A rule whose threshold is genuinely null is still skipped rather than passed,
+ * reported as `R1_THRESHOLD_UNSET`, and still blocks diffgen — an unevaluated
+ * safety check is never a pass.
  *
  * See docs/ANALYSIS-ENGINE.md for what each value means.
  */
@@ -74,7 +77,84 @@ export type Thresholds = {
   diffgen: DiffgenThresholds;
 };
 
-export const THRESHOLDS: Thresholds = {
+import { CONSERVATIVE_DEFAULTS } from "./thresholds.defaults.js";
+export { CONSERVATIVE_DEFAULTS };
+
+/**
+ * Owner-confirmed overrides.
+ *
+ * Anything left null here falls back to CONSERVATIVE_DEFAULTS, and the run is
+ * marked UNCONFIRMED — which appears in the findings, the exported summary, and
+ * the run record, so a clean result is never mistaken for a clearance.
+ *
+ * To confirm: replace the nulls with your values, then set
+ * OWNER_CONFIRMED_THRESHOLDS to true below. Do both. Setting the flag without
+ * setting values leaves the conservative defaults in place under a claim that
+ * they were reviewed, which is worse than either alone.
+ */
+export const OWNER_OVERRIDES: Thresholds = {
+  safety: {
+    leanAfrDelta: null,
+    leanMinTps: null,
+    leanMinSeconds: null,
+    krDegrees: null,
+    krMinSeconds: null,
+    ectMaxC: null,
+    iatMaxC: null,
+    overtempMinSeconds: null,
+    fuelPressDropPct: null,
+    fuelPressMinSeconds: null
+  },
+  drivability: {
+    surgeStftP2P: null,
+    cruiseMaxRpmVariation: null,
+    cruiseMaxTpsVariation: null,
+    cruiseMinSeconds: null,
+    throttleClosureMinDelta: null,
+    throttleClosureMinSeconds: null
+  },
+  diffgen: {
+    mafMaxStepPct: null,
+    mafMaxTotalPct: null,
+    mafMinBinSeconds: null,
+    mafBinWidthHz: null
+  }
+};
+
+/**
+ * Flip to true only after reviewing every value in OWNER_OVERRIDES against
+ * your platforms, fuel, and customer hardware.
+ */
+export const OWNER_CONFIRMED_THRESHOLDS = false;
+
+export type ThresholdSource = "OWNER_CONFIRMED" | "CONSERVATIVE_DEFAULTS";
+
+function mergeGroup<T extends Record<string, number | null>>(defaults: T, overrides: T): T {
+  const out = { ...defaults };
+  for (const k of Object.keys(defaults) as Array<keyof T>) {
+    if (overrides[k] !== null && overrides[k] !== undefined) out[k] = overrides[k];
+  }
+  return out;
+}
+
+export function resolveThresholds(): { thresholds: Thresholds; source: ThresholdSource } {
+  const merged: Thresholds = {
+    safety: mergeGroup(CONSERVATIVE_DEFAULTS.safety, OWNER_OVERRIDES.safety),
+    drivability: mergeGroup(CONSERVATIVE_DEFAULTS.drivability, OWNER_OVERRIDES.drivability),
+    diffgen: mergeGroup(CONSERVATIVE_DEFAULTS.diffgen, OWNER_OVERRIDES.diffgen)
+  };
+  return {
+    thresholds: merged,
+    source: OWNER_CONFIRMED_THRESHOLDS ? "OWNER_CONFIRMED" : "CONSERVATIVE_DEFAULTS"
+  };
+}
+
+/** The active thresholds. Conservative defaults until the owner confirms. */
+export const THRESHOLDS: Thresholds = resolveThresholds().thresholds;
+export const THRESHOLD_SOURCE: ThresholdSource = resolveThresholds().source;
+
+/** Every threshold explicitly unset. Used by tests that assert refusal. */
+export const NO_THRESHOLDS: Thresholds = {
   safety: {
     leanAfrDelta: null,
     leanMinTps: null,

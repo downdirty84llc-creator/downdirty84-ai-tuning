@@ -8,7 +8,7 @@ import { findSustained, mad, median, rejectOutliers, peakToPeak } from "./log/se
 import { validateLog } from "./validation.js";
 import { runRules, diffgenAllowed } from "./rules/index.js";
 import { generateMafSuggestions } from "./diffgen/maf.js";
-import { THRESHOLDS, type Thresholds } from "../../config/thresholds.js";
+import { NO_THRESHOLDS, THRESHOLDS, THRESHOLD_SOURCE, type Thresholds } from "../../config/thresholds.js";
 
 /** Thresholds a test can use. Never a suggestion for production values. */
 function testThresholds(): Thresholds {
@@ -152,7 +152,7 @@ test("does not claim a platform it cannot detect", () => {
 
 test("unset thresholds skip safety rules and block diffgen", () => {
   const log = parseLog(makeSyntheticLog());
-  const result = runRules(log, THRESHOLDS, "run-1");
+  const result = runRules(log, NO_THRESHOLDS, "run-1");
 
   const r1 = result.findings.find((f) => f.code === "R1_THRESHOLD_UNSET");
   assert.ok(r1, "expected R1_THRESHOLD_UNSET");
@@ -165,7 +165,7 @@ test("unset thresholds skip safety rules and block diffgen", () => {
 
 test("an unevaluated safety rule never reads as clean", () => {
   const log = parseLog(makeSyntheticLog());
-  const result = runRules(log, THRESHOLDS, "run-1");
+  const result = runRules(log, NO_THRESHOLDS, "run-1");
   // No blockers, yet diffgen is still refused — the distinction that matters.
   assert.equal(result.summary.blockers, 0);
   assert.equal(diffgenAllowed(result).allowed, false);
@@ -353,7 +353,7 @@ test("ignores transient samples", () => {
 });
 
 test("refuses to run without thresholds", () => {
-  const res = generateMafSuggestions(parseLog(makeSyntheticLog()), THRESHOLDS.diffgen);
+  const res = generateMafSuggestions(parseLog(makeSyntheticLog()), NO_THRESHOLDS.diffgen);
   assert.equal(res.ok, false);
   if (res.ok) return;
   assert.match(res.reason, /not configured/);
@@ -367,6 +367,103 @@ test("marks low-confidence bins SUGGESTED rather than APPROVED", () => {
   for (const item of res.diffSet.items) {
     if (item.confidence < 0.6) assert.equal(item.status, "SUGGESTED");
   }
+});
+
+/* ---------------------------------------------------- shipped thresholds -- */
+
+test("ships conservative defaults, marked unconfirmed", () => {
+  assert.equal(THRESHOLD_SOURCE, "CONSERVATIVE_DEFAULTS");
+  // Every safety threshold must have a value, or the pipeline cannot run.
+  for (const [k, v] of Object.entries(THRESHOLDS.safety)) {
+    assert.ok(v !== null, `safety.${k} is null`);
+  }
+  for (const [k, v] of Object.entries(THRESHOLDS.diffgen)) {
+    assert.ok(v !== null, `diffgen.${k} is null`);
+  }
+});
+
+test("defaults are biased toward over-flagging", () => {
+  // Each of these sits at the cautious end of a defensible range. If someone
+  // loosens one, this test should make them justify it.
+  assert.ok(THRESHOLDS.safety.leanAfrDelta! <= 1.0, "lean delta should be tight");
+  assert.ok(THRESHOLDS.safety.krDegrees! <= 4, "knock threshold should be low");
+  assert.ok(THRESHOLDS.safety.ectMaxC! <= 110, "coolant ceiling should be conservative");
+  assert.ok(THRESHOLDS.diffgen.mafMaxTotalPct! <= 0.2, "single-pass MAF cap should be modest");
+});
+
+test("every run on defaults reports R3_THRESHOLDS_UNCONFIRMED", () => {
+  const log = parseLog(makeSyntheticLog({ mafErrorAt: () => 0.02, noise: 0.2 }));
+  const result = runRules(log, THRESHOLDS, "run-defaults", "CONSERVATIVE_DEFAULTS");
+  const r3 = result.findings.find((f) => f.code === "R3_THRESHOLDS_UNCONFIRMED");
+  assert.ok(r3, "expected R3_THRESHOLDS_UNCONFIRMED");
+  assert.equal(result.thresholdSource, "CONSERVATIVE_DEFAULTS");
+  // Unconfirmed thresholds do NOT block analysis — they annotate it.
+  assert.equal(diffgenAllowed(result).allowed, true);
+});
+
+test("owner-confirmed runs carry no unconfirmed warning", () => {
+  const log = parseLog(makeSyntheticLog({ mafErrorAt: () => 0.02, noise: 0.2 }));
+  const result = runRules(log, testThresholds(), "run-confirmed", "OWNER_CONFIRMED");
+  assert.equal(result.findings.some((f) => f.code === "R3_THRESHOLDS_UNCONFIRMED"), false);
+});
+
+test("the shipped defaults actually detect a real lean event", () => {
+  // Guards against defaults so loose they never fire.
+  const csv = makeSyntheticLog({
+    plateaus: [{ hz: 3000, rpm: 4000, tps: 80, seconds: 40 }],
+    overrides: (_i, t) => (t >= 10 && t <= 20 ? { WBAFR: 16.0 } : undefined)
+  });
+  const result = runRules(parseLog(csv), THRESHOLDS, "run-real", "CONSERVATIVE_DEFAULTS");
+  assert.ok(result.findings.some((f) => f.code === "S1_LEAN_UNDER_LOAD"));
+  assert.equal(diffgenAllowed(result).allowed, false);
+});
+
+/* -------------------------------------------------------------- pipeline -- */
+
+test("pipeline runs parse -> validate -> rules end to end", async () => {
+  const { analyzeLogContent } = await import("./pipeline.js");
+  const csv = makeSyntheticLog({ mafErrorAt: () => 0.04, noise: 0.2 });
+  const out = analyzeLogContent(csv, "pipeline-1");
+  assert.equal(out.ok, true);
+  if (!out.ok) return;
+  assert.equal(out.validation.status, "PASS");
+  assert.equal(out.thresholdSource, "CONSERVATIVE_DEFAULTS");
+  assert.ok(out.rules.findings.length > 0);
+});
+
+test("pipeline stops at validation and never runs rules on rejected data", async () => {
+  const { analyzeLogContent } = await import("./pipeline.js");
+  const csv = makeSyntheticLog({ plateaus: [{ hz: 3000, rpm: 2000, tps: 15, seconds: 5 }] });
+  const out = analyzeLogContent(csv, "pipeline-2");
+  assert.equal(out.ok, false);
+  if (out.ok) return;
+  assert.equal(out.stage, "VALIDATE");
+  assert.ok(out.validation);
+});
+
+test("pipeline reports a parse failure rather than throwing", async () => {
+  const { analyzeLogContent } = await import("./pipeline.js");
+  const out = analyzeLogContent("", "pipeline-3");
+  assert.equal(out.ok, false);
+  if (out.ok) return;
+  assert.equal(out.stage, "PARSE");
+  assert.equal(out.error.code, "LOG_PARSE_FAILED");
+});
+
+test("multi-upload picks the largest parseable log and names what it skipped", async () => {
+  const { analyzeUploads } = await import("./pipeline.js");
+  const good = Buffer.from(makeSyntheticLog({ mafErrorAt: () => 0.03, noise: 0.2 }));
+  const junk = Buffer.from("not,a,log\n");
+  const out = analyzeUploads(
+    [
+      { uploadId: "u-junk", filename: "junk.csv", content: junk },
+      { uploadId: "u-good", filename: "good.csv", content: good }
+    ],
+    "pipeline-4"
+  );
+  assert.equal(out.outcome.ok, true);
+  assert.equal(out.usedUploadId, "u-good");
+  assert.ok(out.skipped.some((s) => s.includes("junk.csv")));
 });
 
 /* --------------------------------------------------------------- series -- */

@@ -63,6 +63,8 @@ export type RulesResult = {
   summary: { blockers: number; warnings: number; info: number };
   /** Safety rules that could not be evaluated. Diffgen is blocked while non-empty. */
   unevaluatedSafetyRules: string[];
+  /** Whether the thresholds used were owner-confirmed. Carried into the report. */
+  thresholdSource: "OWNER_CONFIRMED" | "CONSERVATIVE_DEFAULTS";
 };
 
 export function mkFinding(

@@ -31,7 +31,8 @@ function makeIdFactory(runId: string) {
 export function runRules(
   log: ParsedLog,
   thresholds: Thresholds,
-  runId: string
+  runId: string,
+  thresholdSource: "OWNER_CONFIRMED" | "CONSERVATIVE_DEFAULTS" = "OWNER_CONFIRMED"
 ): RulesResult {
   const nextId = makeIdFactory(runId);
   const findings: Finding[] = [];
@@ -113,6 +114,33 @@ export function runRules(
     );
   }
 
+  // R3 — running on unconfirmed thresholds. Emitted on every such run, so a
+  // clean report can never be mistaken for a clearance against reviewed limits.
+  if (thresholdSource === "CONSERVATIVE_DEFAULTS") {
+    findings.push(
+      mkFinding(
+        "R3_THRESHOLDS_UNCONFIRMED",
+        "INFO",
+        "Analysed against unconfirmed default thresholds",
+        "This analysis used Down Dirty 84's conservative default thresholds, which have not " +
+          "been confirmed against this platform, fuel, or build. They are deliberately biased " +
+          "toward flagging too much rather than too little, so expect some false positives — " +
+          "and do not treat a clean result as a clearance.",
+        {
+          id: nextId("R3_THRESHOLDS_UNCONFIRMED", 1),
+          tags: ["CONFIG", "UNCONFIRMED"],
+          actions: [
+            {
+              type: "NOTE",
+              priority: 1,
+              text: "Owner: confirm thresholds in backend/src/config/thresholds.ts and set OWNER_CONFIRMED_THRESHOLDS."
+            }
+          ]
+        }
+      )
+    );
+  }
+
   // R0 — optional channels missing. Informational only.
   const missingOptional = OPTIONAL_CHANNELS.filter((c) => !has(log, c));
   if (missingOptional.length > 0) {
@@ -145,7 +173,7 @@ export function runRules(
     info: findings.filter((f) => f.severity === "INFO").length
   };
 
-  return { findings, summary, unevaluatedSafetyRules };
+  return { findings, summary, unevaluatedSafetyRules, thresholdSource };
 }
 
 /**

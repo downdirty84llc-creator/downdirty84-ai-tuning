@@ -10,8 +10,12 @@ import {
   type DiffSetRecord
 } from "../services/analyze/run_store.js";
 import { enforceMvpDiffAllowlist } from "../services/diffgen/mvp_enforcement.js";
-import { loadFixtureJson } from "../util/fixtures.js";
-import { badRequest, notFound, conflict, wrap } from "../util/http.js";
+import { generateMafSuggestions } from "../services/analyze/diffgen/maf.js";
+import { parseLog } from "../services/analyze/log/parser.js";
+import { getUploadsByIds } from "../services/uploads/uploads.repo.js";
+import { readObject } from "../services/uploads/storage.js";
+import { resolveThresholds } from "../config/thresholds.js";
+import { badRequest, notFound, conflict, forbidden, wrap } from "../util/http.js";
 
 export const diffsetsRouter = Router();
 
@@ -65,7 +69,57 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
     return badRequest(res, "Run not completed.", { runStatus: run.status });
   }
 
-  const payload = loadFixtureJson("diffset.gm_ls_maf.sample.json");
+  // The safety verdict recorded by the run decides whether a calibration
+  // change may be proposed at all. Refusing here rather than at export means
+  // the unsafe proposal is never written down in the first place.
+  const gate = run.findings?.diffgen as { allowed?: boolean; reason?: string } | undefined;
+  if (!gate || gate.allowed !== true) {
+    return forbidden(
+      res,
+      "Suggestions cannot be generated for this run.",
+      { reason: gate?.reason ?? "The run did not record a safety verdict." }
+    );
+  }
+
+  // Re-read and re-analyse the log so the suggestions come from the data, not
+  // from whatever a previous request happened to persist.
+  const rows = await getUploadsByIds(userId, [String(req.body?.uploadId ?? "")]);
+  const source = rows[0]
+    ? rows[0]
+    : (await getUploadsByIds(userId, [String(run.validation?.analyzedUploadId ?? "")]))[0];
+
+  if (!source) {
+    return badRequest(res, "The log analysed by this run is no longer available.", {
+      hint: "Re-upload the log and run the analysis again."
+    });
+  }
+
+  let content: Buffer;
+  try {
+    content = await readObject({
+      provider: source.storage_provider as "S3" | "LOCAL",
+      key: source.storage_key
+    });
+  } catch (err) {
+    return badRequest(res, "Could not read the log for this run.", {
+      reason: String((err as Error)?.message ?? err)
+    });
+  }
+
+  const parsed = parseLog(content);
+  const { thresholds } = resolveThresholds();
+  const result = generateMafSuggestions(parsed, thresholds.diffgen);
+
+  if (!result.ok) {
+    return badRequest(res, result.reason, { missing: result.missing ?? [] });
+  }
+
+  const payload = {
+    ...result.diffSet,
+    jobId,
+    runId,
+    createdAt: new Date().toISOString()
+  };
 
   // HARD MVP ENFORCEMENT — runs before anything is persisted, so a diffset
   // touching a non-allowlisted path never reaches the database.

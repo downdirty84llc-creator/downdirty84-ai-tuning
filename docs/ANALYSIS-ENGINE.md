@@ -105,10 +105,25 @@ evidence window is a bug, not a finding.
 
 ## Two things this engine will not do
 
-**It will not guess a threshold.** Safety thresholds live in
-`backend/src/config/thresholds.ts` and ship **unset**. A rule whose threshold is
-unset does not silently pass — it emits an `R1_THRESHOLD_UNSET` INFO finding and
-is skipped, and diffgen refuses to run while any safety rule is unevaluated.
+**It will not treat a default as a decision.** The engine runs on
+`CONSERVATIVE_DEFAULTS` (`backend/src/config/thresholds.defaults.ts`) so the
+pipeline is usable today, but every run made against them emits
+`R3_THRESHOLDS_UNCONFIRMED`, and that flag rides along into the findings, the
+run record, and the exported summary. A clean report under defaults is not a
+clearance, and it says so.
+
+The defaults are deliberately **biased toward over-flagging**. The two failure
+modes are not symmetric: too sensitive means a false blocker and a mildly
+annoyed owner; too permissive means a real lean event passing as clean. Expect
+false positives — that is the trade being made on purpose.
+
+To confirm them: fill `OWNER_OVERRIDES` in `thresholds.ts` and set
+`OWNER_CONFIRMED_THRESHOLDS = true`. Do both; the flag alone just asserts that
+unreviewed defaults were reviewed.
+
+A threshold that is genuinely `null` still skips its rule rather than passing
+it, emits `R1_THRESHOLD_UNSET`, and still blocks diffgen — an unevaluated
+safety check is never a pass.
 
 There is a deliberate distinction between two ways a rule can fail to run:
 
@@ -146,10 +161,12 @@ confirm or correct the aliases in one pass. Until then, unmapped columns are
 reported by name in validation rather than silently dropped, so a mismatch is
 visible immediately instead of becoming a wrong finding.
 
-### 2. Threshold values
+### 2. Threshold confirmation
 
-These are engineering judgment about your platforms, your fuel, and your
-customers' hardware — and they are safety-critical:
+The engine runs today on conservative defaults, so nothing is blocked — but
+every report says they are unconfirmed until you review them. These are
+engineering judgment about your platforms, your fuel, and your customers'
+hardware, and they are safety-critical:
 
 | Threshold | Question |
 | --- | --- |
@@ -161,9 +178,9 @@ customers' hardware — and they are safety-critical:
 | `mafMaxStepPct` | Maximum adjacent-bin change in a MAF correction |
 | `mafMaxTotalPct` | Maximum single-pass correction before it needs a human |
 
-Fill `thresholds.ts` and every rule turns on. Nothing else is blocked on this —
-parsing, mapping, validation, evidence windows and the MAF math all work and are
-tested without it.
+Current default values are in `thresholds.defaults.ts`, each with a note on why
+it sits where it does. Confirming them removes the `R3_THRESHOLDS_UNCONFIRMED`
+finding from every report.
 
 ---
 
@@ -179,8 +196,18 @@ tested without it.
 | 4. `D2_THROTTLE_CLOSURE` | Reports not-applicable: needs pedal and throttle as *separate* channels, which the registry cannot yet distinguish |
 | 4. `R0`, `R1`, `R2` | Built, tested |
 | 5. MAF diffgen | Built, tested — recovers a known injected error to within 1% |
-| Wiring into `analyze` | Not yet — the route still serves fixtures |
+| Wiring into `analyze` | **Live.** The route reads the customer's upload, parses, validates, runs rules, and persists real output |
+| Wiring into `diffsets/generate` | **Live.** Re-reads the log and generates real suggestions, refused unless the run recorded a safe verdict |
 
-The last row is deliberate: the engine is proven by its own tests first, and
-swapped in behind the route once the thresholds are real. Flipping it on is a
-one-line change in `jobs.routes.ts`.
+Fixtures are no longer served by any route. They remain in `docs/api/examples/`
+as contract documentation.
+
+## Verified end to end
+
+Against live Postgres, through the HTTP API, with a real multipart upload:
+
+| Scenario | Result |
+| --- | --- |
+| Clean log, 4% MAF error injected | Analysed, suggestions came back at 1.0403 ± 0.015, released, exported |
+| Log with a sustained lean event | `S1_LEAN_UNDER_LOAD` BLOCKER, evidence window `[20, 31.9]`, diffgen refused 403, nothing persisted |
+| Unparseable upload | Run reaches `FAILED` with `LOG_PARSE_FAILED`, not stuck in `RUNNING` |
