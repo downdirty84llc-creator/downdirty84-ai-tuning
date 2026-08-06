@@ -10,6 +10,8 @@ import { uploadsRouter } from "./routes/uploads.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { stripeRouter } from "./routes/stripe.routes.js";
 import { loadUserFromSession } from "./middleware/session.js";
+import { assertEnvOrExit, checkEnv } from "./config/env.js";
+import { pool } from "./db.js";
 import { jobsRouter } from "./routes/jobs.routes.js";
 import { runsRouter } from "./routes/runs.routes.js";
 import { diffsetsRouter } from "./routes/diffsets.routes.js";
@@ -42,7 +44,32 @@ app.use(cookieParser());
 app.use(loadUserFromSession);
 app.use(morgan("tiny"));
 
+// Liveness: the process is up. Deliberately touches nothing else, so a
+// database blip does not cause the platform to kill a healthy process.
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// Readiness: can this instance actually serve traffic? Checks the database,
+// because an instance that cannot reach Postgres should be pulled from the
+// load balancer rather than returning 500s to customers.
+app.get("/ready", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+  } catch (err) {
+    return res.status(503).json({
+      ready: false,
+      database: "unreachable",
+      message: String((err as Error)?.message ?? err)
+    });
+  }
+  const env = checkEnv();
+  return res.status(env.ok ? 200 : 503).json({
+    ready: env.ok,
+    database: "ok",
+    storage: env.storage,
+    payments: env.payments,
+    configErrors: env.errors
+  });
+});
 
 app.use("/api/v1/brand", brandRouter);
 app.use("/api/v1/auth", authRouter);
@@ -78,5 +105,38 @@ process.on("uncaughtException", (err) => {
   console.error("[DD84] uncaughtException", err);
 });
 
+// Validate configuration before binding a port. In production a missing
+// required value exits here rather than failing later on a customer request.
+assertEnvOrExit();
+
 const port = process.env.PORT ? Number(process.env.PORT) : 8080;
-app.listen(port, () => console.log(`Down Dirty 84 API listening on :${port}`));
+const server = app.listen(port, () =>
+  console.log(`Down Dirty 84 API listening on :${port}`)
+);
+
+/**
+ * Graceful shutdown. Platforms send SIGTERM before replacing an instance;
+ * without this, in-flight uploads and analyses are cut mid-request and the
+ * customer sees a failure caused by a routine deploy.
+ */
+let shuttingDown = false;
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[DD84] ${signal} received; finishing in-flight requests.`);
+
+    server.close(() => {
+      pool.end().finally(() => {
+        console.log("[DD84] shutdown complete.");
+        process.exit(0);
+      });
+    });
+
+    // Do not hang forever on a stuck connection.
+    setTimeout(() => {
+      console.warn("[DD84] shutdown timed out; exiting.");
+      process.exit(0);
+    }, 15_000).unref();
+  });
+}
