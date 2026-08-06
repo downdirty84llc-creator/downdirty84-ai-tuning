@@ -107,7 +107,13 @@ check("not the fixture diffset id", gen.json?.diffSetId !== "00000000-0000-0000-
 check("carries real provenance", typeof items[0]?.provenance?.samples === "number", true);
 
 check("export blocked before release", (await req("POST", `/api/v1/diffsets/${dsId}/export/csv`, { token: OWNER, body: {} })).status, 403);
-check("admin releases", (await req("POST", `/api/v1/diffsets/${dsId}/release`, { token: ADMIN, body: { decision: "RELEASE", note: "reviewed" } })).status, 200);
+
+const rel = await req("POST", `/api/v1/diffsets/${dsId}/release`, { token: ADMIN, body: { decision: "RELEASE", note: "reviewed" } });
+check("admin releases", rel.status, 200);
+// The release response must say whether the customer was actually told. A
+// release that silently fails to notify leaves the customer waiting forever
+// while the owner believes the job is finished.
+check("release reports the customer was notified", rel.json?.customerNotified, true);
 
 const csvRes = await req("POST", `/api/v1/diffsets/${dsId}/export/csv`, { token: OWNER, body: {} });
 check("export works after release", csvRes.status, 200);
@@ -187,8 +193,12 @@ check("dashboard counts available", dash.status, 200);
 console.log("── health and readiness");
 check("/health is 200", (await req("GET", "/health")).status, 200);
 const ready = await req("GET", "/ready");
-ok(`/ready -> ${ready.status} (database ${ready.json?.database}, storage ${ready.json?.storage})`);
+ok(`/ready -> ${ready.status} (database ${ready.json?.database}, storage ${ready.json?.storage}, email ${ready.json?.email})`);
 check("readiness reports the database reachable", ready.json?.database, "ok");
+// Readiness must name the email transport honestly. CONSOLE here is correct —
+// this run has no provider key — but an instance reporting CONSOLE in
+// production is one where no customer can log in, and it must be visible.
+check("readiness names the email transport", ready.json?.email, "CONSOLE");
 
 console.log(`\n═══ pass=${pass} fail=${fail}`);
 process.exit(fail === 0 ? 0 : 1);

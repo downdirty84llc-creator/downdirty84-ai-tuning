@@ -8,12 +8,15 @@
  * warning rather than silence.
  */
 
+import { emailConfigured } from "../services/notify/email.js";
+
 export type EnvReport = {
   ok: boolean;
   errors: string[];
   warnings: string[];
   storage: "S3" | "LOCAL";
   payments: "CONFIGURED" | "DISABLED";
+  email: "CONFIGURED" | "CONSOLE";
   adminCount: number;
 };
 
@@ -53,6 +56,19 @@ export function checkEnv(): EnvReport {
     else warnings.push(msg);
   }
 
+  const email = emailConfigured();
+  if (!email) {
+    // Sign-in is a magic link. With no way to send it, nobody can log in — not
+    // a customer, not the owner — so the entire product is unreachable. Same
+    // class of failure as an empty ADMIN_EMAILS, and fatal for the same reason.
+    const msg =
+      "No email transport is configured (RESEND_API_KEY). Magic-link sign-in emails " +
+      "cannot be sent, so nobody could log in, and no customer could be told their " +
+      "change list is ready.";
+    if (isProd()) errors.push(msg);
+    else warnings.push(`${msg} Links will be printed to this console instead.`);
+  }
+
   const stripe = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
   if (!stripe) {
     warnings.push(
@@ -76,6 +92,7 @@ export function checkEnv(): EnvReport {
     warnings,
     storage: s3 ? "S3" : "LOCAL",
     payments: stripe ? "CONFIGURED" : "DISABLED",
+    email: email ? "CONFIGURED" : "CONSOLE",
     adminCount: admins.length
   };
 }
@@ -91,7 +108,8 @@ export function assertEnvOrExit(): EnvReport {
   for (const e of report.errors) console.error(`[DD84] MISSING  ${e}`);
 
   console.log(
-    `[DD84] storage=${report.storage} payments=${report.payments} admins=${report.adminCount}`
+    `[DD84] storage=${report.storage} payments=${report.payments} ` +
+      `email=${report.email} admins=${report.adminCount}`
   );
 
   if (!report.ok) {

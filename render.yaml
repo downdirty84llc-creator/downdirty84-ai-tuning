@@ -36,6 +36,12 @@ services:
         sync: false
       - key: FRONTEND_ORIGIN
         sync: false
+      # Sign-in is a magic link. With no transport nobody can log in at all, so
+      # the server refuses to start in production without this.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
       # Without S3, uploads land on a disk that is wiped on every deploy.
       # The server refuses to start in production without these.
       - key: S3_BUCKET
