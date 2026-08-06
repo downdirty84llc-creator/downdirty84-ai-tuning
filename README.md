@@ -1,20 +1,76 @@
-# Down Dirty 84 — AI Tuning MVP Backend (Stub)
+# Down Dirty 84 — AI Tuning MVP
+
+> **Status:** the analysis pipeline is still a stub. `POST /jobs/:id/analyze`
+> walks a run through its states on a timer and serves fixture output — no log
+> parsing, no MAF math, no findings engine. Everything around it (auth, jobs,
+> uploads, persistence, the release gate, exports, billing) is real.
+
+## Layout
+
+```
+backend/          API — Express + Postgres
+  src/
+    routes/       HTTP layer
+    middleware/   session + admin
+    services/     auth, jobs, uploads, admin, analyze, brand, diffgen, render
+    util/
+  migrations/     numbered SQL, applied in order
+src/              Frontend — React + Vite
+docs/api/examples/  Fixtures the analyze stub serves
+openapi.yaml      API contract
+```
 
 ## Prereqs
 - Node 18+
+- Postgres 14+ (needs `pgcrypto` and `citext`)
 
-## Install
+## Install and run
+
 ```bash
-cd backend
-npm i
+# API
+cd backend && npm i
+createdb dd84
+for f in migrations/*.sql; do psql -d dd84 -v ON_ERROR_STOP=1 -f "$f"; done
+DATABASE_URL=postgresql://localhost/dd84 npm run dev     # http://localhost:8080
+
+# Frontend (separate terminal, from the repo root)
+npm i && npm run dev                                     # http://localhost:5173
 ```
 
-## Run
+## Backend scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Watch-mode API |
+| `npm run build` | Compile to `dist/` |
+| `npm start` | Run the compiled server (what the Procfile uses) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Unit tests |
+
+## Environment
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | Postgres connection string |
+| `ADMIN_EMAILS` | for admin + release | Comma-separated. Deliberately env-only, so admin rights cannot be granted by anything the app can write to |
+| `APP_BASE_URL` | for magic links | Base URL used in the emailed link |
+| `FRONTEND_ORIGIN` | for CORS | Origin allowed to send credentialed requests |
+| `SESSION_DAYS` | no | Session lifetime, default 14 |
+| `MAGICLINK_TOKEN_TTL_MIN` | no | Magic-link TTL, default 15 |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | for durable uploads | Without these, uploads fall back to local disk — **ephemeral on Render/Heroku** |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | for billing | Webhook at `POST /api/v1/stripe/webhook` |
+
+## The owner-release gate
+
+A diffset is a **proposed** calibration change. Generating one leaves it in
+`OWNER_REVIEW`, and both export paths return **403** until an admin releases it:
+
 ```bash
-npm run dev
+POST /api/v1/diffsets/:diffSetId/release   { "decision": "RELEASE", "note": "..." }
 ```
 
-Server: http://localhost:8080
+The decision records who and when, and is immutable — a second call returns 409.
+Nothing reaches a customer without a named human accepting it.
 
 ## Fixtures
 These must exist:

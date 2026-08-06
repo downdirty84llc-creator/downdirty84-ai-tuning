@@ -1,0 +1,170 @@
+import { Router } from "express";
+import { requireAuth } from "../middleware/session.js";
+import { requireAdmin } from "../middleware/admin.js";
+import {
+  createDiffSet,
+  findDiffSetById,
+  findRunForJob,
+  listDiffSetsForRun,
+  setDiffSetRelease,
+  type DiffSetRecord
+} from "../services/analyze/run_store.js";
+import { enforceMvpDiffAllowlist } from "../services/diffgen/mvp_enforcement.js";
+import { loadFixtureJson } from "../util/fixtures.js";
+import { badRequest, notFound, conflict, wrap } from "../util/http.js";
+
+export const diffsetsRouter = Router();
+
+function itemCounts(payload: any) {
+  const counts = { total: 0, approved: 0, suggested: 0, rejected: 0 };
+  for (const it of payload?.items ?? []) {
+    counts.total++;
+    if (it.status === "APPROVED" || it.status === "APPROVED_OVERRIDE") counts.approved++;
+    else if (it.status === "SUGGESTED") counts.suggested++;
+    else if (it.status === "REJECTED") counts.rejected++;
+  }
+  return counts;
+}
+
+/** Customer-facing shape. Deliberately omits user_id and released_by. */
+function publicDiffSet(d: DiffSetRecord) {
+  return {
+    ...d.payload,
+    diffSetId: d.diffSetId,
+    runId: d.runId,
+    jobId: d.jobId,
+    createdAt: d.createdAt,
+    releaseStatus: d.releaseStatus,
+    releasedAt: d.releasedAt,
+    releaseNote: d.releaseNote
+  };
+}
+
+/**
+ * POST /api/v1/jobs/:jobId/diffsets/generate
+ * MVP stub: uses a fixture diffset, then enforces the allowlist.
+ *
+ * A generated diffset lands in OWNER_REVIEW. It is a *proposed* calibration
+ * change and is not exportable until an owner releases it.
+ */
+diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (req, res) => {
+  const { jobId } = req.params;
+  const userId = req.user!.id;
+  const { runId, generator } = req.body ?? {};
+
+  if (typeof runId !== "string" || !runId) {
+    return badRequest(res, "runId is required.", { field: "runId" });
+  }
+  if (generator !== "GM_LS_MAF_V1") {
+    return badRequest(res, "Unsupported generator.", { generator });
+  }
+
+  const run = await findRunForJob(jobId, userId, runId);
+  if (!run) return notFound(res, "Job or run not found.");
+  if (run.status !== "SUCCEEDED") {
+    return badRequest(res, "Run not completed.", { runStatus: run.status });
+  }
+
+  const payload = loadFixtureJson("diffset.gm_ls_maf.sample.json");
+
+  // HARD MVP ENFORCEMENT — runs before anything is persisted, so a diffset
+  // touching a non-allowlisted path never reaches the database.
+  enforceMvpDiffAllowlist(payload);
+
+  const saved = await createDiffSet({
+    runId,
+    jobId,
+    userId,
+    name: payload.name ?? null,
+    source: payload.source ?? null,
+    generator,
+    payload
+  });
+
+  return res.status(201).json(publicDiffSet(saved));
+}));
+
+/**
+ * GET /api/v1/jobs/:jobId/diffsets?runId=...
+ */
+diffsetsRouter.get("/jobs/:jobId/diffsets", requireAuth, wrap(async (req, res) => {
+  const { jobId } = req.params;
+  const userId = req.user!.id;
+  const runId = typeof req.query.runId === "string" ? req.query.runId : null;
+
+  const run = await findRunForJob(jobId, userId, runId);
+  if (!run) return notFound(res, "Job or run not found.");
+
+  const diffsets = await listDiffSetsForRun(run.runId, userId);
+
+  return res.json(
+    diffsets.map((d) => ({
+      diffSetId: d.diffSetId,
+      runId: d.runId,
+      name: d.name,
+      source: d.source,
+      createdAt: d.createdAt,
+      releaseStatus: d.releaseStatus,
+      releasedAt: d.releasedAt,
+      itemCounts: itemCounts(d.payload)
+    }))
+  );
+}));
+
+/**
+ * GET /api/v1/diffsets/:diffSetId
+ */
+diffsetsRouter.get("/diffsets/:diffSetId", requireAuth, wrap(async (req, res) => {
+  const diff = await findDiffSetById(req.params.diffSetId, req.user!.id);
+  if (!diff) return notFound(res, "DiffSet not found.");
+  return res.json(publicDiffSet(diff));
+}));
+
+/**
+ * POST /api/v1/diffsets/:diffSetId/release   (admin only)
+ * body: { decision: "RELEASE" | "REJECT", note?: string }
+ *
+ * The owner-release gate. Exports stay blocked until this records a RELEASED
+ * decision, so no calibration reaches a customer without a named human
+ * accepting it. The decision is immutable once made.
+ */
+diffsetsRouter.post("/diffsets/:diffSetId/release", requireAuth, requireAdmin, wrap(async (req, res) => {
+  const decision = String(req.body?.decision ?? "").toUpperCase();
+  if (decision !== "RELEASE" && decision !== "REJECT") {
+    return badRequest(res, 'decision must be "RELEASE" or "REJECT".', { field: "decision" });
+  }
+  const note = req.body?.note != null ? String(req.body.note) : null;
+
+  const existing = await findDiffSetById(req.params.diffSetId, req.user!.id, { asAdmin: true });
+  if (!existing) return notFound(res, "DiffSet not found.");
+
+  // Re-enforce the allowlist at the moment of release. The generator already
+  // checked it, but this is the gate that matters — the last point before
+  // anything can be exported to a customer.
+  try {
+    enforceMvpDiffAllowlist(existing.payload);
+  } catch (err) {
+    return badRequest(res, "DiffSet fails MVP enforcement and cannot be released.", {
+      reason: String((err as Error)?.message ?? err)
+    });
+  }
+
+  const updated = await setDiffSetRelease(req.params.diffSetId, {
+    status: decision === "RELEASE" ? "RELEASED" : "REJECTED",
+    byUserId: req.user!.id,
+    note
+  });
+
+  if (!updated) {
+    return conflict(res, "DiffSet has already been released or rejected.", {
+      releaseStatus: existing.releaseStatus
+    });
+  }
+
+  return res.json({
+    diffSetId: updated.diffSetId,
+    releaseStatus: updated.releaseStatus,
+    releasedAt: updated.releasedAt,
+    releaseNote: updated.releaseNote
+  });
+}));
