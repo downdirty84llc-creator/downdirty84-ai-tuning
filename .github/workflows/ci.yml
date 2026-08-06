@@ -138,3 +138,12 @@ jobs:
         run: |
           grep -q 'reportReadyEmail' backend/src/routes/diffsets.routes.ts \
             || { echo "::error::releasing no longer notifies the customer"; exit 1; }
+
+      # A job that does not say what the car is must never be judged by an
+      # owner-confirmed profile. Falling through to NA_GAS would put a boosted
+      # E85 truck under gasoline thresholds, with the owner's signature on it
+      # and no warning on the report.
+      - name: Unknown platform falls back to the strictest thresholds
+        run: |
+          grep -q 'strictestAcrossProfiles' backend/src/config/thresholds.ts \
+            || { echo "::error::the unknown-platform fallback is gone; unknown jobs may now be judged by a confirmed profile"; exit 1; }

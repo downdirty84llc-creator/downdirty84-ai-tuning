@@ -8,6 +8,8 @@ export type Job = {
   vehicle: string | null;
   ecu: string | null;
   notes: string | null;
+  fuel: string | null;
+  induction: string | null;
   status: string;
   created_at: string;
 };
@@ -19,6 +21,10 @@ export async function createJob(input: {
   vehicle?: string;
   ecu?: string;
   notes?: string;
+  /** GASOLINE | E85. Picks the safety-threshold profile the log is judged by. */
+  fuel?: string;
+  /** NA | FORCED. */
+  induction?: string;
 }) {
   return apiPost<{ job: Job }>("/api/v1/jobs", input);
 }

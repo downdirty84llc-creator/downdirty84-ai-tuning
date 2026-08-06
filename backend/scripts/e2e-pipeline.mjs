@@ -63,7 +63,9 @@ const mk = (u, raw) =>
 mk(uidOwner, "tok_owner"); mk(uidAdmin, "tok_admin");
 const OWNER = "tok_owner", ADMIN = "tok_admin";
 
-const jobId = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidOwner}','LOG_REVIEW','GM') RETURNING id;`);
+// Fuel and induction stated, so this run is judged by the owner-confirmed
+// NA-gasoline profile rather than the cautious unknown-platform fallback.
+const jobId = psql(`INSERT INTO jobs (user_id,service_type,platform,fuel,induction) VALUES ('${uidOwner}','LOG_REVIEW','GM','GASOLINE','NA') RETURNING id;`);
 
 /* ══════════════ 1. CLEAN LOG: analyse → suggest → release → export ══════ */
 console.log("── clean log with a known 4% MAF error");
@@ -82,7 +84,11 @@ check("run reached SUCCEEDED", run?.status, "SUCCEEDED");
 const findings = await req("GET", `/api/v1/jobs/${jobId}/findings?runId=${started.json.runId}`, { token: OWNER });
 const codes = (findings.json?.items ?? []).map((f) => f.code);
 ok(`findings from engine: ${codes.join(", ") || "(none)"}`);
-check("reports unconfirmed thresholds", codes.includes("R3_THRESHOLDS_UNCONFIRMED"), true);
+// This job states GASOLINE/NA, so it resolves to the owner-confirmed profile
+// and must NOT carry the unconfirmed warning. Job 4 below states neither and
+// must carry it — the two together are what proves the flag tracks the
+// profile rather than being hardcoded either way.
+check("confirmed profile carries no unconfirmed warning", codes.includes("R3_THRESHOLDS_UNCONFIRMED"), false);
 check("no safety blockers on a clean log", findings.json?.summary?.blockers, 0);
 check("diffgen allowed", findings.json?.diffgen?.allowed, true);
 
@@ -90,6 +96,8 @@ const validation = await req("GET", `/api/v1/jobs/${jobId}/validation?runId=${st
 check("validation PASS", validation.json?.status, "PASS");
 check("wideband OK", validation.json?.wbStatus, "OK");
 check("records which upload was analysed", validation.json?.analyzedUploadId, uploadId);
+check("records which threshold profile judged the run", validation.json?.thresholdProfile, "NA_GAS");
+check("records the thresholds as owner-confirmed", validation.json?.thresholdSource, "OWNER_CONFIRMED");
 check("not a fixture: platform is null, not 'GM'", validation.json?.vehicleProfileDetected?.platform, null);
 
 const gen = await req("POST", `/api/v1/jobs/${jobId}/diffsets/generate`, {
@@ -164,6 +172,8 @@ ok(`reason: ${run3?.errors?.[0]?.code}`);
 /* ══════════════ 4. OWNER REVIEW QUEUE ═════════════════════════════════ */
 console.log("── owner review queue");
 
+// Deliberately does NOT state fuel or induction, so this exercises the
+// unknown-platform path: strictest values, reported as unconfirmed.
 const job4 = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidOwner}','LOG_REVIEW','GM') RETURNING id;`);
 const up4 = await upload(OWNER, job4, "queue.csv", makeSyntheticLog({ mafErrorAt: () => 0.05, noise: 0.2 }));
 const s4 = await req("POST", `/api/v1/jobs/${job4}/analyze`, { token: OWNER, body: { logUploadIds: [up4.json.uploadId] } });
@@ -182,6 +192,7 @@ const qi = (q.json?.items ?? [])[0];
 qi ? ok(`queue item assembled for ${qi.customerEmail}`) : bad("queue item", "none");
 check("carries the change summary", typeof qi?.summary?.largestChangePct, "number");
 check("carries the safety verdict", typeof qi?.safety?.blockers, "number");
+check("unknown platform is judged unconfirmed, not by the confirmed profile", qi?.safety?.thresholdProfile, "null");
 check("flags unconfirmed thresholds for attention", (qi?.attention ?? []).some(a => /unconfirmed/i.test(a)), true);
 check("knows how long it has waited", typeof qi?.waitingHours, "number");
 ok(`attention flags: ${JSON.stringify(qi?.attention ?? [])}`);

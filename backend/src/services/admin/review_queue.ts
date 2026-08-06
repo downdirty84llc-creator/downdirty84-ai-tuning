@@ -1,4 +1,5 @@
 import { query } from "../../db.js";
+import { PROFILE_LABELS, type ProfileKey } from "../../config/thresholds.profiles.js";
 
 /**
  * The owner's whole job, in one query.
@@ -42,6 +43,8 @@ export type QueueItem = {
     blockers: number;
     warnings: number;
     thresholdsConfirmed: boolean;
+    /** Which profile judged the run. null = the job did not record fuel/induction. */
+    thresholdProfile: ProfileKey | null;
     findingCodes: string[];
   };
 
@@ -88,7 +91,14 @@ function attentionFlags(payload: any, findings: any): string[] {
 
   const codes: string[] = (findings?.items ?? []).map((f: any) => f.code);
   if (codes.includes("R3_THRESHOLDS_UNCONFIRMED")) {
-    flags.push("Analysed against unconfirmed default thresholds");
+    // Name the profile. "Unconfirmed thresholds" is a shrug; "judged as
+    // boosted E85, which you have not reviewed" tells the owner what to check.
+    const profile = findings?.thresholdProfile ?? null;
+    flags.push(
+      profile
+        ? `Judged as ${PROFILE_LABELS[profile as ProfileKey] ?? profile} — a profile you have not confirmed yet`
+        : "Fuel/induction not recorded — judged against the strictest values across every profile, and reported unconfirmed"
+    );
   }
   if ((findings?.summary?.warnings ?? 0) > 0) {
     flags.push(`${findings.summary.warnings} drivability warning(s) on this run`);
@@ -131,6 +141,7 @@ function toQueueItem(r: Row): QueueItem {
       blockers: findings?.summary?.blockers ?? 0,
       warnings: findings?.summary?.warnings ?? 0,
       thresholdsConfirmed: findings?.thresholdSource === "OWNER_CONFIRMED",
+      thresholdProfile: (findings?.thresholdProfile ?? null) as ProfileKey | null,
       findingCodes: codes
     },
 

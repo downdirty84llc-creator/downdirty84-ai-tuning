@@ -21,7 +21,12 @@ export default function Dashboard() {
     engineFamily: "LS",
     vehicle: "",
     ecu: "P01",
-    notes: ""
+    notes: "",
+    // Blank means "not stated". The analysis then measures against the
+    // strictest values across every profile and says so, rather than assuming
+    // naturally-aspirated gasoline.
+    fuel: "",
+    induction: ""
   });
 
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -131,6 +136,30 @@ export default function Dashboard() {
             <label className="small" style={{minWidth:140}}>Vehicle</label>
             <input value={form.vehicle} onChange={(e)=>setForm({...form, vehicle:e.target.value})} placeholder="2015 Mustang GT, 2003 Silverado 5.3" />
           </div>
+
+          <div className="row">
+            <label className="small" style={{minWidth:140}}>Fuel</label>
+            <select value={form.fuel} onChange={(e)=>setForm({...form, fuel:e.target.value})}>
+              <option value="">Not sure</option>
+              <option value="GASOLINE">Gasoline</option>
+              <option value="E85">E85</option>
+            </select>
+          </div>
+
+          <div className="row">
+            <label className="small" style={{minWidth:140}}>Induction</label>
+            <select value={form.induction} onChange={(e)=>setForm({...form, induction:e.target.value})}>
+              <option value="">Not sure</option>
+              <option value="NA">Naturally aspirated</option>
+              <option value="FORCED">Turbo / supercharged</option>
+            </select>
+          </div>
+
+          <p className="small" style={{opacity:.7,marginTop:0}}>
+            Fuel and induction pick which safety thresholds your log is judged
+            against. Leave either blank if you are not certain — we then use the
+            most cautious numbers and say so on the report.
+          </p>
 
           <div className="row">
             <label className="small" style={{minWidth:140}}>ECU/PCM</label>

@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { getQueue, releaseDiffSet, getDiffSet, QueueItem, QueueCounts } from "./queue";
 
+/** Matches PROFILE_LABELS in the backend. */
+const PROFILE_LABELS: Record<string, string> = {
+  NA_GAS: "NA gas",
+  BOOSTED_GAS: "Boosted gas",
+  NA_E85: "NA E85",
+  BOOSTED_E85: "Boosted E85"
+};
+
 /**
  * The owner's 10%.
  *
@@ -64,6 +72,22 @@ function Card({
           <p className="small" style={{ margin: "4px 0" }}>
             {item.customerEmail} · {item.platform} {item.serviceType} · waiting{" "}
             {item.waitingHours < 1 ? "<1" : item.waitingHours.toFixed(1)} h
+          </p>
+          {/* Which thresholds judged this. An unconfirmed profile, or none at
+              all, changes how much weight the safety verdict carries — so it
+              belongs next to the verdict, not buried in the detail. */}
+          <p className="small" style={{ margin: 0, opacity: 0.8 }}>
+            Judged as{" "}
+            <b>
+              {item.safety.thresholdProfile
+                ? PROFILE_LABELS[item.safety.thresholdProfile] ?? item.safety.thresholdProfile
+                : "unknown platform — strictest values"}
+            </b>{" "}
+            {item.safety.thresholdsConfirmed ? (
+              <span style={{ color: "#4ade80" }}>· confirmed</span>
+            ) : (
+              <span style={{ color: "#fbbf24" }}>· not confirmed</span>
+            )}
           </p>
         </div>
       </div>

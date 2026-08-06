@@ -15,6 +15,7 @@ import { parseLog } from "../services/analyze/log/parser.js";
 import { getUploadsByIds } from "../services/uploads/uploads.repo.js";
 import { readObject } from "../services/uploads/storage.js";
 import { resolveThresholds } from "../config/thresholds.js";
+import type { ProfileKey } from "../config/thresholds.profiles.js";
 import { getDiffSetContext } from "../services/admin/review_queue.js";
 import {
   adminRecipients,
@@ -116,7 +117,13 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
   }
 
   const parsed = parseLog(content);
-  const { thresholds } = resolveThresholds();
+
+  // Reuse the profile the run recorded rather than recomputing it. If the job
+  // were edited between analysis and generation, recomputing would silently
+  // produce suggestions clamped by different limits than the safety verdict
+  // that authorised them.
+  const runProfile = (run.validation?.thresholdProfile ?? null) as ProfileKey | null;
+  const { thresholds } = resolveThresholds(runProfile);
   const result = generateMafSuggestions(parsed, thresholds.diffgen);
 
   if (!result.ok) {

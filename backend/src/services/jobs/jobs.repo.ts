@@ -9,6 +9,10 @@ export type JobRow = {
   vehicle: string | null;
   ecu: string | null;
   notes: string | null;
+  /** GASOLINE | E85 | null. Selects the threshold profile — see thresholds.profiles.ts. */
+  fuel: string | null;
+  /** NA | FORCED | null. */
+  induction: string | null;
   status: string;
   created_at: string;
 };
@@ -16,8 +20,8 @@ export type JobRow = {
 export async function createJob(input: Omit<JobRow, "id" | "created_at" | "status"> & { status?: string }): Promise<JobRow> {
   const r = await query<JobRow>(
     `
-    INSERT INTO jobs (user_id, service_type, platform, engine_family, vehicle, ecu, notes, status)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    INSERT INTO jobs (user_id, service_type, platform, engine_family, vehicle, ecu, notes, fuel, induction, status)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING *
     `,
     [
@@ -28,6 +32,11 @@ export async function createJob(input: Omit<JobRow, "id" | "created_at" | "statu
       input.vehicle,
       input.ecu,
       input.notes,
+      // Null rather than a default. "We do not know" has to stay
+      // distinguishable from "naturally aspirated gasoline", because only one
+      // of those is judged against owner-confirmed numbers.
+      input.fuel ?? null,
+      input.induction ?? null,
       input.status || "NEW"
     ]
   );
