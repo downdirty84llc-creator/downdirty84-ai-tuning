@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — typecheck, tests, migrations, e2e
+    runs-on: ubuntu-latest
+
+    # A real Postgres, so the migrations and the end-to-end run are exercised
+    # against the database the app actually uses rather than a mock.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dd84
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dd84
+      ADMIN_EMAILS: admin@dd84.test
+      NODE_ENV: test
+      E2E_PGHOST: localhost
+      E2E_PGPORT: '5432'
+      E2E_PGDB: dd84
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+        working-directory: backend
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: backend
+
+      - name: Unit tests
+        run: npm test
+        working-directory: backend
+
+      - name: Apply migrations from scratch
+        run: |
+          for f in migrations/*.sql; do
+            echo "── $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+        working-directory: backend
+
+      - name: Build
+        run: npm run build
+        working-directory: backend
+
+      - name: End-to-end pipeline
+        run: |
+          node dist/server.js &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8080/health && break
+            sleep 1
+          done
+          npm run test:e2e
+        working-directory: backend
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: backend
+
+  frontend:
+    name: Frontend — typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  guardrails:
+    name: Safety guardrails still in place
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # These are the controls the whole product depends on. A refactor that
+      # quietly removes one would otherwise pass every other check — the code
+      # would still compile and the tests would still be green, because the
+      # tests for the removed behaviour would have gone with it.
+      - name: Owner-release gate is enforced on every export path
+        run: |
+          test "$(grep -c 'assertReleased' backend/src/routes/exports.routes.ts)" -ge 3 \
+            || { echo "::error::export routes no longer check the release gate"; exit 1; }
+
+      - name: Release endpoint requires admin
+        run: |
+          grep -q 'requireAdmin' backend/src/routes/diffsets.routes.ts \
+            || { echo "::error::the release endpoint is no longer admin-only"; exit 1; }
+
+      - name: Diffgen refuses when safety is unevaluated
+        run: |
+          grep -q 'unevaluatedSafetyRules' backend/src/services/analyze/rules/index.ts \
+            || { echo "::error::an unevaluated safety rule no longer blocks diffgen"; exit 1; }
+
+      - name: MVP allowlist still restricts editable paths
+        run: |
+          grep -q 'Airflow.MAF.Curve' backend/src/services/diffgen/mvp_enforcement.ts \
+            || { echo "::error::the MVP diff allowlist has been changed or removed"; exit 1; }

@@ -155,5 +155,40 @@ check("run reached FAILED, not stuck", run3?.status, "FAILED");
 check("failure has a reason", (run3?.errors?.length ?? 0) > 0, true);
 ok(`reason: ${run3?.errors?.[0]?.code}`);
 
+/* ══════════════ 4. OWNER REVIEW QUEUE ═════════════════════════════════ */
+console.log("── owner review queue");
+
+const job4 = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidOwner}','LOG_REVIEW','GM') RETURNING id;`);
+const up4 = await upload(OWNER, job4, "queue.csv", makeSyntheticLog({ mafErrorAt: () => 0.05, noise: 0.2 }));
+const s4 = await req("POST", `/api/v1/jobs/${job4}/analyze`, { token: OWNER, body: { logUploadIds: [up4.json.uploadId] } });
+await poll(s4.json.runId, OWNER);
+await req("POST", `/api/v1/jobs/${job4}/diffsets/generate`, {
+  token: OWNER, body: { runId: s4.json.runId, generator: "GM_LS_MAF_V1", uploadId: up4.json.uploadId }
+});
+
+check("non-admin cannot see the queue", (await req("GET", "/api/v1/admin/queue", { token: OWNER })).status, 403);
+
+const q = await req("GET", "/api/v1/admin/queue", { token: ADMIN });
+check("admin sees the queue", q.status, 200);
+check("queue counts pending release", q.json?.counts?.awaitingRelease >= 1, true);
+
+const qi = (q.json?.items ?? [])[0];
+qi ? ok(`queue item assembled for ${qi.customerEmail}`) : bad("queue item", "none");
+check("carries the change summary", typeof qi?.summary?.largestChangePct, "number");
+check("carries the safety verdict", typeof qi?.safety?.blockers, "number");
+check("flags unconfirmed thresholds for attention", (qi?.attention ?? []).some(a => /unconfirmed/i.test(a)), true);
+check("knows how long it has waited", typeof qi?.waitingHours, "number");
+ok(`attention flags: ${JSON.stringify(qi?.attention ?? [])}`);
+
+const dash = await req("GET", "/api/v1/admin/dashboard", { token: ADMIN });
+check("dashboard counts available", dash.status, 200);
+
+/* ══════════════ 5. READINESS ══════════════════════════════════════════ */
+console.log("── health and readiness");
+check("/health is 200", (await req("GET", "/health")).status, 200);
+const ready = await req("GET", "/ready");
+ok(`/ready -> ${ready.status} (database ${ready.json?.database}, storage ${ready.json?.storage})`);
+check("readiness reports the database reachable", ready.json?.database, "ok");
+
 console.log(`\n═══ pass=${pass} fail=${fail}`);
 process.exit(fail === 0 ? 0 : 1);
