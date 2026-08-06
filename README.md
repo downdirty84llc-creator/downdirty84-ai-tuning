@@ -30,21 +30,69 @@ Everything above and below that box is automated. The box is one decision per
 job, with the change size, confidence, safety verdict and anything deserving a
 second look already assembled — see **The one manual step** below.
 
-## Three things to do before taking real work
+## Before taking real work
 
-1. **Confirm the safety thresholds.** The engine runs on conservative defaults
-   biased toward over-flagging. Every report says `R3_THRESHOLDS_UNCONFIRMED`
-   until you review them. Fill `OWNER_OVERRIDES` in
-   `backend/src/config/thresholds.ts` and set `OWNER_CONFIRMED_THRESHOLDS`.
-2. **Set `RESEND_API_KEY`.** Sign-in is a magic link, so with no email
-   transport nobody can log in — not a customer, not you. Sign up at
-   resend.com, verify your sending domain, set the key and `EMAIL_FROM`.
-3. **Set `S3_*`.** Without it uploads go to local disk, which is wiped on every
+Run the doctor. It does not check that a value is *present* — it checks that it
+*works*, which is a different question and the one that matters:
+
+```bash
+cd backend && npm run doctor
+```
+
+```
+✓ Database        PostgreSQL 16.13, all 5 core tables present.
+✗ Email           Key works, but no verified sending domain (1 pending).
+                  → Verify downdirty84llc.com in Resend → Domains.
+!  Payments       Stripe is not configured.
+```
+
+It connects to Postgres and checks migrations ran, calls Resend and checks your
+sending domain is verified, heads the S3 bucket with your credentials, and reads
+your Stripe account. Read-only — nothing is created, charged or sent. Exits
+non-zero on a blocking problem, so it works as a deploy gate.
+
+The two things it cannot do for you:
+
+1. **`RESEND_API_KEY`** — sign-in is a magic link, so with no email transport
+   nobody can log in, not a customer and not you. Sign up at resend.com, verify
+   your sending domain, set the key and `EMAIL_FROM`.
+2. **`S3_*`** — without it uploads go to local disk, which is wiped on every
    deploy.
 
-The server refuses to start in production without 2 or 3, on purpose. None of
-them block development: without a key, sign-in links print to your terminal.
-See `docs/ANALYSIS-ENGINE.md`.
+The server refuses to start in production without either, on purpose. Neither
+blocks development: without a key, sign-in links print to your terminal.
+
+## Safety thresholds
+
+Thresholds are per **profile**, chosen from the job's fuel and induction:
+
+| Profile | Status |
+| --- | --- |
+| Naturally aspirated, gasoline | **Owner-confirmed** |
+| Forced induction, gasoline | Starting values — reports say unconfirmed |
+| Naturally aspirated, E85 | Starting values — reports say unconfirmed |
+| Forced induction, E85 | Starting values — reports say unconfirmed |
+
+One global set of numbers was wrong for this shop. A 0.8 AFR lean margin is a
+reasonable NA-gasoline heuristic and a dangerous one on boost, and on E85 it
+does not even mean the same thing — stoich is ~9.77 rather than ~14.7, so the
+same AFR delta is half again as far lean:
+
+```
+0.8 AFR on gasoline  →  0.8 / 14.70 = 5.4% lean
+0.8 AFR on E85       →  0.8 /  9.77 = 8.2% lean   ← much further out
+```
+
+**If a job does not record fuel and induction**, it is judged against the
+strictest value across every profile and reported as unconfirmed. It is never
+quietly judged by the confirmed profile — that would put a boosted E85 truck
+under gasoline thresholds with your signature on it and no warning on the
+report. There is a CI guardrail on exactly that.
+
+To confirm another profile: write its values into `OWNER_OVERRIDES` in
+`backend/src/config/thresholds.ts` and set its flag in
+`OWNER_CONFIRMED_PROFILES`. Do both — a flag without values claims the starting
+numbers were reviewed. See `docs/ANALYSIS-ENGINE.md`.
 
 ## Layout
 
@@ -88,6 +136,7 @@ npm i && npm run dev                                     # http://localhost:5173
 | `npm run build` | Compile to `dist/` |
 | `npm start` | Migrate, then run the compiled server (what deploys use) |
 | `npm run migrate` | Apply pending migrations; idempotent, safe on every deploy |
+| `npm run doctor` | Check every service actually works, not just that a value is set |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Unit tests |
 | `npm run test:e2e` | Full pipeline against a running API + Postgres |

@@ -11,6 +11,7 @@ import { adminRouter } from "./routes/admin.routes.js";
 import { stripeRouter } from "./routes/stripe.routes.js";
 import { loadUserFromSession } from "./middleware/session.js";
 import { assertEnvOrExit, checkEnv } from "./config/env.js";
+import { unconfirmedProfiles } from "./config/thresholds.js";
 import { pool } from "./db.js";
 import { jobsRouter } from "./routes/jobs.routes.js";
 import { runsRouter } from "./routes/runs.routes.js";
@@ -68,6 +69,10 @@ app.get("/ready", async (_req, res) => {
     storage: env.storage,
     payments: env.payments,
     email: env.email,
+    // Visible, not fatal. Running with unconfirmed profiles is a legitimate
+    // state — every affected report says so — but it should never be a
+    // surprise discovered from a customer's report.
+    unconfirmedThresholdProfiles: unconfirmedProfiles(),
     configErrors: env.errors
   });
 });

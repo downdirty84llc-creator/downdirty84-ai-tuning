@@ -23,6 +23,8 @@ export type QueueItem = {
     blockers: number;
     warnings: number;
     thresholdsConfirmed: boolean;
+    /** Which profile judged the run. null = the job never said what the car is. */
+    thresholdProfile: "NA_GAS" | "BOOSTED_GAS" | "NA_E85" | "BOOSTED_E85" | null;
     findingCodes: string[];
   };
   attention: string[];
