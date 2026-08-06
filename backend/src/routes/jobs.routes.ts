@@ -4,7 +4,9 @@ import { v4 as uuid } from "uuid";
 import { createJob, listJobs, getJob, updateJobStatus } from "../services/jobs/jobs.repo.js";
 
 import { createRun, updateRun, findRunForJob } from "../services/analyze/run_store.js";
-import { loadFixtureJson } from "../util/fixtures.js";
+import { getUploadsByIds } from "../services/uploads/uploads.repo.js";
+import { readObject } from "../services/uploads/storage.js";
+import { analyzeUploads } from "../services/analyze/pipeline.js";
 import { badRequest, notFound, wrap } from "../util/http.js";
 
 export const jobsRouter = Router();
@@ -75,41 +77,101 @@ jobsRouter.post("/:jobId/analyze", requireAuth, wrap(async (req, res) => {
 
   await updateJobStatus(userId, jobId, "ANALYZING");
 
-  // MVP stub: the real analysis pipeline is not built yet, so the run walks
-  // through its states on a timer and serves fixture output.
-  setTimeout(() => {
-    void updateRun(run.runId, {
-      status: "RUNNING",
-      progress: { pct: 45, stage: "VALIDATING" }
-    }).catch((err) => console.error("[DD84] run update failed", run.runId, err));
-  }, 250);
-
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const validation = loadFixtureJson("validation.pass.gm_ls.json");
-        const findings = loadFixtureJson("findings.gm_ls.sample.json");
-        await updateRun(run.runId, {
-          status: "SUCCEEDED",
-          progress: { pct: 100, stage: "REPORTING" },
-          finishedAt: new Date().toISOString(),
-          validation,
-          findings
-        });
-      } catch (err) {
-        console.error("[DD84] analysis failed", run.runId, err);
-        await updateRun(run.runId, {
-          status: "FAILED",
-          progress: { pct: 100, stage: "FAILED" },
-          finishedAt: new Date().toISOString(),
-          errors: [{ code: "ANALYSIS_FAILED", message: String((err as Error)?.message ?? err) }]
-        }).catch(() => undefined);
-      }
-    })();
-  }, 700);
+  // Kicked off in the background; the client polls GET /runs/:runId. Errors are
+  // written to the run rather than thrown, so a failed analysis is a reportable
+  // state and not a lost request.
+  void executeAnalysis(run.runId, userId, logUploadIds.map(String)).catch(async (err) => {
+    console.error("[DD84] analysis crashed", run.runId, err);
+    await updateRun(run.runId, {
+      status: "FAILED",
+      progress: { pct: 100, stage: "FAILED" },
+      finishedAt: new Date().toISOString(),
+      errors: [{ code: "ANALYSIS_CRASHED", message: String((err as Error)?.message ?? err) }]
+    }).catch(() => undefined);
+  });
 
   return res.status(202).json({ runId: run.runId, status: run.status });
 }));
+
+/**
+ * The analysis itself: read the customer's uploads, parse, validate, run rules,
+ * persist. Every exit path leaves the run in a terminal state with a reason,
+ * because a run stuck in RUNNING is indistinguishable from a hung server.
+ */
+async function executeAnalysis(runId: string, userId: string, uploadIds: string[]): Promise<void> {
+  await updateRun(runId, { status: "RUNNING", progress: { pct: 10, stage: "READING_UPLOADS" } });
+
+  const rows = await getUploadsByIds(userId, uploadIds);
+  if (rows.length === 0) {
+    await updateRun(runId, {
+      status: "FAILED",
+      progress: { pct: 100, stage: "FAILED" },
+      finishedAt: new Date().toISOString(),
+      errors: [{ code: "UPLOADS_NOT_FOUND", message: "None of the supplied uploads were found for this account." }]
+    });
+    return;
+  }
+
+  const files: Array<{ uploadId: string; filename: string; content: Buffer }> = [];
+  const unreadable: string[] = [];
+  for (const row of rows) {
+    try {
+      const content = await readObject({ provider: row.storage_provider as "S3" | "LOCAL", key: row.storage_key });
+      files.push({ uploadId: row.id, filename: row.filename, content });
+    } catch (err) {
+      unreadable.push(`${row.filename}: ${String((err as Error)?.message ?? err)}`);
+    }
+  }
+
+  if (files.length === 0) {
+    await updateRun(runId, {
+      status: "FAILED",
+      progress: { pct: 100, stage: "FAILED" },
+      finishedAt: new Date().toISOString(),
+      errors: [{ code: "UPLOADS_UNREADABLE", message: unreadable.join("; ") }]
+    });
+    return;
+  }
+
+  await updateRun(runId, { progress: { pct: 45, stage: "VALIDATING" } });
+
+  const { outcome, usedUploadId, skipped } = analyzeUploads(files, runId);
+
+  if (!outcome.ok) {
+    await updateRun(runId, {
+      status: "FAILED",
+      progress: { pct: 100, stage: "FAILED" },
+      finishedAt: new Date().toISOString(),
+      validation: outcome.validation,
+      errors: [
+        { code: outcome.error.code, message: outcome.error.message, details: { stage: outcome.stage, skipped } }
+      ]
+    });
+    return;
+  }
+
+  await updateRun(runId, { progress: { pct: 80, stage: "REPORTING" } });
+
+  await updateRun(runId, {
+    status: "SUCCEEDED",
+    progress: { pct: 100, stage: "REPORTING" },
+    finishedAt: new Date().toISOString(),
+    validation: {
+      ...outcome.validation,
+      analyzedUploadId: usedUploadId,
+      skippedUploads: skipped,
+      unreadableUploads: unreadable,
+      thresholdSource: outcome.thresholdSource
+    },
+    findings: {
+      summary: outcome.rules.summary,
+      items: outcome.rules.findings,
+      chartSpecs: [],
+      diffgen: outcome.diffgen,
+      thresholdSource: outcome.rules.thresholdSource
+    }
+  });
+}
 
 /**
  * GET /api/v1/jobs/:jobId/validation?runId=...
