@@ -1,5 +1,6 @@
 import { query } from "../../db.js";
 import { randomToken, sha256 } from "./crypto.js";
+import { notify, signInEmail } from "../notify/notifications.js";
 
 const TOKEN_TTL_MIN = Number(process.env.MAGICLINK_TOKEN_TTL_MIN || 15);
 const SESSION_DAYS = Number(process.env.SESSION_DAYS || 14);
@@ -21,12 +22,20 @@ export async function startMagicLink(emailRaw: string): Promise<{ ok: true }> {
     [email, tokenHash, TOKEN_TTL_MIN]
   );
 
-  const appBase = process.env.APP_BASE_URL || "http://localhost:3000";
+  const appBase = (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
   const url = `${appBase}/auth/callback?token=${encodeURIComponent(token)}`;
 
-  // TODO: replace with Resend/SendGrid in production
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[DD84] Magic link for ${email}: ${url}`);
+  // Awaited, not fire-and-forget: on serverless and on a SIGTERM during deploy
+  // a detached promise is simply lost, and the customer waits for a link that
+  // was never sent. The response is still ok=true either way — see below.
+  const sent = await notify(signInEmail(email, url, TOKEN_TTL_MIN));
+  if (!sent.ok) {
+    // Deliberately not surfaced to the caller. Reporting "we could not email
+    // that address" tells an attacker which addresses exist, which is the
+    // enumeration leak the ok=true contract exists to prevent. It is logged
+    // loudly by sendEmail, and /ready fails when no transport is configured,
+    // so this cannot go unnoticed operationally.
+    console.error("[DD84] a customer could not be sent a sign-in link");
   }
 
   return { ok: true };

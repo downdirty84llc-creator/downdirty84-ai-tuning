@@ -67,6 +67,7 @@ app.get("/ready", async (_req, res) => {
     database: "ok",
     storage: env.storage,
     payments: env.payments,
+    email: env.email,
     configErrors: env.errors
   });
 });

@@ -47,7 +47,12 @@ export default function Admin() {
     <div className="container">
       <div className="nav">
         <div className="brand">Down Dirty 84 Admin</div>
-        <button className="secondary" onClick={()=>window.location.href="/dashboard"}>Customer View</button>
+        <div className="row" style={{gap:8}}>
+          {/* The queue is the screen that actually needs attention — this page
+              is for looking things up, that one is where work gets done. */}
+          <button onClick={()=>window.location.href="/admin/queue"}>Review Queue</button>
+          <button className="secondary" onClick={()=>window.location.href="/dashboard"}>Customer View</button>
+        </div>
       </div>
 
       {msg && <div className="card" style={{marginBottom:12}}><p className="small">{msg}</p></div>}

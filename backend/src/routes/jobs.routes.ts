@@ -59,7 +59,9 @@ jobsRouter.get("/:jobId", requireAuth, wrap(async (req, res) => {
 
 /**
  * POST /api/v1/jobs/:jobId/analyze
- * MVP stub: creates an async run, then loads fixtures.
+ *
+ * Creates a run, then parses, validates and rules-checks the customer's actual
+ * uploaded log. Returns 202 immediately; poll GET /api/v1/runs/:runId.
  */
 jobsRouter.post("/:jobId/analyze", requireAuth, wrap(async (req, res) => {
   const { jobId } = req.params;

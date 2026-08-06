@@ -125,3 +125,16 @@ jobs:
         run: |
           grep -q 'Airflow.MAF.Curve' backend/src/services/diffgen/mvp_enforcement.ts \
             || { echo "::error::the MVP diff allowlist has been changed or removed"; exit 1; }
+
+      # Sign-in is a magic link. If nothing sends it, nobody can log in and the
+      # whole product is unreachable — a failure with no error message anywhere,
+      # which is how it went unnoticed the first time.
+      - name: Magic-link emails are actually sent
+        run: |
+          grep -q 'signInEmail' backend/src/services/auth/auth.service.ts \
+            || { echo "::error::sign-in links are no longer emailed; nobody could log in"; exit 1; }
+
+      - name: A release still tells the customer
+        run: |
+          grep -q 'reportReadyEmail' backend/src/routes/diffsets.routes.ts \
+            || { echo "::error::releasing no longer notifies the customer"; exit 1; }

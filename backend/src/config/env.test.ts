@@ -29,7 +29,8 @@ const FULL = {
   S3_ACCESS_KEY_ID: "k",
   S3_SECRET_ACCESS_KEY: "s",
   STRIPE_SECRET_KEY: "sk",
-  STRIPE_WEBHOOK_SECRET: "wh"
+  STRIPE_WEBHOOK_SECRET: "wh",
+  RESEND_API_KEY: "re_test"
 };
 
 test("a fully configured production environment passes", () => {
@@ -38,6 +39,7 @@ test("a fully configured production environment passes", () => {
     assert.equal(r.ok, true, r.errors.join("; "));
     assert.equal(r.storage, "S3");
     assert.equal(r.payments, "CONFIGURED");
+    assert.equal(r.email, "CONFIGURED");
   });
 });
 
@@ -70,6 +72,23 @@ test("missing S3 is fatal in production but only a warning in development", () =
     const r = checkEnv();
     assert.equal(r.ok, true);
     assert.ok(r.warnings.some((w) => w.includes("wiped")));
+  });
+});
+
+test("no email transport is fatal in production, because nobody could log in", () => {
+  // Sign-in is a magic link. With no way to send it the product is unreachable
+  // for customers and owner alike — the same dead end as an empty ADMIN_EMAILS.
+  withEnv({ ...FULL, RESEND_API_KEY: undefined }, () => {
+    const r = checkEnv();
+    assert.equal(r.ok, false);
+    assert.equal(r.email, "CONSOLE");
+    assert.ok(r.errors.some((e) => e.includes("RESEND_API_KEY")));
+  });
+  // Development still runs: the link is printed to the terminal instead.
+  withEnv({ ...FULL, NODE_ENV: "development", RESEND_API_KEY: undefined }, () => {
+    const r = checkEnv();
+    assert.equal(r.ok, true);
+    assert.ok(r.warnings.some((w) => w.includes("console")));
   });
 });
 

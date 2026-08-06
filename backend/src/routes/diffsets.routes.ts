@@ -15,6 +15,13 @@ import { parseLog } from "../services/analyze/log/parser.js";
 import { getUploadsByIds } from "../services/uploads/uploads.repo.js";
 import { readObject } from "../services/uploads/storage.js";
 import { resolveThresholds } from "../config/thresholds.js";
+import { getDiffSetContext } from "../services/admin/review_queue.js";
+import {
+  adminRecipients,
+  notify,
+  reportReadyEmail,
+  reviewWaitingEmail
+} from "../services/notify/notifications.js";
 import { badRequest, notFound, conflict, forbidden, wrap } from "../util/http.js";
 
 export const diffsetsRouter = Router();
@@ -46,7 +53,9 @@ function publicDiffSet(d: DiffSetRecord) {
 
 /**
  * POST /api/v1/jobs/:jobId/diffsets/generate
- * MVP stub: uses a fixture diffset, then enforces the allowlist.
+ *
+ * Re-reads the customer's log and recomputes the MAF suggestions from it, then
+ * enforces the MVP allowlist before anything is persisted.
  *
  * A generated diffset lands in OWNER_REVIEW. It is a *proposed* calibration
  * change and is not exportable until an owner releases it.
@@ -135,6 +144,33 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
     payload
   });
 
+  // Tell the owner it is waiting. Without this the queue only works if someone
+  // remembers to look at it, and the job sits until they do — which is the
+  // manual overhead this system exists to remove.
+  //
+  // After the 201-worthy work is done and before the response, so a failure to
+  // notify is logged against this request, but it cannot fail the generation:
+  // notify() never throws.
+  const context = await getDiffSetContext(saved.diffSetId);
+  if (context) {
+    for (const admin of adminRecipients()) {
+      await notify(
+        reviewWaitingEmail({
+          to: admin,
+          vehicle: context.vehicle,
+          customerEmail: context.customerEmail,
+          itemCount: context.summary.itemCount,
+          largestChangePct: context.summary.largestChangePct,
+          lowestConfidence: context.summary.lowestConfidence,
+          blockers: context.safety.blockers,
+          warnings: context.safety.warnings,
+          attention: context.attention,
+          diffSetId: saved.diffSetId
+        })
+      );
+    }
+  }
+
   return res.status(201).json(publicDiffSet(saved));
 }));
 
@@ -215,10 +251,39 @@ diffsetsRouter.post("/diffsets/:diffSetId/release", requireAuth, requireAdmin, w
     });
   }
 
+  // On release, tell the customer. This is the last hand-written email in the
+  // pipeline, and removing it is what makes the owner's job one decision per
+  // job rather than a decision plus a message.
+  //
+  // Runs after the decision is committed, so a mail failure cannot un-release
+  // a calibration. The outcome is reported rather than assumed — the owner
+  // needs to know when to follow up by hand.
+  let customerNotified: boolean | null = null;
+  if (updated.releaseStatus === "RELEASED") {
+    const context = await getDiffSetContext(updated.diffSetId);
+    if (context) {
+      const sent = await notify(
+        reportReadyEmail({
+          to: context.customerEmail,
+          vehicle: context.vehicle,
+          itemCount: context.summary.itemCount,
+          largestChangePct: context.summary.largestChangePct,
+          diffSetId: updated.diffSetId
+        })
+      );
+      customerNotified = sent.ok;
+    } else {
+      customerNotified = false;
+    }
+  }
+
   return res.json({
     diffSetId: updated.diffSetId,
     releaseStatus: updated.releaseStatus,
     releasedAt: updated.releasedAt,
-    releaseNote: updated.releaseNote
+    releaseNote: updated.releaseNote,
+    // null on a rejection — nothing was meant to be sent. false means it was
+    // meant to be sent and was not, which needs a human. Never conflate them.
+    customerNotified
   });
 }));

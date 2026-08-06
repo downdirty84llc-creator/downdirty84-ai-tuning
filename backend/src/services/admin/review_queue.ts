@@ -96,6 +96,48 @@ function attentionFlags(payload: any, findings: any): string[] {
   return flags;
 }
 
+function toQueueItem(r: Row): QueueItem {
+  const items: any[] = r.payload_json?.items ?? [];
+  const confidences = items.map((i) => Number(i.confidence)).filter(Number.isFinite);
+  const hz = items.map((i) => Number(i.coordinates?.x)).filter(Number.isFinite);
+  const findings = r.findings_json;
+  const codes: string[] = (findings?.items ?? []).map((f: any) => f.code);
+
+  return {
+    diffSetId: r.id,
+    jobId: r.job_id,
+    runId: r.run_id,
+    customerEmail: r.customer_email,
+    serviceType: r.service_type,
+    platform: r.platform,
+    vehicle: r.vehicle,
+    createdAt: r.created_at,
+    waitingHours:
+      Math.round(((Date.now() - new Date(r.created_at).getTime()) / 3_600_000) * 10) / 10,
+
+    summary: {
+      itemCount: items.length,
+      approvedCount: items.filter((i) => i.status === "APPROVED").length,
+      suggestedCount: items.filter((i) => i.status === "SUGGESTED").length,
+      largestChangePct:
+        Math.round(
+          items.reduce((m, i) => Math.max(m, Math.abs((Number(i.after) || 1) - 1)), 0) * 1000
+        ) / 10,
+      lowestConfidence: confidences.length ? Math.min(...confidences) : 0,
+      hzRange: hz.length ? [Math.min(...hz), Math.max(...hz)] : null
+    },
+
+    safety: {
+      blockers: findings?.summary?.blockers ?? 0,
+      warnings: findings?.summary?.warnings ?? 0,
+      thresholdsConfirmed: findings?.thresholdSource === "OWNER_CONFIRMED",
+      findingCodes: codes
+    },
+
+    attention: attentionFlags(r.payload_json, findings)
+  };
+}
+
 /**
  * Everything awaiting an owner decision, newest wait first.
  *
@@ -121,47 +163,36 @@ export async function getReviewQueue(limit = 50): Promise<QueueItem[]> {
     [limit]
   );
 
-  return rows.map((r) => {
-    const items: any[] = r.payload_json?.items ?? [];
-    const confidences = items.map((i) => Number(i.confidence)).filter(Number.isFinite);
-    const hz = items.map((i) => Number(i.coordinates?.x)).filter(Number.isFinite);
-    const findings = r.findings_json;
-    const codes: string[] = (findings?.items ?? []).map((f: any) => f.code);
+  return rows.map(toQueueItem);
+}
 
-    return {
-      diffSetId: r.id,
-      jobId: r.job_id,
-      runId: r.run_id,
-      customerEmail: r.customer_email,
-      serviceType: r.service_type,
-      platform: r.platform,
-      vehicle: r.vehicle,
-      createdAt: r.created_at,
-      waitingHours:
-        Math.round(((Date.now() - new Date(r.created_at).getTime()) / 3_600_000) * 10) / 10,
-
-      summary: {
-        itemCount: items.length,
-        approvedCount: items.filter((i) => i.status === "APPROVED").length,
-        suggestedCount: items.filter((i) => i.status === "SUGGESTED").length,
-        largestChangePct:
-          Math.round(
-            items.reduce((m, i) => Math.max(m, Math.abs((Number(i.after) || 1) - 1)), 0) * 1000
-          ) / 10,
-        lowestConfidence: confidences.length ? Math.min(...confidences) : 0,
-        hzRange: hz.length ? [Math.min(...hz), Math.max(...hz)] : null
-      },
-
-      safety: {
-        blockers: findings?.summary?.blockers ?? 0,
-        warnings: findings?.summary?.warnings ?? 0,
-        thresholdsConfirmed: findings?.thresholdSource === "OWNER_CONFIRMED",
-        findingCodes: codes
-      },
-
-      attention: attentionFlags(r.payload_json, findings)
-    };
-  });
+/**
+ * The same assembled view for a single diffset, whatever its release status.
+ *
+ * Notifications need exactly what the queue needs — who the customer is, how
+ * big the change is, what deserves a second look — so it is computed here once
+ * rather than reassembled slightly differently in a route and drifting.
+ *
+ * Returns null when the diffset is gone, so a caller can distinguish "no one to
+ * notify" from "notified nobody".
+ */
+export async function getDiffSetContext(diffSetId: string): Promise<QueueItem | null> {
+  const rows = await query<Row>(
+    `
+    SELECT d.id, d.job_id, d.run_id, d.payload_json, d.created_at,
+           u.email AS customer_email,
+           j.service_type, j.platform, j.vehicle,
+           r.findings_json
+    FROM diffsets d
+    JOIN jobs  j ON j.id = d.job_id
+    JOIN users u ON u.id = d.user_id
+    LEFT JOIN runs r ON r.id = d.run_id
+    WHERE d.id = $1
+    LIMIT 1
+    `,
+    [diffSetId]
+  );
+  return rows[0] ? toQueueItem(rows[0]) : null;
 }
 
 /** Counts for a dashboard badge, cheap enough to poll. */
