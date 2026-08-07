@@ -36,25 +36,76 @@ const PRICE_FOR_ADDON = new Map<AddonType, string>(
 );
 
 /**
+ * Live amounts, read from Stripe and cached briefly.
+ *
+ * The amounts are deliberately NOT stored in the repo. A hardcoded price list
+ * is the same bug that made the webhook mis-classify payments for months, only
+ * pointed at customers: a page advertising $79 while Stripe charges $99 is a
+ * complaint, a chargeback, or a refund, and it drifts silently the moment a
+ * price changes in the dashboard.
+ *
+ * When Stripe cannot be reached the amount is omitted rather than guessed. The
+ * page then says the price is unavailable, which is recoverable. Showing a
+ * stale number is not.
+ */
+type PriceInfo = { unitAmount: number | null; currency: string };
+let priceCache: { at: number; prices: Record<string, PriceInfo> } | null = null;
+const PRICE_TTL_MS = 5 * 60_000;
+
+async function livePrices(): Promise<Record<string, PriceInfo> | null> {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  if (priceCache && Date.now() - priceCache.at < PRICE_TTL_MS) return priceCache.prices;
+
+  try {
+    const wanted = [...Object.keys(SERVICE_PRICES), ...Object.keys(ADDON_PRICES)];
+    const fetched = await Promise.all(wanted.map((id) => stripe.prices.retrieve(id)));
+    const prices: Record<string, PriceInfo> = {};
+    for (const p of fetched) {
+      prices[p.id] = { unitAmount: p.unit_amount, currency: p.currency };
+    }
+    priceCache = { at: Date.now(), prices };
+    return prices;
+  } catch (err) {
+    console.error(`[DD84] could not read prices from Stripe: ${(err as Error)?.message ?? err}`);
+    // Serve a stale cache rather than nothing — it was correct minutes ago,
+    // and an empty catalogue looks like the business is closed.
+    return priceCache?.prices ?? null;
+  }
+}
+
+/**
  * GET /api/v1/catalog
  *
  * What is for sale, so the frontend does not hardcode a second copy of the
  * price list that can drift from the one the webhook trusts.
  */
-checkoutRouter.get("/catalog", (_req, res) => {
+checkoutRouter.get("/catalog", wrap(async (_req, res) => {
+  const prices = await livePrices();
+  const decorate = (priceId: string) => {
+    const p = prices?.[priceId];
+    return {
+      priceId,
+      // null means "we could not confirm this with Stripe just now", which the
+      // page must render as unavailable rather than as free.
+      unitAmount: p?.unitAmount ?? null,
+      currency: p?.currency ?? "usd"
+    };
+  };
+
   return res.json({
+    pricesLive: prices !== null,
     services: Object.entries(SERVICE_PRICES).map(([priceId, e]) => ({
       service: e.service,
       label: e.label,
-      priceId
+      ...decorate(priceId)
     })),
     addons: Object.entries(ADDON_PRICES).map(([priceId, e]) => ({
       addon: e.addon,
       label: e.label,
-      priceId
+      ...decorate(priceId)
     }))
   });
-});
+}));
 
 /**
  * POST /api/v1/checkout
@@ -137,8 +188,10 @@ checkoutRouter.post("/checkout", wrap(async (req, res) => {
     customer_email: email,
     // Stripe collects the email when we do not already know it. The webhook
     // keys the customer account off it, so it is not optional.
-    success_url: `${appBase}/dashboard?paid={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appBase}/dashboard?checkout=cancelled`,
+    // Not /dashboard: the buyer is not signed in yet, so that page would greet
+    // a successful payment with "You are not logged in".
+    success_url: `${appBase}/paid?session={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appBase}/buy?checkout=cancelled`,
     metadata,
     // Same metadata on the PaymentIntent, so it is visible on the payment in
     // the Stripe dashboard and not only on the session.

@@ -208,6 +208,14 @@ check("catalog is public", cat.status, 200);
 check("catalog lists 4 services", (cat.json?.services ?? []).length, 4);
 check("catalog lists 4 add-ons", (cat.json?.addons ?? []).length, 4);
 
+// Stripe is not configured here, so amounts cannot be confirmed. The catalog
+// must say so and must NOT emit a number — a page advertising a stale or
+// invented price is a chargeback, and rendering null as $0.00 advertises free.
+check("catalog admits prices are not live", cat.json?.pricesLive, false);
+const anyAmount = [...(cat.json?.services ?? []), ...(cat.json?.addons ?? [])]
+  .some((i) => i.unitAmount !== null);
+check("no amount is invented when Stripe is unreachable", anyAmount, false);
+
 // The client names a service, never a price. If it could name a price it could
 // check out against any price on the account — including a $1 minimum — and
 // the webhook would create a $399 job for it.

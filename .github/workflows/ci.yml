@@ -148,6 +148,14 @@ jobs:
           grep -q 'PRICE_FOR_SERVICE' backend/src/routes/checkout.routes.ts \
             || { echo "::error::checkout no longer resolves prices server-side; a client may be able to name its own price"; exit 1; }
 
+      # A customer-facing page showing a price Stripe will not charge is the
+      # same drift bug, pointed at buyers. Amounts come from Stripe at runtime
+      # and are never committed to the repo.
+      - name: Displayed prices come from Stripe, not from a hardcoded list
+        run: |
+          grep -q 'livePrices' backend/src/routes/checkout.routes.ts \
+            || { echo "::error::the catalog no longer reads live prices; it may be advertising stale amounts"; exit 1; }
+
       # Classifying a payment by its amount was wrong four different ways
       # against the live account: two prices collide at $99, two at $39 across
       # business lines, and one service's amount was simply out of date.

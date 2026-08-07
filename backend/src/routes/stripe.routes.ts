@@ -3,7 +3,13 @@ import Stripe from "stripe";
 import { withTransaction } from "../db.js";
 import { classifyCheckout, type CheckoutLine } from "../config/stripe_catalog.js";
 import { normaliseFuel, normaliseInduction } from "../config/thresholds.profiles.js";
-import { adminRecipients, notify } from "../services/notify/notifications.js";
+import {
+  adminRecipients,
+  notify,
+  paymentReceivedEmail
+} from "../services/notify/notifications.js";
+import { mintMagicLink } from "../services/auth/auth.service.js";
+import { SERVICE_PRICES } from "../config/stripe_catalog.js";
 import { getBrandProfile } from "../services/brand/brand_profile.js";
 import { wrap } from "../util/http.js";
 
@@ -149,6 +155,34 @@ stripeRouter.post("/webhook", wrap(async (req, res) => {
     );
     await alertOwner(email, amount, currency, classification.reason, session.id, "UNCLASSIFIED");
     return res.json({ received: true, jobCreated: false, reason: "UNCLASSIFIED" });
+  }
+
+  // Confirm the payment and hand them the way in. Without this the customer
+  // pays and hears nothing at all: no receipt, no route into the app, and no
+  // idea what to do next. Bundling the sign-in link removes the step people
+  // abandon — going to find a login page and requesting one.
+  //
+  // After the transaction committed, so a mail failure cannot undo a paid job.
+  // A job only exists when a service was recognised, but that is two branches
+  // back — narrow it here rather than asserting, so a future edit that changes
+  // the invariant fails to compile instead of emailing "undefined".
+  const { service } = classification;
+  const label = service
+    ? Object.values(SERVICE_PRICES).find((e) => e.service === service)?.label ?? service
+    : "your order";
+
+  const link = await mintMagicLink(email);
+  if (link) {
+    await notify(
+      paymentReceivedEmail({
+        to: email,
+        serviceLabel: label,
+        amountCents: amount,
+        currency,
+        signInUrl: link.url,
+        ttlMinutes: link.ttlMinutes
+      })
+    );
   }
 
   return res.json({ received: true, jobCreated: true, jobId: result.jobId });

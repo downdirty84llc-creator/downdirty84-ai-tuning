@@ -9,12 +9,13 @@
 ## What runs without you
 
 ```
-customer signs in ──▶ magic link emailed automatically
-Stripe payment   ──▶ job created automatically
-customer upload  ──▶ parsed, validated, channel-mapped
-                 └─▶ safety + drivability rules, evidence windows
-                 └─▶ MAF suggestions with per-bin confidence
-                 └─▶ you are emailed that it is waiting, with the numbers
+customer visits /buy ──▶ picks a service, says what the car is
+Stripe checkout      ──▶ pays; card details never touch this app
+payment webhook      ──▶ job created, receipt + sign-in link emailed
+customer uploads log ──▶ parsed, validated, channel-mapped
+                     └─▶ safety + drivability rules, evidence windows
+                     └─▶ MAF suggestions with per-bin confidence
+                     └─▶ you are emailed that it is waiting, with the numbers
                       │
                       ▼
         ┌─────────────────────────────┐
@@ -119,6 +120,8 @@ backend/          API — Express + Postgres
     util/
   migrations/     numbered SQL, applied in order
 src/              Frontend — React + Vite
+  Buy.tsx           /buy — the shop; prices read live from Stripe
+  Paid.tsx          /paid — Stripe's return page, works signed-out
   ReviewQueue.tsx   /admin/queue — the owner's one decision
   DiffSetView.tsx   /diffsets/:id — what the customer's email opens
 docs/api/examples/  Sample payloads kept as contract documentation
@@ -198,6 +201,12 @@ needs you:
 - **Another business line** — correct, and silent.
 - **Unrecognised price** — a paid order with nobody queued to do it. You get an
   email immediately, because logs do not get read on a Sunday.
+
+The shop is **`/buy`** — also the site root. Amounts are read live from Stripe
+on every load (cached 5 minutes) and are **never committed to the repo**: a page
+advertising a price Stripe will not charge is the same drift bug that broke the
+webhook, aimed at customers. If Stripe cannot be reached the card says "price
+shown at checkout" rather than inventing a number or rendering `null` as free.
 
 Starting a payment: `POST /api/v1/checkout` with `{ service, addons?, vehicle?,
 platform?, fuel?, induction? }`. **The client names a service, never a price** —
