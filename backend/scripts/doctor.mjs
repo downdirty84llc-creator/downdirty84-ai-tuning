@@ -218,6 +218,63 @@ async function sendTestEmail(to) {
   }
 }
 
+/**
+ * Does the catalogue in the repo still agree with the live Stripe account?
+ *
+ * The price IDs and the `dd84_service` / `dd84_addon` metadata are two records
+ * of the same fact, and metadata *overrides* the table at runtime. So a
+ * mistyped tag in the Stripe dashboard silently changes what a payment
+ * creates — a rush fee tagged `dd84_service` would start creating jobs, and a
+ * service tagged `dd84_addon` would stop.
+ *
+ * Neither the code nor Stripe can notice that on its own. This can.
+ */
+async function checkStripeCatalog() {
+  if (!process.env.STRIPE_SECRET_KEY) return;
+
+  let drift;
+  try {
+    drift = await import("../dist/config/catalog_drift.js");
+  } catch {
+    return record("Stripe catalogue", "WARN", "Could not read (run `npm run build` first).", "npm run build");
+  }
+
+  const wanted = [...drift.expectedCatalog().keys()];
+  const live = [];
+  for (const id of wanted) {
+    try {
+      const res = await fetch(`https://api.stripe.com/v1/prices/${id}`, {
+        headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` },
+        signal: timeout()
+      });
+      if (res.status === 404) continue; // absent -> reported as MISSING below
+      if (!res.ok) {
+        return record("Stripe catalogue", "FAIL", `Stripe returned ${res.status} reading ${id}.`,
+          "The catalogue was not checked. Confirm the key has read access to prices.");
+      }
+      live.push(await res.json());
+    } catch (err) {
+      return record("Stripe catalogue", "FAIL", `Could not reach api.stripe.com: ${err?.message ?? err}`,
+        "Connectivity, not credentials — the catalogue was not checked.");
+    }
+  }
+
+  const report = drift.compareCatalog(live);
+  if (report.findings.length === 0) {
+    return record("Stripe catalogue", "OK",
+      `${report.taggedAndAgreeing}/${report.total} prices tagged and agreeing with the app.`);
+  }
+
+  record(
+    "Stripe catalogue",
+    report.onlyUntagged ? "WARN" : "FAIL",
+    report.findings.map((f) => f.message).join("\n  "),
+    report.onlyUntagged
+      ? "Optional — the built-in price table already covers these. Tagging them lets you add products without a deploy."
+      : "Metadata overrides the app's table at runtime, so fix Stripe or the table before taking payments."
+  );
+}
+
 /* ── Object storage ───────────────────────────────────────────────────── */
 async function checkStorage() {
   const { S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_ENDPOINT } = process.env;
@@ -324,6 +381,7 @@ await checkDatabase();
 await checkEmail();
 await checkStorage();
 await checkStripe();
+await checkStripeCatalog();
 await checkOwnerConfig();
 
 const testIndex = process.argv.indexOf("--send-test");

@@ -188,10 +188,16 @@ the live account, amount matching was wrong four separate ways:
 Amounts change; price IDs do not. The catalogue lives in
 `backend/src/config/stripe_catalog.ts`.
 
-**To add a product without a deploy:** set metadata on the Stripe price or
-product — `dd84_service` (creates a job) or `dd84_addon` (does not). Metadata
-overrides the table, so Stripe becomes the source of truth once you start
-using it.
+**All eight live prices are tagged** with `dd84_service` or `dd84_addon`
+metadata, so Stripe is now the source of truth and a new product needs no
+deploy — just the tag. The table in the repo stays as a fallback.
+
+Because metadata *overrides* the table at runtime, a mistyped tag in the Stripe
+dashboard silently changes what a payment creates: an add-on tagged
+`dd84_service` starts making a job on every rush fee, and a service tagged
+`dd84_addon` stops making them at all. Neither the code nor Stripe can notice
+that alone, so `npm run doctor` compares the two and fails on any disagreement.
+Untagged is only a warning — the table still covers it.
 
 Three outcomes produce no job, and they are kept distinct because only one
 needs you:
