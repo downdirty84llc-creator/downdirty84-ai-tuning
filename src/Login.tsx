@@ -45,6 +45,13 @@ export default function Login() {
         )}
         {err && <p className="small" style={{marginTop:12, color:"#fca5a5"}}>{err}</p>}
 
+        {/* Someone with no account who lands here has nothing to sign in to.
+            Send them to the shop rather than leaving them at a dead end. */}
+        <p className="small" style={{marginTop:16}}>
+          No account yet? <a href="/buy">Book a tune or log review</a> — you pay first and we email
+          you a sign-in link.
+        </p>
+
         <p className="small" style={{marginTop:16}}>
           Support: <a href="mailto:support@downdirty84llc.com">support@downdirty84llc.com</a>
         </p>

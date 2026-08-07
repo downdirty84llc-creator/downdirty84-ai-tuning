@@ -1,10 +1,40 @@
 import { Router } from "express";
 import Stripe from "stripe";
 import { withTransaction } from "../db.js";
+import { classifyCheckout, type CheckoutLine } from "../config/stripe_catalog.js";
+import { normaliseFuel, normaliseInduction } from "../config/thresholds.profiles.js";
+import {
+  adminRecipients,
+  notify,
+  paymentReceivedEmail
+} from "../services/notify/notifications.js";
+import { mintMagicLink } from "../services/auth/auth.service.js";
+import { SERVICE_PRICES } from "../config/stripe_catalog.js";
+import { getBrandProfile } from "../services/brand/brand_profile.js";
 import { wrap } from "../util/http.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2024-06-20" });
 export const stripeRouter = Router();
+
+/** Flatten a Stripe line item into what classification actually needs. */
+function toCheckoutLine(li: Stripe.LineItem): CheckoutLine {
+  const price = li.price ?? null;
+  const product =
+    price && typeof price.product === "object" && price.product && !("deleted" in price.product)
+      ? (price.product as Stripe.Product)
+      : null;
+
+  return {
+    priceId: price?.id ?? null,
+    productId: product?.id ?? (typeof price?.product === "string" ? price.product : null),
+    description: li.description ?? null,
+    amountTotal: li.amount_total ?? null,
+    quantity: li.quantity ?? null,
+    // Price metadata wins over product metadata: it is the more specific of
+    // the two, and it is where someone correcting a single price will put it.
+    metadata: { ...(product?.metadata ?? {}), ...(price?.metadata ?? {}) }
+  };
+}
 
 stripeRouter.post("/webhook", wrap(async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -21,130 +51,191 @@ stripeRouter.post("/webhook", wrap(async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+  if (event.type !== "checkout.session.completed") return res.json({ received: true });
 
-    const email = (session.customer_details?.email || session.customer_email || "").toLowerCase();
-    if (!email) return res.json({ received: true });
+  const session = event.data.object as Stripe.Checkout.Session;
 
-    // line items help classify service
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
-    const items = lineItems.data.map((li) => ({
-      description: li.description,
-      amount_total: li.amount_total,
-      quantity: li.quantity
-    }));
-
-    const amount = session.amount_total || 0;
-    const currency = session.currency || "usd";
-    const serviceType = classifyService(amount, items);
-
-    // The order insert and the job insert must land together or not at all.
-    // A partial commit would leave a paid order whose retry is treated as a
-    // duplicate, so the job would never be created and the payment would go
-    // silently unfulfilled.
-    const result = await withTransaction(async (tx) => {
-      const users = await tx.query<{ id: string }>(
-        `
-        INSERT INTO users (email)
-        VALUES ($1)
-        ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-        RETURNING id
-        `,
-        [email]
-      );
-      const userId = users[0].id;
-
-      // The unique constraint on stripe_event_id is the idempotency guard for
-      // the whole handler: zero rows back means this event was already
-      // processed. Stripe retries on any non-2xx or timeout, and previously
-      // every retry created another duplicate job.
-      const inserted = await tx.query<{ id: string }>(
-        `
-        INSERT INTO orders (user_id, stripe_event_id, stripe_session_id, customer_email, amount_total_cents, currency, items_json)
-        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)
-        ON CONFLICT (stripe_event_id) DO NOTHING
-        RETURNING id
-        `,
-        [userId, event.id, session.id, email, amount, currency, jsonb(items)]
-      );
-
-      if (inserted.length === 0) return { duplicate: true as const };
-
-      if (!serviceType) return { duplicate: false as const, jobCreated: false as const };
-
-      await tx.query(
-        `
-        INSERT INTO jobs (user_id, service_type, platform, engine_family, vehicle, ecu, notes, status)
-        VALUES ($1,$2,'GM',NULL,NULL,NULL,'Auto-created from Stripe payment', 'NEW')
-        `,
-        [userId, serviceType]
-      );
-
-      return { duplicate: false as const, jobCreated: true as const };
-    });
-
-    if (result.duplicate) {
-      // Already handled. Ack so Stripe stops retrying.
-      return res.json({ received: true, duplicate: true });
-    }
-
-    if (!result.jobCreated) {
-      // Payment recorded but we could not tell what was bought. This needs a
-      // human — it is a paid order with no work item attached to it.
-      console.error(
-        `[DD84] UNCLASSIFIED PAID ORDER — no job created. session=${session.id} amount=${amount} items=${jsonb(items)}`
-      );
-      return res.json({ received: true, jobCreated: false });
-    }
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[DD84] Created job for ${email} service=${serviceType} session=${session.id}`);
-    }
+  const email = (session.customer_details?.email || session.customer_email || "").toLowerCase();
+  if (!email) {
+    console.error(`[DD84] paid session with no email. session=${session.id}`);
+    return res.json({ received: true });
   }
 
-  return res.json({ received: true });
+  // Expand price.product so classification can see product-level metadata and
+  // recognise the other business lines on this account.
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    limit: 50,
+    expand: ["data.price.product"]
+  });
+  const lines = lineItems.data.map(toCheckoutLine);
+  const classification = classifyCheckout(lines);
+
+  const amount = session.amount_total || 0;
+  const currency = session.currency || "usd";
+
+  // What the buyer told us about the car, if the checkout collected it. Left
+  // null when absent — the analysis then measures against the strictest
+  // thresholds and says so, rather than assuming NA gasoline.
+  const meta = session.metadata ?? {};
+  const fuel = normaliseFuel(meta.fuel);
+  const induction = normaliseInduction(meta.induction);
+  const platform = (meta.platform ?? "").trim().toUpperCase() || null;
+  const vehicle = (meta.vehicle ?? "").trim() || null;
+
+  const noteParts = [
+    `Auto-created from Stripe payment ${session.id}`,
+    classification.addons.length ? `Add-ons: ${classification.addons.join(", ")}` : null,
+    classification.reason
+  ].filter(Boolean);
+
+  // The order insert and the job insert must land together or not at all. A
+  // partial commit would leave a paid order whose retry is treated as a
+  // duplicate, so the job would never be created and the payment would go
+  // silently unfulfilled.
+  const result = await withTransaction(async (tx) => {
+    const users = await tx.query<{ id: string }>(
+      `
+      INSERT INTO users (email)
+      VALUES ($1)
+      ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+      RETURNING id
+      `,
+      [email]
+    );
+    const userId = users[0].id;
+
+    // The unique constraint on stripe_event_id is the idempotency guard for
+    // the whole handler: zero rows back means this event was already
+    // processed. Stripe retries on any non-2xx or timeout.
+    const inserted = await tx.query<{ id: string }>(
+      `
+      INSERT INTO orders (user_id, stripe_event_id, stripe_session_id, customer_email, amount_total_cents, currency, items_json)
+      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)
+      ON CONFLICT (stripe_event_id) DO NOTHING
+      RETURNING id
+      `,
+      [userId, event.id, session.id, email, amount, currency, JSON.stringify(lines)]
+    );
+
+    if (inserted.length === 0) return { duplicate: true as const };
+    if (!classification.service) return { duplicate: false as const, jobId: null };
+
+    const jobs = await tx.query<{ id: string }>(
+      `
+      INSERT INTO jobs (user_id, service_type, platform, engine_family, vehicle, ecu, notes, fuel, induction, status)
+      VALUES ($1,$2,$3,NULL,$4,NULL,$5,$6,$7,'NEW')
+      RETURNING id
+      `,
+      [userId, classification.service, platform, vehicle, noteParts.join(" | "), fuel, induction]
+    );
+
+    return { duplicate: false as const, jobId: jobs[0].id };
+  });
+
+  if (result.duplicate) {
+    // Already handled. Ack so Stripe stops retrying.
+    return res.json({ received: true, duplicate: true });
+  }
+
+  if (!result.jobId) {
+    // No job, for one of three very different reasons. Only one needs a human,
+    // and conflating them is how a genuinely stuck payment gets ignored among
+    // routine noise.
+    if (classification.nonTuning) {
+      return res.json({ received: true, jobCreated: false, reason: "NON_TUNING" });
+    }
+    if (classification.addons.length > 0 && classification.unrecognised.length === 0) {
+      console.log(`[DD84] add-on purchase by ${email}: ${classification.addons.join(", ")}`);
+      await alertOwner(email, amount, currency, classification.reason, session.id, "ADD_ON");
+      return res.json({ received: true, jobCreated: false, reason: "ADDON_ONLY" });
+    }
+    console.error(
+      `[DD84] UNCLASSIFIED PAID ORDER — no job created. session=${session.id} ` +
+        `amount=${amount} reason=${classification.reason}`
+    );
+    await alertOwner(email, amount, currency, classification.reason, session.id, "UNCLASSIFIED");
+    return res.json({ received: true, jobCreated: false, reason: "UNCLASSIFIED" });
+  }
+
+  // Confirm the payment and hand them the way in. Without this the customer
+  // pays and hears nothing at all: no receipt, no route into the app, and no
+  // idea what to do next. Bundling the sign-in link removes the step people
+  // abandon — going to find a login page and requesting one.
+  //
+  // After the transaction committed, so a mail failure cannot undo a paid job.
+  // A job only exists when a service was recognised, but that is two branches
+  // back — narrow it here rather than asserting, so a future edit that changes
+  // the invariant fails to compile instead of emailing "undefined".
+  const { service } = classification;
+  const label = service
+    ? Object.values(SERVICE_PRICES).find((e) => e.service === service)?.label ?? service
+    : "your order";
+
+  const link = await mintMagicLink(email);
+  if (link) {
+    await notify(
+      paymentReceivedEmail({
+        to: email,
+        serviceLabel: label,
+        amountCents: amount,
+        currency,
+        signInUrl: link.url,
+        ttlMinutes: link.ttlMinutes
+      })
+    );
+  }
+
+  return res.json({ received: true, jobCreated: true, jobId: result.jobId });
 }));
 
 /**
- * Budget MVP classification by amount, then description.
+ * A paid order that produced no job needs a person, now.
  *
- * NOTE: these amounts are hardcoded and will silently stop matching the day a
- * price changes in Stripe — the failure mode is an unclassified paid order.
- * Replace with Stripe Price/Product IDs, or a price book lookup, before this
- * carries real volume.
+ * The customer has been charged, so the clock is running on work nobody has
+ * been told to do. Logging it is not enough — nobody reads logs on a Sunday.
  */
-function classifyService(
-  amount: number,
-  items: Array<{ description?: string | null; amount_total?: number | null }>
-): string | null {
-  const desc = (items.map((i) => i.description).join(" | ") || "").toLowerCase();
+async function alertOwner(
+  email: string,
+  amountCents: number,
+  currency: string,
+  reason: string,
+  sessionId: string,
+  kind: "UNCLASSIFIED" | "ADD_ON"
+): Promise<void> {
+  const brand = getBrandProfile();
+  const money = `${(amountCents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  const subject =
+    kind === "UNCLASSIFIED"
+      ? `${brand.brandName} — PAID ORDER WITH NO JOB (${money})`
+      : `${brand.brandName} — add-on purchased (${money})`;
 
-  // Checked most-specific first. The original wrote these as sequential ifs
-  // without else, so on an ambiguous match the LAST one won; the order here is
-  // reversed to preserve that precedence now that each branch returns.
-  if (
-    amount === 39900 ||
-    (desc.includes("stage 1") && (desc.includes("boost") || desc.includes("boosted")))
-  ) {
-    return "STAGE1_BOOST";
+  const body =
+    kind === "UNCLASSIFIED"
+      ? [
+          `${email} paid ${money} and no job was created.`,
+          "",
+          `Reason: ${reason}`,
+          `Stripe session: ${sessionId}`,
+          "",
+          "They are waiting on work nobody has been queued for. Either create the",
+          "job by hand, or add the price to backend/src/config/stripe_catalog.ts",
+          "(or set dd84_service metadata on it in Stripe, which needs no deploy).",
+          "",
+          `— ${brand.brandName}`
+        ].join("\n")
+      : [
+          `${email} paid ${money} for an add-on.`,
+          "",
+          `${reason}`,
+          `Stripe session: ${sessionId}`,
+          "",
+          "No new job was created, which is correct — an add-on applies to work",
+          "that already exists. Apply it to their open job.",
+          "",
+          `— ${brand.brandName}`
+        ].join("\n");
+
+  for (const admin of adminRecipients()) {
+    await notify({ to: admin, subject, text: body });
   }
-  if (amount === 24900 || (desc.includes("stage 1") && desc.includes("na"))) return "STAGE1_NA";
-  if (amount === 7900 || desc.includes("priority log")) return "PRIORITY_LOG_REVIEW";
-  if (amount === 3900 || (desc.includes("log review") && !desc.includes("priority"))) {
-    return "LOG_REVIEW";
-  }
-
-  const amounts = items.map((i) => i.amount_total || 0);
-  if (amounts.includes(24900)) return "STAGE1_NA";
-  if (amounts.includes(39900)) return "STAGE1_BOOST";
-  if (amounts.includes(7900)) return "PRIORITY_LOG_REVIEW";
-  if (amounts.includes(3900)) return "LOG_REVIEW";
-
-  return null;
-}
-
-// Helper to safely stringify for jsonb parameter
-function jsonb(v: any) {
-  return JSON.stringify(v ?? []);
 }

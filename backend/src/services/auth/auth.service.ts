@@ -5,25 +5,46 @@ import { notify, signInEmail } from "../notify/notifications.js";
 const TOKEN_TTL_MIN = Number(process.env.MAGICLINK_TOKEN_TTL_MIN || 15);
 const SESSION_DAYS = Number(process.env.SESSION_DAYS || 14);
 
-export async function startMagicLink(emailRaw: string): Promise<{ ok: true }> {
+/**
+ * Mint a single-use sign-in link without sending it.
+ *
+ * Separate from startMagicLink because a link is needed in two places that
+ * want to say very different things: the sign-in flow, and the payment
+ * confirmation that has to get a paying customer into the app without making
+ * them go and request a login first.
+ *
+ * Returns null for an unusable address so the caller cannot accidentally build
+ * a link for one.
+ */
+export async function mintMagicLink(
+  emailRaw: string
+): Promise<{ url: string; ttlMinutes: number } | null> {
   const email = emailRaw.trim().toLowerCase();
-
-  // Always return ok=true (prevent enumeration)
-  if (!email || !email.includes("@")) return { ok: true };
+  if (!email || !email.includes("@")) return null;
 
   const token = randomToken("mlk");
-  const tokenHash = sha256(token);
-
   await query(
     `
     INSERT INTO auth_tokens (email, token_hash, expires_at)
     VALUES ($1, $2, now() + ($3 || ' minutes')::interval)
     `,
-    [email, tokenHash, TOKEN_TTL_MIN]
+    [email, sha256(token), TOKEN_TTL_MIN]
   );
 
   const appBase = (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
-  const url = `${appBase}/auth/callback?token=${encodeURIComponent(token)}`;
+  return {
+    url: `${appBase}/auth/callback?token=${encodeURIComponent(token)}`,
+    ttlMinutes: TOKEN_TTL_MIN
+  };
+}
+
+export async function startMagicLink(emailRaw: string): Promise<{ ok: true }> {
+  const email = emailRaw.trim().toLowerCase();
+
+  // Always return ok=true (prevent enumeration)
+  const minted = await mintMagicLink(email);
+  if (!minted) return { ok: true };
+  const { url } = minted;
 
   // Awaited, not fire-and-forget: on serverless and on a SIGTERM during deploy
   // a detached promise is simply lost, and the customer waits for a link that

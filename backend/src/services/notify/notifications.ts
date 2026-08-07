@@ -46,6 +46,53 @@ export function signInEmail(to: string, url: string, ttlMinutes: number): EmailM
 }
 
 /**
+ * Payment received — and the link that lets them act on it.
+ *
+ * Without this a customer paid and heard nothing: no receipt from us, no way
+ * into the app, and no idea what to do next. Bundling the sign-in link into
+ * the confirmation removes the step where they have to go and request one,
+ * which is the step people abandon.
+ */
+export function paymentReceivedEmail(args: {
+  to: string;
+  serviceLabel: string;
+  amountCents: number;
+  currency: string;
+  signInUrl: string;
+  ttlMinutes: number;
+}): EmailMessage {
+  const brand = getBrandProfile();
+  const money = `$${(args.amountCents / 100).toFixed(2)} ${args.currency.toUpperCase()}`;
+
+  return {
+    to: args.to,
+    subject: `${brand.brandName} — payment received for ${args.serviceLabel}`,
+    text: [
+      `Thanks — we have your payment of ${money} for ${args.serviceLabel}.`,
+      "",
+      "Next step is yours: upload your datalog. This link signs you in and takes",
+      "you straight to the upload page.",
+      "",
+      args.signInUrl,
+      "",
+      `It works once and expires in ${args.ttlMinutes} minutes. If it lapses, request`,
+      `a new one from the sign-in page — your job is already waiting on your account.`,
+      "",
+      "What happens after you upload:",
+      "  1. Your log is parsed and checked against safety and drivability rules",
+      "  2. Suggested changes are calculated with a confidence per correction",
+      "  3. A person reviews and releases them — this never happens automatically",
+      "  4. You get an email with the change list and a CSV",
+      "",
+      `Questions: ${brand.supportEmail}`,
+      "",
+      `— ${brand.brandName}`,
+      brand.website
+    ].join("\n")
+  };
+}
+
+/**
  * The customer's change list is released.
  *
  * Carries the short disclaimer, because this is the message that precedes

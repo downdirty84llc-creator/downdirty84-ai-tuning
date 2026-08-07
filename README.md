@@ -9,12 +9,13 @@
 ## What runs without you
 
 ```
-customer signs in ──▶ magic link emailed automatically
-Stripe payment   ──▶ job created automatically
-customer upload  ──▶ parsed, validated, channel-mapped
-                 └─▶ safety + drivability rules, evidence windows
-                 └─▶ MAF suggestions with per-bin confidence
-                 └─▶ you are emailed that it is waiting, with the numbers
+customer visits /buy ──▶ picks a service, says what the car is
+Stripe checkout      ──▶ pays; card details never touch this app
+payment webhook      ──▶ job created, receipt + sign-in link emailed
+customer uploads log ──▶ parsed, validated, channel-mapped
+                     └─▶ safety + drivability rules, evidence windows
+                     └─▶ MAF suggestions with per-bin confidence
+                     └─▶ you are emailed that it is waiting, with the numbers
                       │
                       ▼
         ┌─────────────────────────────┐
@@ -119,6 +120,8 @@ backend/          API — Express + Postgres
     util/
   migrations/     numbered SQL, applied in order
 src/              Frontend — React + Vite
+  Buy.tsx           /buy — the shop; prices read live from Stripe
+  Paid.tsx          /paid — Stripe's return page, works signed-out
   ReviewQueue.tsx   /admin/queue — the owner's one decision
   DiffSetView.tsx   /diffsets/:id — what the customer's email opens
 docs/api/examples/  Sample payloads kept as contract documentation
@@ -168,7 +171,58 @@ npm i && npm run dev                                     # http://localhost:5173
 | `SESSION_DAYS` | no | Session lifetime, default 14 |
 | `MAGICLINK_TOKEN_TTL_MIN` | no | Magic-link TTL, default 15 |
 | `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | for durable uploads | Without these, uploads fall back to local disk — **ephemeral on Render/Heroku** |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | for billing | Webhook at `POST /api/v1/stripe/webhook` |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | for billing | Webhook at `POST /api/v1/stripe/webhook`. See **Payments** below |
+
+## Payments
+
+Payments are classified by **Stripe price ID**, never by amount. Checked against
+the live account, amount matching was wrong four separate ways:
+
+| | |
+| --- | --- |
+| Priority Log Review is **$99**, the code matched **$79** | every purchase produced no job — customer paid, nothing happened |
+| **$79** is really the Extra Revision add-on | buying a revision created a whole new job |
+| **$99** is both Priority Log Review *and* Rush Fee | a rush fee alone created a Priority job |
+| **$39** is both Log Review *and* a Georgia Opportunity Ledger tier | a newsletter subscriber got a tuning job, monthly |
+
+Amounts change; price IDs do not. The catalogue lives in
+`backend/src/config/stripe_catalog.ts`.
+
+**All eight live prices are tagged** with `dd84_service` or `dd84_addon`
+metadata, so Stripe is now the source of truth and a new product needs no
+deploy — just the tag. The table in the repo stays as a fallback.
+
+Because metadata *overrides* the table at runtime, a mistyped tag in the Stripe
+dashboard silently changes what a payment creates: an add-on tagged
+`dd84_service` starts making a job on every rush fee, and a service tagged
+`dd84_addon` stops making them at all. Neither the code nor Stripe can notice
+that alone, so `npm run doctor` compares the two and fails on any disagreement.
+Untagged is only a warning — the table still covers it.
+
+Three outcomes produce no job, and they are kept distinct because only one
+needs you:
+
+- **Add-on bought alone** — correct. A rush fee applies to work that exists.
+  You get an email so you can apply it.
+- **Another business line** — correct, and silent.
+- **Unrecognised price** — a paid order with nobody queued to do it. You get an
+  email immediately, because logs do not get read on a Sunday.
+
+The shop is **`/buy`** — also the site root. Amounts are read live from Stripe
+on every load (cached 5 minutes) and are **never committed to the repo**: a page
+advertising a price Stripe will not charge is the same drift bug that broke the
+webhook, aimed at customers. If Stripe cannot be reached the card says "price
+shown at checkout" rather than inventing a number or rendering `null` as free.
+
+Starting a payment: `POST /api/v1/checkout` with `{ service, addons?, vehicle?,
+platform?, fuel?, induction? }`. **The client names a service, never a price** —
+otherwise a browser could check out against any price on the account, including
+the $1-minimum donation, and the webhook would create a full-price job for it.
+`GET /api/v1/catalog` returns what is for sale so the frontend keeps no second
+copy of the price list.
+
+Fuel and induction collected at checkout flow onto the job, which is what
+selects the safety-threshold profile.
 
 ## The one manual step
 
