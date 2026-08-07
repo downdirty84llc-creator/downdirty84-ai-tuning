@@ -168,7 +168,46 @@ npm i && npm run dev                                     # http://localhost:5173
 | `SESSION_DAYS` | no | Session lifetime, default 14 |
 | `MAGICLINK_TOKEN_TTL_MIN` | no | Magic-link TTL, default 15 |
 | `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | for durable uploads | Without these, uploads fall back to local disk — **ephemeral on Render/Heroku** |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | for billing | Webhook at `POST /api/v1/stripe/webhook` |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | for billing | Webhook at `POST /api/v1/stripe/webhook`. See **Payments** below |
+
+## Payments
+
+Payments are classified by **Stripe price ID**, never by amount. Checked against
+the live account, amount matching was wrong four separate ways:
+
+| | |
+| --- | --- |
+| Priority Log Review is **$99**, the code matched **$79** | every purchase produced no job — customer paid, nothing happened |
+| **$79** is really the Extra Revision add-on | buying a revision created a whole new job |
+| **$99** is both Priority Log Review *and* Rush Fee | a rush fee alone created a Priority job |
+| **$39** is both Log Review *and* a Georgia Opportunity Ledger tier | a newsletter subscriber got a tuning job, monthly |
+
+Amounts change; price IDs do not. The catalogue lives in
+`backend/src/config/stripe_catalog.ts`.
+
+**To add a product without a deploy:** set metadata on the Stripe price or
+product — `dd84_service` (creates a job) or `dd84_addon` (does not). Metadata
+overrides the table, so Stripe becomes the source of truth once you start
+using it.
+
+Three outcomes produce no job, and they are kept distinct because only one
+needs you:
+
+- **Add-on bought alone** — correct. A rush fee applies to work that exists.
+  You get an email so you can apply it.
+- **Another business line** — correct, and silent.
+- **Unrecognised price** — a paid order with nobody queued to do it. You get an
+  email immediately, because logs do not get read on a Sunday.
+
+Starting a payment: `POST /api/v1/checkout` with `{ service, addons?, vehicle?,
+platform?, fuel?, induction? }`. **The client names a service, never a price** —
+otherwise a browser could check out against any price on the account, including
+the $1-minimum donation, and the webhook would create a full-price job for it.
+`GET /api/v1/catalog` returns what is for sale so the frontend keeps no second
+copy of the price list.
+
+Fuel and induction collected at checkout flow onto the job, which is what
+selects the safety-threshold profile.
 
 ## The one manual step
 

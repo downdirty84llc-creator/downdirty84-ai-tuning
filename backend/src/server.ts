@@ -9,6 +9,7 @@ import { meRouter } from "./routes/me.routes.js";
 import { uploadsRouter } from "./routes/uploads.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { stripeRouter } from "./routes/stripe.routes.js";
+import { checkoutRouter } from "./routes/checkout.routes.js";
 import { loadUserFromSession } from "./middleware/session.js";
 import { assertEnvOrExit, checkEnv } from "./config/env.js";
 import { unconfirmedProfiles } from "./config/thresholds.js";
@@ -84,6 +85,9 @@ app.use("/api/v1/uploads", uploadsRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/jobs", jobsRouter);
 app.use("/api/v1/runs", runsRouter);
+// Mounted after express.json, unlike the webhook, which needs the raw body
+// for signature verification.
+app.use("/api/v1", checkoutRouter);
 app.use("/api/v1", diffsetsRouter);
 app.use("/api/v1", exportsRouter);
 

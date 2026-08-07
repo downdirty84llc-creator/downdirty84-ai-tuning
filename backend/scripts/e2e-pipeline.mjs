@@ -200,6 +200,36 @@ ok(`attention flags: ${JSON.stringify(qi?.attention ?? [])}`);
 const dash = await req("GET", "/api/v1/admin/dashboard", { token: ADMIN });
 check("dashboard counts available", dash.status, 200);
 
+/* ══════════════ 4b. CHECKOUT GUARDS ═══════════════════════════════════ */
+console.log("── checkout refuses what it does not sell");
+
+const cat = await req("GET", "/api/v1/catalog");
+check("catalog is public", cat.status, 200);
+check("catalog lists 4 services", (cat.json?.services ?? []).length, 4);
+check("catalog lists 4 add-ons", (cat.json?.addons ?? []).length, 4);
+
+// The client names a service, never a price. If it could name a price it could
+// check out against any price on the account — including a $1 minimum — and
+// the webhook would create a $399 job for it.
+const badService = await req("POST", "/api/v1/checkout", { body: { service: "STAGE_9_NITROUS" } });
+check("unknown service refused", badService.status, 400);
+
+const priceInjection = await req("POST", "/api/v1/checkout", {
+  body: { service: "price_1TrHBRINLKqe1c6gvVnphdU2" }
+});
+check("a raw price ID is not accepted as a service", priceInjection.status, 400);
+
+const badAddon = await req("POST", "/api/v1/checkout", {
+  body: { service: "LOG_REVIEW", addons: ["FREE_STUFF"] }
+});
+check("unknown add-on refused rather than dropped", badAddon.status, 400);
+
+// Stripe is not configured in CI, so a valid request must fail closed with a
+// clear code rather than 500 or, worse, appear to succeed.
+const validShape = await req("POST", "/api/v1/checkout", { body: { service: "LOG_REVIEW" } });
+check("valid request without Stripe configured returns 503", validShape.status, 503);
+check("and names why", validShape.json?.error, "PAYMENTS_DISABLED");
+
 /* ══════════════ 5. READINESS ══════════════════════════════════════════ */
 console.log("── health and readiness");
 check("/health is 200", (await req("GET", "/health")).status, 200);
