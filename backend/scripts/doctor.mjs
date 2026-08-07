@@ -97,16 +97,43 @@ async function checkEmail() {
       headers: { Authorization: `Bearer ${key}` },
       signal: timeout()
     });
-    if (res.status === 401 || res.status === 403) {
-      return record("Email", "FAIL", `Resend rejected the key (${res.status}).`,
+
+    // Who actually answered? A status code alone cannot tell you: a proxy, a
+    // captive portal and an API all speak HTTP, and only one of them knows
+    // anything about your credentials. Classified by tested logic rather than
+    // inline guesswork — this is the branch that decides whether an operator
+    // is told to throw away a working key.
+    const { classifyResendResponse } = await import("../dist/services/notify/resend_probe.js");
+    const verdict = classifyResendResponse({
+      status: res.status,
+      ok: res.ok,
+      rawBody: await res.text().catch(() => "")
+    });
+
+    if (verdict.kind === "NOT_REACHED") {
+      return record("Email", "FAIL",
+        `Got HTTP ${verdict.status} from something that is not Resend (${verdict.detail}).`,
+        "Nothing reached api.resend.com, so the key was never tested — do NOT revoke it on this result. " +
+        "Check for a proxy, firewall or network policy blocking api.resend.com:443.");
+    }
+    if (verdict.kind === "KEY_REJECTED") {
+      return record("Email", "FAIL", `Resend rejected the key: ${verdict.message}.`,
         "The key is wrong or was revoked. Create a new one in the Resend dashboard.");
     }
-    if (!res.ok) {
-      return record("Email", "FAIL", `Resend returned ${res.status}.`, "Check status.resend.com.");
+    if (verdict.kind === "KEY_RESTRICTED") {
+      // A "Sending access" key is the better security posture. Calling it
+      // broken would push people toward a full-access key instead.
+      return record("Email", "WARN",
+        "Key is valid but scoped to sending only, so the domain list cannot be read from here.",
+        "That scope is fine — safer than full access. Confirm the domain shows Verified in Resend → Domains, " +
+        "or run `npm run doctor -- --send-test you@example.com` to prove delivery end to end.");
+    }
+    if (verdict.kind === "API_ERROR") {
+      return record("Email", "FAIL", `Resend returned ${verdict.status}: ${verdict.message}`,
+        "Check the key's permissions, and status.resend.com.");
     }
 
-    const body = await res.json().catch(() => ({}));
-    const domains = body?.data ?? [];
+    const domains = verdict.domains;
     const verified = domains.filter((d) => d.status === "verified").map((d) => d.name);
 
     // The sending domain is the part people get wrong. A valid key with an
@@ -127,7 +154,67 @@ async function checkEmail() {
     }
     record("Email", "OK", `Key valid, ${domain} verified, sending as ${from}`);
   } catch (err) {
-    record("Email", "FAIL", String(err?.message ?? err), "Could not reach api.resend.com.");
+    // A thrown fetch is a network failure, never an authentication one. Say so,
+    // so nobody goes looking for a bad key that was never even sent.
+    record("Email", "FAIL", `Could not reach api.resend.com: ${err?.message ?? err}`,
+      "This is a connectivity problem, not a key problem — the key was never tested, so do not revoke it on this result.");
+  }
+}
+
+/**
+ * Prove delivery end to end: `npm run doctor -- --send-test you@example.com`
+ *
+ * The only check here that is not read-only, so it is opt-in and never runs
+ * by default. It is also the only one that answers the question that actually
+ * matters — did an email arrive — which no amount of API probing can.
+ */
+async function sendTestEmail(to) {
+  const key = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim() || "Down Dirty 84 <noreply@downdirty84llc.com>";
+  if (!key) {
+    return record("Test email", "FAIL", "RESEND_API_KEY is not set.", "Set it, then re-run.");
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: "Down Dirty 84 — setup test",
+        text: "If you are reading this, sign-in links and 'your change list is ready' emails will reach your customers."
+      }),
+      signal: timeout(15_000)
+    });
+    // Same classifier as the main check, so a blocked network cannot be
+    // reported here as a credential problem either.
+    const { classifyResendResponse } = await import("../dist/services/notify/resend_probe.js");
+    const raw = await res.text().catch(() => "");
+    const verdict = classifyResendResponse({ status: res.status, ok: res.ok, rawBody: raw });
+
+    if (verdict.kind === "NOT_REACHED") {
+      return record("Test email", "FAIL",
+        `HTTP ${verdict.status} from something that is not Resend (${verdict.detail}).`,
+        "Nothing reached api.resend.com — connectivity, not credentials. The key was never tested.");
+    }
+    if (verdict.kind === "KEY_REJECTED") {
+      return record("Test email", "FAIL", `Resend rejected the key: ${verdict.message}.`,
+        "Create a new key in the Resend dashboard.");
+    }
+    if (!res.ok) {
+      const message = verdict.kind === "API_ERROR" ? verdict.message : "refused";
+      return record("Test email", "FAIL", `Resend refused: ${message}`,
+        /domain/i.test(message)
+          ? "Verify your sending domain in Resend → Domains — this is the usual cause."
+          : "See the message above.");
+    }
+
+    let id = null;
+    try { id = JSON.parse(raw)?.id ?? null; } catch { /* accepted, id unknown */ }
+    record("Test email", "OK", `Accepted by Resend${id ? ` (id ${id})` : ""}. Check ${to} — including spam.`);
+  } catch (err) {
+    record("Test email", "FAIL", `Could not reach api.resend.com: ${err?.message ?? err}`,
+      "Connectivity, not credentials.");
   }
 }
 
@@ -238,6 +325,17 @@ await checkEmail();
 await checkStorage();
 await checkStripe();
 await checkOwnerConfig();
+
+const testIndex = process.argv.indexOf("--send-test");
+if (testIndex !== -1) {
+  const to = process.argv[testIndex + 1];
+  if (!to || !to.includes("@")) {
+    console.log(`\n${RED}--send-test needs an address: npm run doctor -- --send-test you@example.com${OFF}`);
+    process.exit(1);
+  }
+  console.log("");
+  await sendTestEmail(to);
+}
 
 const failed = results.filter((r) => r.state === "FAIL");
 const warned = results.filter((r) => r.state === "WARN");

@@ -51,6 +51,20 @@ sending domain is verified, heads the S3 bucket with your credentials, and reads
 your Stripe account. Read-only — nothing is created, charged or sent. Exits
 non-zero on a blocking problem, so it works as a deploy gate.
 
+It also distinguishes **"your credential is wrong"** from **"nothing reached the
+provider"**, which look identical if you only read the status code — a proxy or
+network policy can answer 403 to a request that never left your network. Being
+told to revoke a working key is worse than being told nothing, so the check
+names who actually answered before blaming a credential.
+
+To prove delivery end to end — the one thing no API probe can tell you:
+
+```bash
+npm run doctor -- --send-test you@example.com
+```
+
+The only part of the doctor that is not read-only, which is why it is opt-in.
+
 The two things it cannot do for you:
 
 1. **`RESEND_API_KEY`** — sign-in is a magic link, so with no email transport
