@@ -158,6 +158,24 @@ npm i && npm run dev                                     # http://localhost:5173
 | `npm test` | Unit tests |
 | `npm run test:e2e` | Full pipeline against a running API + Postgres |
 
+### Dependencies
+
+CI fails the build on any **high** advisory in production dependencies
+(`npm audit --omit=dev --audit-level=high`), so an advisory published after a
+green merge turns the next run red rather than sitting unnoticed.
+
+`package.json` carries one override:
+
+```json
+"overrides": { "qs": "^6.16.0" }
+```
+
+Express 4.22.2 — the latest 4.x — still pins `qs@6.15.3`, which is the top of a
+vulnerable range. The override lifts the whole tree to 6.16.0, a same-major
+security release. The alternative was Express 5, a breaking upgrade on a live
+payments path for two moderate advisories. Remove the override once Express 4
+ships a build that pins 6.16.0 itself.
+
 ## Environment
 
 | Var | Required | Notes |
