@@ -15,7 +15,7 @@ testimonial or a turnaround promise that is not sold in Stripe.
 >
 > Log Review $39. Need it today? Priority is $99.
 >
-> Down Dirty 84 — Performance ECM Tuning, Atlanta GA. Remote and in-person.
+> Down Dirty 84 — Performance ECM Tuning, Jefferson GA. Remote and in-person.
 
 **Headline:** Datalog In. Change List Out.
 
@@ -49,9 +49,9 @@ unconfirmed. Sending traffic anywhere else costs you that.
 
 ## Targeting to start
 
-- 18–45, United States. Atlanta metro gets a separate ad set — the brand is
-  local and "Atlanta, GA" on the end card is an asset there, dead weight
-  elsewhere.
+- 18–45, United States. North-east Georgia and the Atlanta metro get a
+  separate ad set — the shop is in Jefferson, GA and "Jefferson, GA" on the
+  end card is an asset within driving distance, dead weight elsewhere.
 - Interests: HP Tuners, Holley EFI, LS swap, Coyote swap, drag racing,
   ECU tuning, Pontiac G8 / Chevrolet SS owners.
 - Placements: Reels and Stories get the 9:16, Feed gets the 4:5. Turn off

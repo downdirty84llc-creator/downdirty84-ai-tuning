@@ -17,6 +17,7 @@ V="${SRC:-$SP/source.mp4}"
 [ -f "$V" ] || { echo "source clip not found at $V; set SRC=/path/to/clip.mp4" >&2; exit 1; }
 
 OUT="${OUTDIR:-$SP/../video}"; mkdir -p "$OUT"
+THUMBS="${THUMBDIR:-$SP/../thumbnails}"; mkdir -p "$THUMBS"
 
 GRADE="eq=contrast=1.10:saturation=1.14:gamma=0.97,unsharp=5:5:0.5"
 ENC=(-c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k)
@@ -104,7 +105,7 @@ render 45       "$SP/cards_4x5" "$V45"  "DD84_remote-tuning_FB_4x5.mp4"      ful
 
 echo "Thumbnails:"
 "$FF" -y -hide_banner -loglevel error -ss 1.6 -i "$OUT/DD84_remote-tuning_FB_9x16.mp4" \
-  -frames:v 1 -q:v 2 "$OUT/DD84_thumbnail_9x16.jpg"
+  -frames:v 1 -q:v 2 "$THUMBS/DD84_thumbnail_9x16.jpg"
 "$FF" -y -hide_banner -loglevel error -ss 1.6 -i "$OUT/DD84_remote-tuning_FB_4x5.mp4" \
-  -frames:v 1 -q:v 2 "$OUT/DD84_thumbnail_4x5.jpg"
+  -frames:v 1 -q:v 2 "$THUMBS/DD84_thumbnail_4x5.jpg"
 ls -la "$OUT"

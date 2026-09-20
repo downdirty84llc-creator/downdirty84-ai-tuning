@@ -25,8 +25,8 @@ PANEL = (17, 24, 39)        # #111827  "
 WHITE = (255, 255, 255)
 TEXT = (229, 231, 235)      # #E5E7EB  "
 MUTED = (156, 163, 175)     # #9CA3AF  "
-ACCENT = (255, 122, 24)     # #FF7A18  chosen here; brand defines no accent
-GO = (53, 212, 97)
+ACCENT = (168, 235, 0)      # #A8EB00  the DD84 logo green (owner-confirmed)
+GO = (168, 235, 0)
 
 DISP = "BigShoulders-Bold.ttf"
 MONO = "GeistMono-Bold.ttf"
@@ -142,7 +142,7 @@ def build(W, H, out):
     y = H - BOT - 250 * S
     d.text((M, y), "DOWN DIRTY 84", font=f(DISP, 128 * S), fill=WHITE)
     y += 148 * S
-    d.text((M, y), "PERFORMANCE ECM TUNING  " + chr(183) + "  ATLANTA, GA",
+    d.text((M, y), "PERFORMANCE ECM TUNING  " + chr(183) + "  JEFFERSON, GA",
            font=f(MONO, 34 * S), fill=ACCENT)
     y += 54 * S
     d.text((M, y), "REMOTE & IN-PERSON", font=f(MONO, 34 * S), fill=MUTED)
@@ -214,7 +214,7 @@ def build(W, H, out):
     y += 58 * S
     d.text((M, y), "PERFORMANCE ECM TUNING", font=f(MONO, 44 * S), fill=WHITE)
     y += 62 * S
-    d.text((M, y), "ATLANTA, GA  " + chr(183) + "  REMOTE & IN-PERSON",
+    d.text((M, y), "JEFFERSON, GA  " + chr(183) + "  REMOTE & IN-PERSON",
            font=f(MONO, 40 * S), fill=MUTED)
     y += 132 * S
     d.rounded_rectangle([M, y, W - M, y + 168 * S], 14, fill=ACCENT)

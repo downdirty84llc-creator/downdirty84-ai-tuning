@@ -60,13 +60,15 @@ catch for the app, except a video cannot check itself at runtime.
 Base palette is lifted from `src/styles.css`, so the ad matches the product:
 
 - `#0B0F14` ink, `#111827` panel, `#E5E7EB` text, `#9CA3AF` muted
+- `#A8EB00` accent (from the logo, not from `styles.css`)
 
-The accent `#FF7A18` is **not** from the brand. `brand_profile.ts` has
-`accentColor: null` — there is no defined brand accent. Orange was chosen
-because it is the one hue that separates from blue sky, green trees and a white
-car simultaneously. Replace it in `gen.py` (`ACCENT`) if a real brand colour
-gets defined, and set `accentColor` in `brand_profile.ts` at the same time so
-the two stop disagreeing.
+The accent is `#A8EB00`, sampled from the DD84 logo and confirmed by the
+owner as the canonical brand colour. Note that DD84's print flyers use crimson
+(`#B8120E`) rather than green — the green logo is the one to follow.
+
+`brand_profile.ts` still has `accentColor: null`. Setting it to `#A8EB00` would
+stop the app and the ads disagreeing; that change is not made here because it
+touches product code, not marketing assets.
 
 Type is Big Shoulders Bold (display), Geist Mono Bold (labels), Instrument Sans
 (body) — all OFL, redistributable.
