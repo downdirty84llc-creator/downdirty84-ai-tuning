@@ -14,7 +14,8 @@
     "test": "node scripts/run-tests.mjs",
     "test:e2e": "node scripts/e2e-pipeline.mjs",
     "migrate": "node scripts/migrate.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "test:dd84-link": "node scripts/e2e-dd84-link.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.699.0",
