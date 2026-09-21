@@ -308,3 +308,7 @@ Health endpoints: `/health` for liveness (touches nothing else, so a database
 blip cannot get a healthy process killed) and `/ready` for readiness (checks
 Postgres and configuration, so a misconfigured instance is pulled from the load
 balancer rather than returning errors to customers).
+
+## DD84 LINK Rev-A
+
+Customer and tuner/admin simulation workflows are available at /dd84-link. See [local setup, safety limits and checks](products/dd84-link/README.md) and [the integrated API contract](products/dd84-link/docs/INTEGRATED_API.md). All ECU writes remain disabled; install/recovery operates on persisted simulation slots only.
