@@ -44,3 +44,5 @@ button.secondary{
 
 select{padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text)}
 label{display:block}
+
+.link-section{margin-top:16px}.link-section label{margin:12px 0}.link-section button{margin:4px}.link-checkbox{width:auto;margin-right:8px}button:disabled{opacity:.5;cursor:not-allowed}

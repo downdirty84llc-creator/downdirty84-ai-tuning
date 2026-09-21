@@ -1,3 +1,4 @@
+import DD84Link from "./DD84Link";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./Login";
 import AuthCallback from "./AuthCallback";
@@ -20,6 +21,7 @@ export default function App() {
       {/* Stripe's success_url. Must work signed-out — see Paid.tsx. */}
       <Route path="/paid" element={<Paid />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/dd84-link" element={<DD84Link />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/admin" element={<Admin />} />
       {/* The two pages the automated emails link to. Both are opened straight

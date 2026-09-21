@@ -19,13 +19,15 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   if (!res.ok) {
     // Surface the server's message instead of a bare status code.
     let detail = "";
+    let errorBody: any;
     try {
       const body = await res.clone().json();
+      errorBody = body;
       detail = body?.message ? ` — ${body.message}` : "";
     } catch {
       /* non-JSON error body */
     }
-    throw new Error(`HTTP ${res.status}${detail}`);
+    throw Object.assign(new Error(`HTTP ${res.status}${detail}`), { details: errorBody });
   }
   return res;
 }
