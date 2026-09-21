@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, sign, verify } from 'node:crypto';
+import { createHash, createHmac, randomBytes, sign, verify, timingSafeEqual } from 'node:crypto';
 
 export const PROTOCOL_VERSION = 'DD84-LINK/0.1';
 export const MIN_FLASH_VOLTAGE = 12.2;
@@ -26,10 +26,11 @@ export function deviceProof({ secret, serial, nonce, issuedAt }) {
 }
 
 export function timingSafeEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || !/^[a-f0-9]{64}$/i.test(a) || !/^[a-f0-9]{64}$/i.test(b)) return false;
   const aa = Buffer.from(a, 'hex');
   const bb = Buffer.from(b, 'hex');
   if (aa.length !== bb.length) return false;
-  return aa.every((byte, i) => byte === bb[i]);
+  return timingSafeEqual(aa, bb);
 }
 
 export function createCalibrationPackage({ payload, privateKey }) {
@@ -39,19 +40,22 @@ export function createCalibrationPackage({ payload, privateKey }) {
 }
 
 export function verifyCalibrationPackage(pkg, publicKey) {
-  if (pkg?.protocol !== PROTOCOL_VERSION) return false;
+  try {
+  if (pkg?.protocol !== PROTOCOL_VERSION || typeof pkg.signature !== 'string') return false;
   const body = canonicalize(pkg.payload);
   if (sha256(body) !== pkg.digest) return false;
   return verify(null, Buffer.from(body), publicKey, Buffer.from(pkg.signature, 'base64'));
+  } catch { return false; }
 }
 
 export function evaluatePreflash(state, expected) {
+  state = state ?? {};
   const checks = {
-    voltage: Number(state.batteryVoltage) >= MIN_FLASH_VOLTAGE,
+    voltage: typeof state.batteryVoltage === 'number' && Number.isFinite(state.batteryVoltage) && state.batteryVoltage >= MIN_FLASH_VOLTAGE,
     engineOff: state.engineRunning === false,
-    stationary: Number(state.vehicleSpeedKph) === 0,
+    stationary: typeof state.vehicleSpeedKph === 'number' && state.vehicleSpeedKph === 0,
     controllerMatch: state.controllerId === expected.controllerId,
-    vinMatch: sha256(state.vin) === expected.vinHash,
+    vinMatch: typeof state.vin === 'string' && sha256(state.vin) === expected.vinHash,
     backupCreated: state.backupCreated === true,
     transportStable: state.transportStable === true,
   };

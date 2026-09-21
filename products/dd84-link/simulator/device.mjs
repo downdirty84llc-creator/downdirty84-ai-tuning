@@ -25,7 +25,7 @@ export class DD84LinkSimulator {
     this.token = null;
     this.cloudKey = null;
     this.vehicle = null;
-    this.flashState = { activeSlot: 'A', slotA: 'factory', slotB: null, recoveryBackup: null };
+    this.flashState = { activeSlot: 'A', slotA: 'factory', slotB: null, recoveryBackup: null, originalBackup: null };
   }
 
   async authenticate() {
@@ -70,6 +70,9 @@ export class DD84LinkSimulator {
 
   async install(pkg, state) {
     if (!verifyCalibrationPackage(pkg, this.cloudKey)) throw new Error('calibration_signature_invalid');
+    if (pkg.payload.writeStrategy !== 'SIMULATION_ONLY') throw new Error('real_writes_disabled');
+    if (!Number.isFinite(Date.parse(pkg.payload.expiresAt)) || Date.parse(pkg.payload.expiresAt) <= Date.now()) throw new Error('calibration_expired');
+    if (pkg.payload.hwRev !== this.hwRev || pkg.payload.fwVersion !== this.fwVersion) throw new Error('incompatible_version');
     if (pkg.payload.deviceSerial !== this.serial) throw new Error('device_binding_mismatch');
     const result = evaluatePreflash(state, pkg.payload);
     if (!result.ok) {
@@ -77,6 +80,7 @@ export class DD84LinkSimulator {
       return { installed: false, ...result };
     }
 
+    this.flashState.originalBackup ??= this.flashState.slotA;
     this.flashState.recoveryBackup = this.flashState[this.flashState.activeSlot === 'A' ? 'slotA' : 'slotB'];
     const inactive = this.flashState.activeSlot === 'A' ? 'B' : 'A';
     this.flashState[`slot${inactive}`] = pkg.digest;

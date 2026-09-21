@@ -105,6 +105,8 @@ export function createCloud({ provisioning = new Map() } = {}) {
         const payload = {
           calibrationId: `DD84-${makeNonce(6).toUpperCase()}`,
           revision: 1,
+          hwRev: devices.get(session.serial).hwRev,
+          fwVersion: devices.get(session.serial).fwVersion,
           deviceSerial: session.serial,
           vinHash: vehicle.vinHash,
           controllerId: vehicle.controllerId,
