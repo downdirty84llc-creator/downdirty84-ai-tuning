@@ -6,7 +6,9 @@
   "description": "DD84 LINK secure remote tuning hardware/software vertical-slice prototype",
   "scripts": {
     "demo": "node tests/e2e.mjs",
-    "test": "node --test tests/protocol.test.mjs tests/e2e.test.mjs"
+    "test": "node --test tests/protocol.test.mjs tests/e2e.test.mjs tests/device-guard.test.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
