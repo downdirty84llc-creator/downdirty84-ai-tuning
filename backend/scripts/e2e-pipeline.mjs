@@ -248,6 +248,12 @@ check("readiness reports the database reachable", ready.json?.database, "ok");
 // this run has no provider key — but an instance reporting CONSOLE in
 // production is one where no customer can log in, and it must be visible.
 check("readiness names the email transport", ready.json?.email, "CONSOLE");
+// No Stripe key here, so the account check must report NOT_CONFIGURED — a
+// distinct state from "wrong account". Reporting a mismatch would make every
+// development machine look broken; reporting OK would be a lie about a check
+// that never ran.
+check("readiness names the Stripe account state", ready.json?.stripeAccount, "NOT_CONFIGURED");
+check("an unconfigured Stripe does not block readiness", ready.json?.ready, true);
 
 console.log(`\n═══ pass=${pass} fail=${fail}`);
 process.exit(fail === 0 ? 0 : 1);

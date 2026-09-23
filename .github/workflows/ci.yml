@@ -159,6 +159,16 @@ jobs:
       # Classifying a payment by its amount was wrong four different ways
       # against the live account: two prices collide at $99, two at $39 across
       # business lines, and one service's amount was simply out of date.
+      # Price IDs are minted per account, so a key for the wrong one of the four
+      # accounts named "Down Dirty 84 llc" classifies nothing at all. The
+      # symptom looks like a code bug; the cause is configuration.
+      - name: The Stripe account behind the price IDs is asserted at boot
+        run: |
+          grep -q 'EXPECTED_STRIPE_ACCOUNT' backend/src/config/stripe_catalog.ts \
+            || { echo "::error::the expected Stripe account is gone; a key for the wrong account would classify no payments"; exit 1; }
+          grep -q 'verifyStripeAccount' backend/src/server.ts \
+            || { echo "::error::the server no longer verifies which Stripe account its key belongs to"; exit 1; }
+
       - name: Payments are classified by price ID, not by amount
         run: |
           grep -q 'classifyCheckout' backend/src/routes/stripe.routes.ts \

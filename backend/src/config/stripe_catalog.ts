@@ -34,6 +34,19 @@
  * once the owner starts using it.
  */
 
+/**
+ * The Stripe account every price ID below belongs to.
+ *
+ * Kept here rather than in env: it is not configuration, it is a property of
+ * the IDs in this file. They were minted by this account and are meaningless
+ * against any other, so the two have to move together or not at all.
+ *
+ * Checked at boot against the configured key — see stripe_account.ts. The
+ * connector currently lists four accounts named "Down Dirty 84 llc", so
+ * "surely it is the right one" is not a safe assumption to leave unchecked.
+ */
+export const EXPECTED_STRIPE_ACCOUNT = "acct_1QBl8ZINLKqe1c6g";
+
 /** The four things that create a job. */
 export type ServiceType =
   | "LOG_REVIEW"
