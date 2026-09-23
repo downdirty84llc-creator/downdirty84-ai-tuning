@@ -232,6 +232,26 @@ advertising a price Stripe will not charge is the same drift bug that broke the
 webhook, aimed at customers. If Stripe cannot be reached the card says "price
 shown at checkout" rather than inventing a number or rendering `null` as free.
 
+### Which Stripe account
+
+Price IDs are minted per account — an identical product on a different account
+has entirely different ones. So a key for the wrong account does not classify
+payments *badly*, it classifies **none of them**.
+
+That is not hypothetical: there are now four Stripe accounts named
+**"Down Dirty 84 llc"**. `EXPECTED_STRIPE_ACCOUNT` in `stripe_catalog.ts`
+records which one the price IDs came from, and the server asks Stripe at boot
+which account its key actually belongs to.
+
+A mismatch — wrong account, or a test key with `NODE_ENV=production` — makes
+`/ready` return 503, so the instance leaves the load balancer instead of
+accepting webhooks it can do nothing with. `npm run doctor` reports the same
+thing before you deploy at all.
+
+Two states are deliberately *not* failures: **no key** (payments are simply
+off) and **Stripe unreachable** (an outage must not cascade into this app
+refusing all traffic). Neither is ever reported as OK.
+
 Starting a payment: `POST /api/v1/checkout` with `{ service, addons?, vehicle?,
 platform?, fuel?, induction? }`. **The client names a service, never a price** —
 otherwise a browser could check out against any price on the account, including

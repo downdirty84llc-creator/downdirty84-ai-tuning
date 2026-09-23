@@ -323,8 +323,34 @@ async function checkStripe() {
         "Copy the secret key again from the Stripe dashboard. Note test vs live mode.");
     }
     const acct = await res.json().catch(() => ({}));
-    const live = key.startsWith("sk_live");
+    const live = key.startsWith("sk_live") || key.startsWith("rk_live");
     const mode = live ? "LIVE" : "test";
+
+    // Which account, not just whether the key works. Price IDs are minted per
+    // account, so a key for the wrong one of the four accounts named "Down
+    // Dirty 84 llc" matches nothing in the catalogue and classifies no payment
+    // at all — and the symptom looks like a code bug rather than a key.
+    try {
+      const { EXPECTED_STRIPE_ACCOUNT } = await import("../dist/config/stripe_catalog.js");
+      const { classifyAccount, describeVerdict, blocksPayments } =
+        await import("../dist/config/stripe_account.js");
+
+      const verdict = classifyAccount({
+        expected: EXPECTED_STRIPE_ACCOUNT,
+        actual: acct.id ?? null,
+        livemode: live,
+        nodeEnv: process.env.NODE_ENV
+      });
+
+      if (blocksPayments(verdict)) {
+        return record("Payments", "FAIL", describeVerdict(verdict),
+          verdict.kind === "WRONG_ACCOUNT"
+            ? `Point STRIPE_SECRET_KEY at ${EXPECTED_STRIPE_ACCOUNT}, or update the price IDs and EXPECTED_STRIPE_ACCOUNT in src/config/stripe_catalog.ts to the account you meant.`
+            : "Use a live key in production, or set NODE_ENV to something else.");
+      }
+    } catch {
+      record("Payments", "WARN", "Could not check which account the key belongs to (run `npm run build` first).", "npm run build");
+    }
 
     if (!process.env.STRIPE_WEBHOOK_SECRET) {
       // Without the webhook secret the signature check cannot pass, so paid
@@ -334,7 +360,7 @@ async function checkStripe() {
         "Add the endpoint POST /api/v1/stripe/webhook in Stripe, subscribe to checkout.session.completed, and copy its signing secret.");
     }
     record("Payments", live ? "OK" : "WARN",
-      `${acct.business_profile?.name ?? acct.id}, ${mode} mode, webhook secret set.`,
+      `${acct.business_profile?.name ?? acct.id} (${acct.id}), ${mode} mode, webhook secret set.`,
       live ? undefined : "Test-mode keys will not take real money. Switch to live keys when you are ready.");
   } catch (err) {
     record("Payments", "FAIL", String(err?.message ?? err), "Could not reach api.stripe.com.");
