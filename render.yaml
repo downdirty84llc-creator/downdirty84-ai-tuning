@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     # `start` runs migrations first, so a deploy that changes the schema
     # applies it before serving. The runner is idempotent and refuses to claim
     # success if a migration drifted.
@@ -55,7 +55,7 @@ services:
   - type: web
     name: dd84-web
     runtime: static
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_BASE_URL
