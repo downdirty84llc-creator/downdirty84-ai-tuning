@@ -14,6 +14,8 @@ import { checkoutRouter } from "./routes/checkout.routes.js";
 import { loadUserFromSession } from "./middleware/session.js";
 import { assertEnvOrExit, checkEnv } from "./config/env.js";
 import { unconfirmedProfiles } from "./config/thresholds.js";
+import { verifyStripeAccount, stripeAccountVerdict } from "./services/billing/account_check.js";
+import { computeReadiness } from "./config/readiness.js";
 import { pool } from "./db.js";
 import { jobsRouter } from "./routes/jobs.routes.js";
 import { runsRouter } from "./routes/runs.routes.js";
@@ -65,8 +67,14 @@ app.get("/ready", async (_req, res) => {
     });
   }
   const env = checkEnv();
-  return res.status(env.ok ? 200 : 503).json({
-    ready: env.ok,
+
+  // A key pointing at the wrong Stripe account classifies no payment at all,
+  // so this instance would take webhooks and create nothing. Not ready.
+  const stripe = stripeAccountVerdict();
+  const { ready, configErrors } = computeReadiness(env, stripe);
+
+  return res.status(ready ? 200 : 503).json({
+    ready,
     database: "ok",
     storage: env.storage,
     payments: env.payments,
@@ -75,7 +83,8 @@ app.get("/ready", async (_req, res) => {
     // state — every affected report says so — but it should never be a
     // surprise discovered from a customer's report.
     unconfirmedThresholdProfiles: unconfirmedProfiles(),
-    configErrors: env.errors
+    stripeAccount: stripe.kind,
+    configErrors
   });
 });
 
@@ -120,6 +129,12 @@ process.on("uncaughtException", (err) => {
 // Validate configuration before binding a port. In production a missing
 // required value exits here rather than failing later on a customer request.
 assertEnvOrExit();
+
+// Asked once, after the port is bound. Not inside assertEnvOrExit: that is
+// synchronous by design, and blocking a deploy on a third-party HTTP call
+// means a Stripe outage stops you shipping. A mismatch surfaces through
+// /ready instead, which is how every other misconfiguration here behaves.
+void verifyStripeAccount();
 
 const port = process.env.PORT ? Number(process.env.PORT) : 8080;
 const server = app.listen(port, () =>
