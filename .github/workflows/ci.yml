@@ -91,6 +91,12 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/host_flash_guard_test.c -o /tmp/dd84-flash-guard
           /tmp/dd84-flash-guard
 
+      - name: DD84 LINK firmware startup gate
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/host_startup_test.c -o /tmp/dd84-startup
+          /tmp/dd84-startup
+          cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/main.c -o /tmp/dd84-scaffold
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
         working-directory: backend
