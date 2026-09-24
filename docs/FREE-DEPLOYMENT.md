@@ -33,7 +33,9 @@ Set API environment values:
 
 Generate LINK keys once with `node products/dd84-link/scripts/generate-keys.mjs` in a private terminal; save them directly into the API's secret settings and a secure backup. Never commit them. Keep them stable across deployments.
 
-Set frontend `VITE_API_BASE_URL` to the actual API HTTPS origin and rebuild. If service URLs are assigned only after creation, update both API origin settings and the frontend build variable before accepting users. `npm start` applies all pending migrations before serving.
+Keep frontend `VITE_API_BASE_URL` empty and rebuild so browser requests use the frontend origin. The `/api/*` rewrite must precede the SPA fallback and target the actual API HTTPS hostname (the supplied blueprint uses `dd84-api.onrender.com`). Update that rewrite if Render assigns another hostname. Separate `onrender.com` hosts are cross-site: calling the API directly prevents the `HttpOnly; Secure; SameSite=Lax` session from persisting. Do not relax cookie security to work around this. If service URLs are assigned only after creation, update the API origin settings and rewrite destination before accepting users. `npm start` applies all pending migrations before serving.
+
+For Supabase certificate-chain errors, download the CA linked from the project's Database Settings, save it as a Render secret file named `supabase-ca.crt`, and set `NODE_EXTRA_CA_CERTS=/etc/secrets/supabase-ca.crt`. Retain `sslmode=verify-full` in the database URL. This trusts the provider CA without disabling TLS verification.
 
 ## Verify before use
 
