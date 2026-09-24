@@ -1,0 +1,12 @@
+Ref,Function,Production candidate,Prototype choice,Notes
+U1,Automotive MCU,NXP S32K344,FRDM-A-S32K344 dev board,CAN FD + HSE + secure boot + FOTA capable
+U2/U3,CAN physical layer,NXP TJA1462,TJA1462 eval/breakout,Two independent CAN/CAN-FD channels recommended
+U4,Device identity / optional secondary root,Microchip ATECC608B,ATECC608B dev board,Optional if S32K3 HSE provisioning is sufficient
+U5,Wireless module,Murata Type 2EL (IW612),USB/Wi-Fi bridge during EVT,Defer wireless integration until wired protocol is stable
+U6,Automotive buck regulator,Automotive-qualified 36-40V tolerant buck,Lab bench supply for EVT,Final selection after load-dump/transient design review
+D1,TVS protection,Automotive load-dump TVS,Inline protected lab harness,Select against ISO 7637-2 transient targets
+J1,Vehicle connector,SAE J1962 male OBD-II,OBD breakout harness,Use replaceable cable on EVT units
+J2,Host connector,USB-C with ESD protection,USB-C dev-board connection,USB remains mandatory recovery/service path
+Q1,Power disconnect/reverse protection,Automotive ideal-diode / reverse battery stage,Fused bench harness,Final component selected during schematic review
+LED1,Status indicator,RGB LED,On-board dev LED,States: boot/auth/logging/flash/fault
+SW1,User button,Sealed tactile button,Dev board button,Long-press enters service/recovery mode

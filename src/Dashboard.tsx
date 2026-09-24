@@ -94,6 +94,7 @@ export default function Dashboard() {
   return (
     <div className="container">
       <div className="nav">
+        <a href="/dd84-link">DD84 LINK</a>
         <div className="brand">Down Dirty 84</div>
         <button className="secondary" onClick={logout}>Logout</button>
       </div>

@@ -1,3 +1,4 @@
+import { dd84LinkRouter } from "./routes/dd84-link.routes.js";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
@@ -87,6 +88,7 @@ app.get("/ready", async (_req, res) => {
   });
 });
 
+app.use("/api/v1/dd84-link", dd84LinkRouter);
 app.use("/api/v1/brand", brandRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/me", meRouter);

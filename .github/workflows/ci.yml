@@ -79,6 +79,18 @@ jobs:
           npm run test:e2e
         working-directory: backend
 
+      - name: DD84 LINK API integration
+        run: npm run test:dd84-link
+        working-directory: backend
+
+      - name: DD84 LINK source simulator
+        run: npm --prefix products/dd84-link test
+
+      - name: DD84 LINK firmware fail-closed guard
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/host_flash_guard_test.c -o /tmp/dd84-flash-guard
+          /tmp/dd84-flash-guard
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
         working-directory: backend

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { adminGetJob, adminListJobs, adminPatchJob } from "./admin";
+import { adminGetJob, adminListJobs, adminPatchJob } from "./adminApi";
 
 const STATUSES = ["NEW","FILES_RECEIVED","ANALYZING","IN_PROGRESS","DELIVERED","COMPLETE"];
 
@@ -46,6 +46,7 @@ export default function Admin() {
   return (
     <div className="container">
       <div className="nav">
+        <a href="/dd84-link">DD84 LINK</a>
         <div className="brand">Down Dirty 84 Admin</div>
         <div className="row" style={{gap:8}}>
           {/* The queue is the screen that actually needs attention — this page
