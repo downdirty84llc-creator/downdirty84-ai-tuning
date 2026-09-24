@@ -34,6 +34,8 @@ cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products
 /tmp/dd84-flash-guard
 cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/host_startup_test.c -o /tmp/dd84-startup
 /tmp/dd84-startup
+cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/src/can_capture.c products/dd84-link/firmware/host_can_capture_test.c -o /tmp/dd84-capture
+/tmp/dd84-capture
 ```
 
 `test:e2e` is the existing destructive pipeline fixture: it truncates its test database. Configure its `E2E_*` variables and run only in a disposable database. `test:dd84-link` uses `DATABASE_URL`, inserts uniquely identified test devices and users, starts an ephemeral HTTP listener using the actual router and session middleware, and leaves test records for inspection. It verifies auth, access boundaries, persistence, logs, signatures, unsafe rejection, A/B simulation, recovery, and audits. CI runs both against a fresh Postgres service.
@@ -44,5 +46,9 @@ The next milestone follows the [compact product and EVT-0 brief](hardware/COMPAC
 Startup now requires trusted health evidence before READY, keeps unprovisioned
 devices unable to capture, and latches failures. The default scaffold has no board
 adapters and stays faulted. The host tests validate this state logic only.
+
+The [CAN capture contract](docs/CAN_CAPTURE.md) defines the host-tested FIFO,
+frame validation, startup gate, drain, overflow accounting and adapter requirements.
+There is still no physical CAN driver or authenticated wired bridge.
 
 The S32K344-class code is a host-tested guard/state-machine scaffold. NXP RTD/HSE adapters, secure boot provisioning, hardware identity storage, CAN/USB drivers, actual signed-firmware boot verification, and bench recovery are not implemented or certified. `dd84_real_write_allowed()` unconditionally returns false. Signature/version flags in the host guard must eventually come from trusted hardware adapters; they are not substitutes for cryptographic verification. Wi-Fi/BLE and physical flashing remain gated by EVT/DVT/PVT validation.
