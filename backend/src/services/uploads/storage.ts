@@ -11,6 +11,8 @@ function s3Client(): S3Client {
   return new S3Client({
     region: process.env.S3_REGION || "auto",
     endpoint: process.env.S3_ENDPOINT || undefined,
+    // Supabase and other custom S3 endpoints route buckets in the URL path.
+    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
     credentials: process.env.S3_ACCESS_KEY_ID
       ? {
           accessKeyId: process.env.S3_ACCESS_KEY_ID!,

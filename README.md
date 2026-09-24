@@ -320,7 +320,7 @@ most jobs can be decided from a phone. Approving is seconds per job.
 
 ## Deploy
 
-`render.yaml` provisions the API, the static frontend and Postgres in one step.
+`render.yaml` provisions a Free Render API and static frontend using external Supabase PostgreSQL and private storage. Follow [free deployment setup](docs/FREE-DEPLOYMENT.md). The previous paid Render database/API configuration is retained in `render.paid.yaml` as an explicit alternative.
 Copy `.env.example`, fill it in, and push — `npm start` runs migrations before
 serving, and the runner is idempotent.
 
