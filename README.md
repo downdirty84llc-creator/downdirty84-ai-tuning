@@ -129,7 +129,7 @@ openapi.yaml      API contract
 ```
 
 ## Prereqs
-- Node 18+
+- Node 20.19+ (20.x) or 22.12+ for the frontend build (CI uses Node 22).
 - Postgres 14+ (needs `pgcrypto` and `citext`)
 
 ## Install and run
