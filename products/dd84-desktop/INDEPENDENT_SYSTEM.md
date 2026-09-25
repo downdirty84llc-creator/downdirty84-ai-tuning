@@ -37,3 +37,11 @@ The U.S. Copyright Office distinguishes protected program expression from ideas,
 5. **End-to-end hardware release.** Validate backup, recovery after interruption, identity binding and pre-write checks on a bench for each controller family before enabling physical writes. Then validate a signed Windows installer and update process.
 
 Current status: steps 1–5 are future milestones; preview 0.2 supplies the local case/fingerprint foundation and simulation editor. It does not provide universal controller support or real HPT calibration editing.
+
+## Measured-learning milestone
+
+Implemented: local evidence timeline and readiness checklist in the desktop source. Not implemented: trained models, adaptive correction updates, proprietary channel decoding, VE/timing table adapters, cloud learning or automatic calibration changes.
+
+Next, import permitted readable log exports with time, units, sensor provenance and exact calibration hashes. Partition runs by controller/OS, hardware configuration, displacement, cam installation and fuel. Reject unknown units, transient or invalid sensor data and incomparable runs. Keep MAF and VE attribution separate; account for fuel-system and sensor errors before interpreting lambda residuals as airflow errors. Record proposed versus reviewed versus applied corrections independently. Compare independent validation runs before updating versioned learning state, retain rollback and prevent rejected/duplicate runs from training it. User approval alone is not evidence of measured improvement.
+
+Cam/displacement context cannot establish optimum spark. A future timing adapter needs validated knock detection and controlled torque evidence for each tested operating region; absence of knock alone does not establish maximum-brake-torque timing. Reference: https://support.haltech.com/portal/en/kb/articles/applying-load and https://support.haltech.com/portal/en/kb/articles/knock-control-user-s-guide . No timing values are proposed by this milestone.
