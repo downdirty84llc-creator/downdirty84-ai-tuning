@@ -87,6 +87,14 @@ Validation: 22 tests pass. Applied locally to the existing VCM Scanner export, t
 
 ## Documented channel selection
 
-Preview 0.5 lets the operator choose among compatible candidate channels and document each selection. Each selection is validated against the current CSV and saved inside its fingerprinted inspection report. Selecting a different channel clears its prior explanation; loading a CSV clears all selections. Channels with no finite numeric samples cannot be selected. Existing flags remain in the record, and no selection grants sensor validation or learning readiness. Custom-label mapping and report reopening are not implemented.
+Preview 0.5 lets the operator choose among compatible candidate channels and document each selection. Each selection is validated against the current CSV and saved inside its fingerprinted inspection report. Selecting a different channel clears its prior explanation; loading a CSV clears all selections. Channels with no finite numeric samples cannot be selected. Existing flags remain in the record, and no selection grants sensor validation or learning readiness. Custom-label mapping is not implemented. Saved-review reopening is described below.
 
 Validation: 24 tests pass. Browser verification with the local VCM Scanner export showed duplicate RPM choices, unavailable unsupported roles and preserved flags. Export without an explanation was rejected; an explicitly test-only selection was saved for artifact verification. Native Windows testing of 0.5 remains outstanding.
+
+## Reopen a saved log review
+
+Select the original exported CSV, then choose **Reopen saved log review**. After replacement confirmation, the app checks the decoded-text SHA-256 and restores channel choices, selection explanations and calibration association notes. A CSV rename is allowed; changed contents are rejected. Current choices remain intact on failure. Older inspection reports without channel selections reopen with no roles selected.
+
+The parser accepts only bounded evidence-only reports, reconstructs statistics/candidates/flags from the selected CSV, and validates every restored channel choice. Saved summaries cannot override computed measurements or enable learning. A fingerprint establishes matching content, not authenticity of notes or calibration identity. Concurrent channel/note edits or a new CSV invalidate a pending restore.
+
+Validation: 26 tests pass, including altered contents, forged release gates and stale/malformed channel selections. The actual VCM export and prior test-only downloaded selection report were reopened through the same module; 51,166 rows and the saved test RPM selection were preserved. Browser/native interaction testing of this new restore control remains outstanding. The local 0.5.0 ZIP predates this addition.
