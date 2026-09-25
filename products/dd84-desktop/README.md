@@ -1,6 +1,6 @@
 # DD84 Calibration Studio — Windows preview
 
-This Windows x64 desktop workbench runs offline. Preview 0.4 includes read-only HPT file-pair cases, learning evidence preparation, detailed comparison CSV imports and readable datalog inspection alongside the simulation table editor.
+This Windows x64 desktop workbench runs offline. Preview 0.5 includes read-only HPT file-pair cases, learning evidence preparation, detailed comparison CSV imports and readable datalog inspection with measurement checks and documented channel selections alongside the simulation table editor.
 
 ## Real-file case workflow
 
@@ -82,4 +82,11 @@ The current source identifies candidate roles by exact export labels and units, 
 
 Commanded lambda cannot substitute for measured lambda, MAF voltage cannot substitute for frequency, and spark advance cannot substitute for knock retard. Units are retained without conversion. Sensor validation, operator channel selection, time alignment and correction calculations are not implemented. Learning remains disabled even when candidate roles are present.
 
-Validation: 22 tests pass. Applied locally to the existing VCM Scanner export, the checks identify duplicate RPM and temperature sources, a constant intake-temperature channel, voltage rather than MAF frequency, and no recognized measured-lambda or knock-retard channel. Customer measurements remain outside git. The packaged 0.4.0 preview predates these checks.
+Validation: 22 tests pass. Applied locally to the existing VCM Scanner export, the checks identify duplicate RPM and temperature sources, a constant intake-temperature channel, voltage rather than MAF frequency, and no recognized measured-lambda or knock-retard channel. Customer measurements remain outside git. Preview 0.5.0 includes these checks.
+
+
+## Documented channel selection
+
+Preview 0.5 lets the operator choose among compatible candidate channels and document each selection. Each selection is validated against the current CSV and saved inside its fingerprinted inspection report. Selecting a different channel clears its prior explanation; loading a CSV clears all selections. Channels with no finite numeric samples cannot be selected. Existing flags remain in the record, and no selection grants sensor validation or learning readiness. Custom-label mapping and report reopening are not implemented.
+
+Validation: 24 tests pass. Browser verification with the local VCM Scanner export showed duplicate RPM choices, unavailable unsupported roles and preserved flags. Export without an explanation was rejected; an explicitly test-only selection was saved for artifact verification. Native Windows testing of 0.5 remains outstanding.
