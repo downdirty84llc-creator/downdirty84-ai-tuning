@@ -1,6 +1,6 @@
 # DD84 Calibration Studio — Windows preview
 
-This Windows x64 desktop workbench runs offline. Preview 0.2 adds read-only HPT file-pair cases alongside the simulation table editor.
+This Windows x64 desktop workbench runs offline. Preview 0.3 includes read-only HPT file-pair cases, learning evidence preparation and detailed comparison CSV imports alongside the simulation table editor.
 
 ## Real-file case workflow
 
@@ -52,11 +52,11 @@ Automated tests cover immutable edits, comparison, JSON save/reopen, original re
 
 ## Learning preparation
 
-The current source adds a separate `DD84_LEARNING_CASE_V1` reference record for original/intermediate/final tunes and earlier/before-final/after-final HPL logs. It records displacement, cam/build notes, bounded local file hashes and explicit owner-supplied log-to-calibration associations. It does not decode HPL channels or learn numerical corrections. The existing 0.2.0 ZIP predates this source change.
+The current source adds a separate `DD84_LEARNING_CASE_V1` reference record for original/intermediate/final tunes and earlier/before-final/after-final HPL logs. It records displacement, cam/build notes, bounded local file hashes and explicit owner-supplied log-to-calibration associations. It does not decode HPL channels or learn numerical corrections. These features are included in preview 0.3.0.
 
 Reopening imports references only; files are not automatically verified or backed up. Replacing a calibration clears associations to its prior fingerprint. Chronology never creates an association. Readiness stays blocked even when every file is present because measurement import and validation are not implemented here. The panel distinguishes MAF, VE and timing evidence requirements without extending the backend editable-table allowlist, approval flow or physical-write gate.
 
-Validation: nine desktop tests pass, including invalid inputs, dangling associations, forged release status, file limits and round trips. Browser verification opened the locally prepared five-file case and checked the missing-measurement status. No customer files are included in the repository.
+Learning-case tests cover invalid inputs, dangling associations, forged release status, file limits and round trips. Browser verification opened the locally prepared five-file case and checked the missing-measurement status. No customer files are included in the repository.
 
 ## Read-only comparison import
 
@@ -64,4 +64,4 @@ The source now imports detailed vendor-exported Differences CSV files into `DD84
 
 The independently authored parser handles bounded quoted CSV, scalar changes and observed rectangular/single-column difference tables. It preserves unsupported blocks without interpretation, rejects names-only exports, strips description prose from native reports, fingerprints decoded source text and retains rows for audit. Axis differences are never used as actual operating coordinates. Text transitions retain source notation; diagnostic-code entries do not imply enabled/disabled behavior. No values are applied to the simulation editor or a vehicle.
 
-Validation: 14 desktop tests pass, including malformed/oversized CSV, sign handling, single-column tables, names-only rejection, unsupported shape preservation and report provenance. The browser imported the local real export and pair, blocked export without sign evidence, then showed correct signed differences and requested the evidence download. Customer exports and reference values remain outside the repository. The existing 0.2.0 local ZIP predates this addition; CI packages the updated source.
+Validation: 14 desktop tests pass, including malformed/oversized CSV, sign handling, single-column tables, names-only rejection, unsupported shape preservation and report provenance. The browser imported the local real export and pair, blocked export without sign evidence, then showed correct signed differences and requested the evidence download. Customer exports and reference values remain outside the repository. Preview 0.3.0 includes this importer; CI packages the same source.
