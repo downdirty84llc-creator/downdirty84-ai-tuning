@@ -48,6 +48,10 @@ label{display:block}
 .link-section{margin-top:16px}.link-section label{margin:12px 0}.link-section button{margin:4px}.link-checkbox{width:auto;margin-right:8px}button:disabled{opacity:.5;cursor:not-allowed}
 
 .link-connection{margin-bottom:20px}
+.link-frame-table{overflow-x:auto;max-height:420px;margin:16px 0}
+.link-frame-table table{border-collapse:collapse;width:100%;text-align:left;font-size:13px}
+.link-frame-table th,.link-frame-table td{padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.link-frame-table:focus-visible{outline:2px solid #93c5fd}
 .link-connection-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .link-connection h2{margin:8px 0}
 .link-demo-label{font-size:12px;font-weight:800;letter-spacing:.08em;color:#93c5fd}
