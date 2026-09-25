@@ -65,3 +65,13 @@ The source now imports detailed vendor-exported Differences CSV files into `DD84
 The independently authored parser handles bounded quoted CSV, scalar changes and observed rectangular/single-column difference tables. It preserves unsupported blocks without interpretation, rejects names-only exports, strips description prose from native reports, fingerprints decoded source text and retains rows for audit. Axis differences are never used as actual operating coordinates. Text transitions retain source notation; diagnostic-code entries do not imply enabled/disabled behavior. No values are applied to the simulation editor or a vehicle.
 
 Validation: 14 desktop tests pass, including malformed/oversized CSV, sign handling, single-column tables, names-only rejection, unsupported shape preservation and report provenance. The browser imported the local real export and pair, blocked export without sign evidence, then showed correct signed differences and requested the evidence download. Customer exports and reference values remain outside the repository. Preview 0.3.0 includes this importer; CI packages the same source.
+
+## Readable datalog inspection
+
+The current source adds a read-only CSV log inspector. It accepts the observed HP Tuners CSV Log File version 1.0 export, requiring channel IDs/names/units and Offset in seconds. Limits are 16 MB, 100,000 data rows, 256 columns, 4,096 characters per field and five million cells. Unsupported structure, duplicate channel IDs, nonfinite time, width mismatches and decreasing timestamps are rejected. Equal timestamps are counted and preserved.
+
+Each channel reports numeric/text/missing counts and observed finite extrema. Blank cells are never filled or interpolated; zero remains a real recorded value. Text and nonfinite tokens are not silently coerced into numbers. Names and units stay unchanged, and no sensor-role mapping or sample-rate inference occurs. No raw VIN or creation metadata is copied into the report.
+
+Save log inspection exports DD84_LOG_INSPECTION_V1 with a decoded-text SHA-256, channel summary and optional operator-stated calibration hash/association note. It does not include raw samples or prove that calibration ran during the log. Retain the source CSV. Learning readiness stays false: measurement validation, sensor mapping, steady-state filtering and correction proposals remain future work. The existing 0.3.0 ZIP predates this addition; CI packages updated source.
+
+Validation: all 19 desktop tests pass. The local customer export produced 51,166 rows and 63 channels spanning 511.695 seconds. Only synthetic fixtures are committed.
