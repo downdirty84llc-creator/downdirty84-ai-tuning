@@ -121,6 +121,9 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Connection screen state and reports
+        run: npm run test:link-capture
+
   guardrails:
     name: Safety guardrails still in place
     runs-on: ubuntu-latest

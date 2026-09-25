@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet, apiFetch, apiPost } from "./client";
+import LinkConnection from "./LinkConnection";
 
 type Device = {
   serial: string;
@@ -146,6 +147,7 @@ export default function DD84Link() {
         <p>Sign in to view your devices and sessions.</p>
       ) : (
         <>
+          <LinkConnection />
           <button
             className="secondary"
             disabled={busy}
