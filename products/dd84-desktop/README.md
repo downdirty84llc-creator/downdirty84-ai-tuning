@@ -75,3 +75,11 @@ Each channel reports numeric/text/missing counts and observed finite extrema. Bl
 Save log inspection exports DD84_LOG_INSPECTION_V1 with a decoded-text SHA-256, channel summary and optional operator-stated calibration hash/association note. It does not include raw samples or prove that calibration ran during the log. Retain the source CSV. Learning readiness stays false: measurement validation, sensor mapping, steady-state filtering and correction proposals remain future work. Preview 0.4.0 includes datalog inspection; CI packages the same source.
 
 Validation: all 19 desktop tests pass. The local customer export produced 51,166 rows and 63 channels spanning 511.695 seconds. Only synthetic fixtures are committed.
+
+## VCM Scanner measurement candidates
+
+The current source identifies candidate roles by exact export labels and units, and includes them in log inspection reports. Duplicate candidates remain ambiguous; nothing is automatically selected. Unsupported units, no numeric samples, constant values and nonnumeric entries are visible for review. Constant values are not automatically classified as broken sensors. The channel inventory remains available for custom labels that this initial mapping does not recognize.
+
+Commanded lambda cannot substitute for measured lambda, MAF voltage cannot substitute for frequency, and spark advance cannot substitute for knock retard. Units are retained without conversion. Sensor validation, operator channel selection, time alignment and correction calculations are not implemented. Learning remains disabled even when candidate roles are present.
+
+Validation: 22 tests pass. Applied locally to the existing VCM Scanner export, the checks identify duplicate RPM and temperature sources, a constant intake-temperature channel, voltage rather than MAF frequency, and no recognized measured-lambda or knock-retard channel. Customer measurements remain outside git. The packaged 0.4.0 preview predates these checks.

@@ -9,7 +9,7 @@
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test.mjs filePair.test.mjs learning.test.mjs differences.test.mjs logs.test.mjs",
+    "test": "node --test test.mjs filePair.test.mjs learning.test.mjs differences.test.mjs logs.test.mjs measurements.test.mjs",
     "package": "electron-packager . DD84-Calibration-Studio --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist --ignore=test.mjs"
   },
   "devDependencies": {
