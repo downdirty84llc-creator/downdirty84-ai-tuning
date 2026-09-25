@@ -51,3 +51,17 @@ export async function logReport(raw,name,tuneSha256='',associationNote='',select
   const summary=inspectLog(raw),digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));
   return {format:'DD84_LOG_INSPECTION_V1',status:'EVIDENCE_ONLY_NOT_RELEASED',writeStrategy:'SIMULATION_ONLY',source:{name,textSha256:Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join(''),hashScope:'UTF8_DECODED_TEXT'},calibration:{sha256:tuneSha256.toLowerCase()||null,association:tuneSha256?'OPERATOR_SUPPLIED_NOT_VERIFIED':'UNCONFIRMED',note:associationNote.trim()},...summary,measurementChecks:measurementChecks(summary),channelSelection:reviewedMapping(summary,selections),automaticApplication:false,learningReady:false,limitations:['Blank cells remain missing; no interpolation or forward fill is performed.','Row counts are export rows, not a uniform sampling rate.','Ranges are observed values, not validated measurements or recommended settings.','Exact label/unit matches identify candidates only; no sensor role is verified or automatically selected.','This inspection does not establish performance improvement or enable correction learning.']};
 }
+
+export const MAX_LOG_REPORT_BYTES=256*1024;
+export async function reopenLogReport(saved,raw,currentName){
+  if(typeof saved!=='string'||new TextEncoder().encode(saved).length>MAX_LOG_REPORT_BYTES)throw Error('Saved log review exceeds 256 KB.');
+  const value=JSON.parse(saved);
+  if(value?.format!=='DD84_LOG_INSPECTION_V1'||value.status!=='EVIDENCE_ONLY_NOT_RELEASED'||value.writeStrategy!=='SIMULATION_ONLY'||value.learningReady!==false||value.automaticApplication!==false)throw Error('Unsupported or released log review.');
+  if(value.source?.hashScope!=='UTF8_DECODED_TEXT'||typeof value.source.textSha256!=='string'||!/^[a-f0-9]{64}$/.test(value.source.textSha256))throw Error('Saved review has no supported source fingerprint.');
+  if(!value.calibration||!(value.calibration.sha256===null||typeof value.calibration.sha256==='string')||typeof value.calibration.note!=='string')throw Error('Invalid calibration reference.');
+  if(value.channelSelection!==undefined&&(value.channelSelection?.format!=='DD84_CHANNEL_SELECTION_V1'||value.channelSelection.status!=='OPERATOR_SELECTED_NOT_SENSOR_VALIDATED'||value.channelSelection.learningReady!==false||value.channelSelection.automaticApplication!==false||!Array.isArray(value.channelSelection.entries)))throw Error('Unsupported channel selections.');
+  // Recompute all measurements, flags and candidate metadata from the selected CSV.
+  const report=await logReport(raw,currentName,value.calibration.sha256??'',value.calibration.note,value.channelSelection?.entries??[]);
+  if(report.source.textSha256!==value.source.textSha256)throw Error('CSV does not match this saved review. Select the original exported CSV; no choices were restored.');
+  return report;
+}
