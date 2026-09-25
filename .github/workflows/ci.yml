@@ -85,6 +85,8 @@ jobs:
 
       - name: DD84 LINK source simulator
         run: npm --prefix products/dd84-link test
+        env:
+          DD84_SANITIZE: '1'
 
       - name: DD84 LINK firmware fail-closed guard
         run: |
