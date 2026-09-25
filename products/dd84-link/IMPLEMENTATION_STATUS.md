@@ -8,6 +8,7 @@ The supplied Rev-A MVP has been imported into `products/dd84-link/` and integrat
 - Firmware: fail-closed host guard with an unconditional physical-write prohibition; board adapters, signed boot verification and real controller support remain unimplemented.
 - Hardware/BOM and EVT source documents preserved; DVT/PVT verification gates added.
 - EVT-0 preparation: compact product brief and host-tested startup gate added. Missing or failed health evidence cannot reach READY; runtime failures latch FAULT. No physical board/capture results are claimed.
+- EVT-0 capture core: validated dual-channel classic CAN/FD frame queue, FIFO drain, observable overflow/rejections, monotonic timestamp checks and reset accounting. Host tests only; serialized board driver and wired bridge remain unimplemented.
 
 Validation commands and limitations are documented in [README](README.md). Automated CI executes existing application checks plus LINK API integration, original simulator tests and the C host guard.
 

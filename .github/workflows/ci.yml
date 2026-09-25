@@ -97,6 +97,11 @@ jobs:
           /tmp/dd84-startup
           cc -std=c11 -Wall -Wextra -Werror -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/main.c -o /tmp/dd84-scaffold
 
+      - name: DD84 LINK CAN capture queue
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/src/can_capture.c products/dd84-link/firmware/host_can_capture_test.c -o /tmp/dd84-capture
+          /tmp/dd84-capture
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
         working-directory: backend
