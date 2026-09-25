@@ -1,6 +1,6 @@
 # DD84 Calibration Studio — Windows preview
 
-This Windows x64 desktop workbench runs offline. Preview 0.6 includes read-only HPT file-pair cases, learning evidence preparation, detailed comparison CSV imports and readable datalog inspection with measurement checks and documented channel selections alongside the simulation table editor.
+This Windows x64 desktop workbench runs offline. Preview 0.7 includes read-only HPT file-pair cases, learning evidence preparation, detailed comparison CSV imports and readable datalog inspection with measurement checks and documented channel selections alongside the simulation table editor.
 
 ## Real-file case workflow
 
@@ -98,3 +98,10 @@ Select the original exported CSV, then choose **Reopen saved log review**. After
 The parser accepts only bounded evidence-only reports, reconstructs statistics/candidates/flags from the selected CSV, and validates every restored channel choice. Saved summaries cannot override computed measurements or enable learning. A fingerprint establishes matching content, not authenticity of notes or calibration identity. Concurrent channel/note edits or a new CSV invalidate a pending restore.
 
 Validation: 26 tests pass, including altered contents, forged release gates and stale/malformed channel selections. The actual VCM export and prior test-only downloaded selection report were reopened through the same module; 51,166 rows and the saved test RPM selection were preserved. Browser interaction testing restored the synthetic CSV review, selected RPM channel and exact evidence note after fingerprint verification. Preview 0.6.0 includes reopening. Native Windows testing of 0.6 remains outstanding.
+
+
+## Recorded channel timeline
+
+Preview 0.7 adds a read-only timeline for any non-time channel with finite numeric readings. Choose a channel after loading the CSV. At most 240 equal-duration intervals show independent observed minimum/maximum marks; empty intervals have no mark. Missing and nonnumeric counts are retained, zero is numeric, and the final interval includes the recording endpoint. There is no interpolation, connecting line, average, synchronized sensor model or correction calculation. A text interval listing accompanies the chart. Viewing a channel does not select it for a measurement role or save it into the review.
+
+Validation: 29 tests pass, including gaps, repeated timestamps, zero-duration and long recordings, endpoint preservation and numeric-range time rejection. Local VCM RPM and intake-temperature channels were processed successfully. A synthetic browser renderer harness verified marks, an empty interval, labels and accessible text. Full file-selection integration and native 0.7 UI testing remain follow-up checks. Native 0.6 import/restore/save passed previously. No customer data is packaged.

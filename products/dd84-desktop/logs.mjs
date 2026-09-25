@@ -17,7 +17,7 @@ function* rows(text){
   if(quoted)throw Error('Unclosed CSV field.');
   if(cell||row.length||closed){field();yield row;}
 }
-export function inspectLog(raw){
+export function inspectLog(raw,visitRow=null){
   if(typeof raw!=='string'||new TextEncoder().encode(raw).length>MAX_LOG_BYTES)throw Error('Log export must be at most 16 MB.');
   const stream=rows(raw.replace(/^\uFEFF/,''));
   const next=()=>stream.next().value;
@@ -40,8 +40,10 @@ export function inspectLog(raw){
     if(time===last)duplicateTimes++;if(first===null)first=time;last=time;
     if(++rowCount>100000)throw Error('Log exceeds 100,000 rows.');
     row.forEach((value,i)=>{const c=channels[i],s=value.trim();if(!s){c.missingCount++;return;}if(numeric.test(s)&&Number.isFinite(Number(s))){const n=Number(s);c.numericCount++;c.min=c.min===null?n:Math.min(c.min,n);c.max=c.max===null?n:Math.max(c.max,n);}else c.textCount++;});
+    if(visitRow)visitRow(time,row,channels);
   }
   if(!rowCount)throw Error('Log has no data rows.');
+  if(!Number.isFinite(last-first))throw Error('Time span exceeds the numeric range.');
   return {rowCount,time:{unit:'s',first,last,span:last-first,duplicateTimes},channels};
 }
 export async function logReport(raw,name,tuneSha256='',associationNote='',selections=[]){
