@@ -1,6 +1,16 @@
 # DD84 Calibration Studio — Windows preview
 
-This is the first downloadable Windows x64 desktop workbench for the DD84 platform. It runs offline. Open or create a simulation project, preserve its original, edit MAF airflow values, undo changes, compare against the original, save a project copy and export an unsigned review draft.
+This Windows x64 desktop workbench runs offline. Preview 0.2 adds read-only HPT file-pair cases alongside the simulation table editor.
+
+## Real-file case workflow
+
+Enter the vehicle description and build/change notes, then select the original and final `.hpt` files. Each file is bounded to 32 MiB, checked for the observed `HPT ` header, and fingerprinted with SHA-256. That header is a preliminary format check, not proof of validity, compatibility or authenticity. The app does not decode HPT tables or write to source files.
+
+**Save file-pair case** exports notes and both file identities as `DD84_FILE_PAIR_V1`. It contains no calibration payload, absolute paths, approval or file backups. Keep your source files separately. **Reopen file-pair case** requires reselecting both source files and matching their size/hash before re-export. Renaming a file is allowed if its contents match. A mismatched file clears that slot and blocks export. Clear the case to start a different pair. HPL logs are rejected as calibration files.
+
+Original/final roles and vehicle/build descriptions are supplied by the operator. Different hashes do not establish which tables changed or prove both files belong to the same vehicle. These cases remain `READ_ONLY_NOT_RELEASED` and their table-comparison status is `NOT_DECODED`.
+
+For simulation editing, open or create a simulation project, preserve its original, edit MAF airflow values, undo changes, compare against the original, save a project copy and export an unsigned review draft.
 
 ## Run the packaged preview
 
@@ -20,6 +30,7 @@ Save cancellation is not detectable by the renderer, so it conservatively keeps 
 |---|---|
 | Windows x64 portable package | Build implemented |
 | DD84_STUDIO_V1 JSON / SIM-ECM-01 | Import, editing and export |
+| HPT original/final files | Read-only fingerprint and case notes; no table decoding/editing |
 | Airflow.MAF.Curve | Original/working values in g/s, axis in Hz |
 | Local draft review | Implemented; not cloud approval |
 | Real controller binaries / proprietary tuning formats | Unsupported pending user inventory and format adapters |
