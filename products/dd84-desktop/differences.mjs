@@ -60,7 +60,7 @@ export function summarizeDifferences(parsed,direction='UNKNOWN'){
     if(!block.values)return {name:block.name,kind:block.kind,detail:block.transition??'Preserved without interpretation; behavior fields or numeric shape are not established.'};
     const factor=direction==='BEFORE_MINUS_AFTER'?-1:1;
     const values=block.values.map(n=>n*factor);
-    return {name:block.name,kind:block.kind,unit:block.unit,cells:values.length,changedCells:values.filter(v=>v!==0).length,min:Math.min(...values),max:Math.max(...values),meaning:direction==='UNKNOWN'?'RAW_EXPORT_DIFFERENCE':'AFTER_MINUS_BEFORE',coordinates:'NOT_PRESENT'};
+    return {name:block.name,kind:block.kind,unit:block.unit,cells:values.length,changedCells:values.filter(v=>v!==0).length,min:values.reduce((a,v)=>Math.min(a,v),Infinity),max:values.reduce((a,v)=>Math.max(a,v),-Infinity),meaning:direction==='UNKNOWN'?'RAW_EXPORT_DIFFERENCE':'AFTER_MINUS_BEFORE',coordinates:'NOT_PRESENT'};
   });
 }
 export async function differenceReport(raw,filename,pair,direction,evidence){
