@@ -124,6 +124,9 @@ jobs:
       - name: Connection screen state and reports
         run: npm run test:link-capture
 
+      - name: Wired capture file review
+        run: npm run test:capture-review
+
       - name: Audit frontend runtime and build dependencies
         run: npm audit --audit-level=low
 

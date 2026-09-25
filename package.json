@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test:link-capture": "node scripts/test-link-capture.mjs",
+    "test:capture-review": "node scripts/test-capture-review.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
