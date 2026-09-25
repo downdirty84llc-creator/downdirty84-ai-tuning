@@ -17,7 +17,9 @@ export function getBrandProfile(): BrandProfile {
     reportTitleTemplate: "Down Dirty 84 • Log Review & Change List",
     watermarkText: null,
     logoAssetId: null,
-    accentColor: null,
+    // Sampled from the DD84 logo. The print flyers use crimson (#B8120E); the
+    // logo green is canonical, and the ads under marketing/ are built to match.
+    accentColor: "#A8EB00",
     disclaimer: {
       short:
         "Off-road / motorsports use only. No WOT until blockers are cleared. Verify wideband, fuel system, and calibration before flashing.",
