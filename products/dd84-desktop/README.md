@@ -49,3 +49,11 @@ Run `npm ci`, `npm test`, `npm start` in this directory. `npm run package` build
 The renderer has no Node integration, preload bridge, remote content, network access or granted device permissions. Electron isolation and sandboxing remain enabled; navigation and new windows are denied. These follow Electron's security recommendations: https://www.electronjs.org/docs/latest/tutorial/security
 
 Automated tests cover immutable edits, comparison, JSON save/reopen, original recovery, draft fingerprints, unsupported controllers, malformed input and review requirements. Browser UI testing covers sample load, edit, comparison, undo and draft download using the same packaged renderer files. Native Windows installation/launch acceptance remains a separate check; a successful package build is not proof of that check.
+
+## Learning preparation
+
+The current source adds a separate `DD84_LEARNING_CASE_V1` reference record for original/intermediate/final tunes and earlier/before-final/after-final HPL logs. It records displacement, cam/build notes, bounded local file hashes and explicit owner-supplied log-to-calibration associations. It does not decode HPL channels or learn numerical corrections. The existing 0.2.0 ZIP predates this source change.
+
+Reopening imports references only; files are not automatically verified or backed up. Replacing a calibration clears associations to its prior fingerprint. Chronology never creates an association. Readiness stays blocked even when every file is present because measurement import and validation are not implemented here. The panel distinguishes MAF, VE and timing evidence requirements without extending the backend editable-table allowlist, approval flow or physical-write gate.
+
+Validation: nine desktop tests pass, including invalid inputs, dangling associations, forged release status, file limits and round trips. Browser verification opened the locally prepared five-file case and checked the missing-measurement status. No customer files are included in the repository.
