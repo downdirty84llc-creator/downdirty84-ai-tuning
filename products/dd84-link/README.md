@@ -1,5 +1,9 @@
 # DD84 LINK Rev-A integration
 
+Wired development: [synthetic capture rehearsal](docs/WIRED_REHEARSAL.md) provides
+a C encoder, bounded host parser and a repeatable 10,000-frame local demonstration.
+Physical USB/CAN adapters and authenticated hardware bridging remain pending.
+
 DD84 LINK runs inside the existing Express API and React frontend. **All installation and recovery is SIMULATION_ONLY. No physical ECU writes are implemented or authorized.**
 
 The original supplied MVP is preserved under this directory. `cloud/server.mjs` is a loopback-only test fixture for the original simulator tests, not a second production service. Production API workflows are in `backend/src/services/dd84-link/` and `backend/src/routes/dd84-link.routes.ts`. Only `backend/migrations/` is applied by the application; the original `supabase/migrations/` is retained as source material, not run against the app database.
