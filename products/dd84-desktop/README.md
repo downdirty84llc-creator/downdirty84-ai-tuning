@@ -1,6 +1,6 @@
 # DD84 Calibration Studio — Windows preview
 
-This Windows x64 desktop workbench runs offline. Preview 0.3 includes read-only HPT file-pair cases, learning evidence preparation and detailed comparison CSV imports alongside the simulation table editor.
+This Windows x64 desktop workbench runs offline. Preview 0.4 includes read-only HPT file-pair cases, learning evidence preparation, detailed comparison CSV imports and readable datalog inspection alongside the simulation table editor.
 
 ## Real-file case workflow
 
@@ -72,6 +72,6 @@ The current source adds a read-only CSV log inspector. It accepts the observed H
 
 Each channel reports numeric/text/missing counts and observed finite extrema. Blank cells are never filled or interpolated; zero remains a real recorded value. Text and nonfinite tokens are not silently coerced into numbers. Names and units stay unchanged, and no sensor-role mapping or sample-rate inference occurs. No raw VIN or creation metadata is copied into the report.
 
-Save log inspection exports DD84_LOG_INSPECTION_V1 with a decoded-text SHA-256, channel summary and optional operator-stated calibration hash/association note. It does not include raw samples or prove that calibration ran during the log. Retain the source CSV. Learning readiness stays false: measurement validation, sensor mapping, steady-state filtering and correction proposals remain future work. The existing 0.3.0 ZIP predates this addition; CI packages updated source.
+Save log inspection exports DD84_LOG_INSPECTION_V1 with a decoded-text SHA-256, channel summary and optional operator-stated calibration hash/association note. It does not include raw samples or prove that calibration ran during the log. Retain the source CSV. Learning readiness stays false: measurement validation, sensor mapping, steady-state filtering and correction proposals remain future work. Preview 0.4.0 includes datalog inspection; CI packages the same source.
 
 Validation: all 19 desktop tests pass. The local customer export produced 51,166 rows and 63 channels spanning 511.695 seconds. Only synthetic fixtures are committed.
