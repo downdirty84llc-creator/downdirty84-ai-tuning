@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import {inspectLog,logReport,MAX_LOG_BYTES} from './logs.mjs';
 const header='HP Tuners CSV Log File\nVersion: 1.0\n\n[Log Information]\nNotes: synthetic fixture\n\n[Channel Information]\n0,1,2\nOffset,"Sensor, test",State\ns,V,\n\n[Channel Data]\n';
 const data='-0.1,0,Ready\n0,,\n0,2.5,"A ""quoted"" state"\n1,NaN,Ready\n';
+test('report snapshots reviewed selections before asynchronous hashing',async()=>{
+  const raw=header.replace('"Sensor, test"','Engine RPM').replace('s,V,','s,rpm,')+data;
+  const choices=[{role:'RPM',channelId:'1',evidence:'Evidence at save time'}];
+  const pending=logReport(raw,'sample.csv','','',choices);
+  choices[0].evidence='Later unsaved edit';choices.push({role:'UNKNOWN',channelId:'9',evidence:'Later choice'});
+  const result=await pending;
+  assert.equal(result.channelSelection.entries.length,1);
+  assert.equal(result.channelSelection.entries[0].evidence,'Evidence at save time');
+});
 test('sparse rows preserve zero, blanks, text and duplicate times without interpolation',()=>{const r=inspectLog(header+data);assert.equal(r.rowCount,4);assert.deepEqual(r.time,{unit:'s',first:-0.1,last:1,span:1.1,duplicateTimes:1});assert.deepEqual(r.channels[1],{id:'1',name:'Sensor, test',unit:'V',numericCount:2,textCount:1,missingCount:1,min:0,max:2.5});});
 test('reject ambiguous formats, units, rows and time resets',()=>{for(const text of [header.replace('Version: 1.0','Version: 2.0')+data,header.replace('s,V,','ms,V,')+data,header.replace('0,1,2','0,1,1')+data,header+'1,2\n',header+'NaN,2,Ready\n',header+'1,2,Ready\n0,3,Ready\n',header,header+'0,2,"unfinished'])assert.throws(()=>inspectLog(text));});
 test('quoted newlines and CRLF are parsed; nonfinite values never enter ranges',()=>{const r=inspectLog((header+'0,Infinity,"line\none"\n1,-2,Ok\n').replaceAll('\n','\r\n'));assert.equal(r.channels[1].min,-2);assert.equal(r.channels[1].textCount,1);assert.equal(r.channels[2].textCount,2);});
