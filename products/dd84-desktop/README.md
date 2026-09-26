@@ -114,4 +114,13 @@ Preview 0.8 adds start/end times in recording-offset seconds. Choose a channel, 
 Counts and extrema are recalculated only from rows inside the chosen range. Empty or nonnumeric windows explicitly show no numeric readings and never borrow neighboring values. Invalid, reversed or out-of-recording bounds are rejected. The full CSV is still validated. The view is temporary: saved log reviews retain full-recording statistics and documented channel roles. This does not identify steady-state operation or calculate corrections.
 
 Validation: 33 desktop tests pass, covering inclusive boundaries, duplicate timestamps, absent readings, invalid ranges and full-range equivalence.
-Browser verification with synthetic data passed import, range application, channel switching, gaps, invalid/blank bounds, full-range reset, full-recording report save and CSV reload with no renderer errors. The Windows 0.8 package source/version were verified and customer files excluded. Native Windows 0.8 UI testing remains outstanding; prior native results apply to 0.7.
+Browser verification with synthetic data passed import, range application, channel switching, gaps, invalid/blank bounds, full-range reset, full-recording report save and CSV reload with no renderer errors. The Windows 0.8 package source/version were verified and customer files excluded. Native Windows 0.8 synthetic import, time filtering, channel switching, full-range reset, saved-review export and reopening passed. The saved report matched the browser baseline exactly.
+
+
+## Save selected segment evidence
+
+Preview 0.9 adds **Save selected segment** after applying a channel and time range. Enter a review note, then save the separate DD84_LOG_SEGMENT_V1 JSON report. It contains the full source CSV text fingerprint, filename, inclusive bounds, unchanged channel name/unit, interval counts/extrema and the operator note. It includes no raw samples, sensor validation, calibration association or correction proposal. Keep the source CSV separately. Missing-only ranges remain explicitly missing.
+
+Changing channels, editing bounds, reapplying the range, resetting to the full recording or importing another CSV clears the segment note and disables export until a new note is provided. Changes during report generation invalidate the pending export. Full-log inspection reports keep their existing format and full-recording statistics. Segment reports cannot be reopened as full-log reviews.
+
+Validation: 36 desktop tests pass. Synthetic browser testing verified imported range export, exact source hash, extrema, required notes, note clearing on channel/range/CSV changes and absence of renderer errors, alongside the previous time-range workflow. Native Windows 0.9 interaction remains untested.
