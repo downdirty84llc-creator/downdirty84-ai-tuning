@@ -1,4 +1,4 @@
-import {segmentReport} from './segment.mjs';
+import {segmentReport,reopenSegmentReport,MAX_SEGMENT_BYTES} from './segment.mjs';
 import {renderTimeline} from './timelineUI.mjs';
 import {measurementChecks,measurementCheckText} from './measurements.mjs';
 import {MAX_LOG_BYTES,inspectLog,logReport,reopenLogReport,MAX_LOG_REPORT_BYTES} from './logs.mjs';
@@ -62,5 +62,21 @@ $('log-segment-save').onclick=async()=>{
     const url=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='DD84-log-segment.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
     status('Segment save requested. Confirm the saved file and retain the source CSV. The full-log review is unchanged.');
+  }catch(error){if(id===request)status(error.message);}
+};
+
+$('log-segment-open').onchange=async e=>{
+  const file=e.target.files[0];e.target.value='';if(!file)return;
+  if(raw===null){status('Open the original CSV before reopening its saved segment.');return;}
+  if(!confirm('Restore this segment channel, time range and note? The current segment view will be replaced only if its CSV fingerprint matches.'))return;
+  const id=++request;
+  try{
+    if(file.size>MAX_SEGMENT_BYTES)throw Error('Saved segment exceeds 256 KB.');
+    const saved=await file.text();if(id!==request)return;
+    const result=await reopenSegmentReport(saved,raw,name);if(id!==request)return;
+    $('log-trace-channel').value=result.timeline.channel.id;
+    $('log-trace-start').value=String(result.range.start);$('log-trace-end').value=String(result.range.end);
+    showTimeRange();$('log-segment-note').value=result.note;$('log-segment-save').disabled=false;dirty=true;
+    status('Segment restored after CSV fingerprint verification. Interval summaries were recomputed. The note remains an operator statement; full-log choices are unchanged.');
   }catch(error){if(id===request)status(error.message);}
 };

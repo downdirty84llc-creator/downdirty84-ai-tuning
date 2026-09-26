@@ -123,4 +123,13 @@ Preview 0.9 adds **Save selected segment** after applying a channel and time ran
 
 Changing channels, editing bounds, reapplying the range, resetting to the full recording or importing another CSV clears the segment note and disables export until a new note is provided. Changes during report generation invalidate the pending export. Full-log inspection reports keep their existing format and full-recording statistics. Segment reports cannot be reopened as full-log reviews.
 
-Validation: 36 desktop tests pass. Synthetic browser testing verified imported range export, exact source hash, extrema, required notes, note clearing on channel/range/CSV changes and absence of renderer errors, alongside the previous time-range workflow. Native Windows 0.9 interaction remains untested.
+Validation: 36 desktop tests pass. Synthetic browser testing verified imported range export, exact source hash, extrema, required notes, note clearing on channel/range/CSV changes and absence of renderer errors, alongside the previous time-range workflow. Native Windows 0.9 synthetic import, required-note gating, full-range segment export and channel-change note clearing passed. The saved report exactly matched the expected source-bound output.
+
+
+## Reopen segment evidence
+
+Preview 0.10 adds **Reopen saved segment**. Select the original CSV first, then the segment JSON and confirm replacing the current view. Matching decoded-text fingerprints restore channel, inclusive bounds and note; CSV renaming is allowed. Current summaries, channel metadata and flags are recomputed, so saved measurements cannot override the CSV. Full-log channel choices and calibration notes remain separate.
+
+Reports are bounded to 256 KiB. Unsupported formats, released/learning-enabled reports, unknown units/endpoints, invalid channels/ranges, missing notes and mismatched contents are rejected without replacing the current segment. Any newer input invalidates pending restoration. Fingerprints verify matching content, not authenticity of the operator note or vehicle identity.
+
+Validation: 39 desktop tests pass. Synthetic browser testing restored and re-exported a segment with exact JSON equality, rejected a mismatched source without losing the current view, and prevented a delayed restore from replacing a newly typed note. Existing import, timeline, save and note-clearing flows passed. Native Windows 0.10 testing remains outstanding.
