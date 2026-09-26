@@ -16,3 +16,17 @@ export async function segmentReport(raw,name,channelId,range,note){
     limitations:['Retain the source CSV; this report contains interval summaries, not raw samples.','The channel and range are operator choices, not verified sensor roles or steady-state detection.','Missing values remain missing; channels are not synchronized or interpolated.','Notes and file fingerprints do not authenticate sensor accuracy, calibration identity or performance improvement.','This segment report is separate from a saved full-log review and cannot be reopened as one.']
   };
 }
+
+export const MAX_SEGMENT_BYTES=256*1024;
+export async function reopenSegmentReport(saved,raw,currentName){
+  if(typeof saved!=='string'||new TextEncoder().encode(saved).length>MAX_SEGMENT_BYTES)throw Error('Saved segment exceeds 256 KB.');
+  const value=JSON.parse(saved);
+  if(value?.format!=='DD84_LOG_SEGMENT_V1'||value.status!=='EVIDENCE_ONLY_NOT_RELEASED'||value.writeStrategy!=='SIMULATION_ONLY'||value.learningReady!==false||value.automaticApplication!==false||value.noteProvenance!=='OPERATOR_SUPPLIED_NOT_VERIFIED')throw Error('Unsupported or released segment report.');
+  if(value.source?.hashScope!=='UTF8_DECODED_TEXT'||typeof value.source.textSha256!=='string'||!/^[a-f0-9]{64}$/.test(value.source.textSha256))throw Error('Saved segment has no supported source fingerprint.');
+  if(value.range?.unit!=='s'||value.range.endpoints!=='BOTH_INCLUDED')throw Error('Unsupported segment time units or endpoints.');
+  if(value.timeline?.format!=='DD84_CHANNEL_TIMELINE_V1'||value.timeline.learningReady!==false||value.timeline.automaticApplication!==false)throw Error('Unsupported segment timeline.');
+  // Saved statistics and channel metadata never override current source measurements.
+  const result=await segmentReport(raw,currentName,value.timeline.channel?.id,{start:value.range.start,end:value.range.end},value.note);
+  if(result.source.textSha256!==value.source.textSha256)throw Error('Selected CSV does not match the saved segment fingerprint.');
+  return result;
+}

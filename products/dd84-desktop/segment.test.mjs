@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {segmentReport} from './segment.mjs';
+import {segmentReport,reopenSegmentReport,MAX_SEGMENT_BYTES} from './segment.mjs';
 import {reopenLogReport} from './logs.mjs';
 const raw='HP Tuners CSV Log File\nVersion: 1.0\n\n[Channel Information]\n0,1\nOffset,Engine RPM\ns,rpm\n\n[Channel Data]\n0,800\n1,\n2,1600\n3,1200\n4,1800\n';
 test('segment binds inclusive selected range, units, note and complete source fingerprint',async()=>{
@@ -14,6 +14,22 @@ test('segment binds inclusive selected range, units, note and complete source fi
   assert.equal(r.learningReady,false);assert.equal(r.automaticApplication,false);assert.equal(r.writeStrategy,'SIMULATION_ONLY');
   assert.equal(r.timeline.samples,undefined);assert.equal(r.raw,undefined);
   await assert.rejects(reopenLogReport(JSON.stringify(r),raw,'test.csv'),/Unsupported/);
+});
+test('reopen restores source-bound range and note, allows filename changes, recomputes metadata',async()=>{
+  const r=await segmentReport(raw,'test.csv','1',{start:2,end:3},'Review note');
+  assert.deepEqual(await reopenSegmentReport(JSON.stringify(r),raw,'test.csv'),r);
+  r.timeline.min=-999;r.timeline.numericCount=900;r.timeline.bins=[];r.timeline.channel.unit='fake';r.timeline.channel.name='fake';
+  const restored=await reopenSegmentReport(JSON.stringify(r),raw,'renamed.csv');
+  assert.equal(restored.source.name,'renamed.csv');assert.equal(restored.timeline.min,1200);assert.equal(restored.timeline.numericCount,2);assert.equal(restored.timeline.channel.unit,'rpm');assert.equal(restored.timeline.channel.name,'Engine RPM');assert.equal(restored.note,'Review note');
+});
+test('reopen rejects modified CSV, forged gates, invalid channels and incompatible bounds',async()=>{
+  const r=await segmentReport(raw,'test.csv','1',{start:2,end:3},'note');
+  await assert.rejects(reopenSegmentReport(JSON.stringify(r),raw.replace('0,800','0,801'),'test.csv'),/fingerprint/);
+  for(const patch of [{learningReady:true},{automaticApplication:true},{status:'RELEASED'},{noteProvenance:'VERIFIED'},{range:{start:2,end:3,unit:'ms',endpoints:'BOTH_INCLUDED'}},{range:{start:2,end:9,unit:'s',endpoints:'BOTH_INCLUDED'}},{timeline:{...r.timeline,learningReady:true}},{timeline:{...r.timeline,channel:{id:'missing'}}},{note:''}])await assert.rejects(reopenSegmentReport(JSON.stringify({...r,...patch}),raw,'test.csv'));
+});
+test('reopen rejects oversized, malformed, and unrelated reports',async()=>{
+  for(const s of ['x','null','{}',' '.repeat(MAX_SEGMENT_BYTES+1)])await assert.rejects(reopenSegmentReport(s,raw,'test.csv'));
+  const r=await segmentReport(raw,'test.csv','1',{start:0,end:4},'note');r.source.hashScope='UNKNOWN';await assert.rejects(reopenSegmentReport(JSON.stringify(r),raw,'test.csv'));
 });
 test('missing-only segment is evidence of absence and content changes alter source fingerprint',async()=>{
   const a=await segmentReport(raw,'test.csv','1',{start:1,end:1},'Missing interval');
