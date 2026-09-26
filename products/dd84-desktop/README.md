@@ -132,4 +132,11 @@ Preview 0.10 adds **Reopen saved segment**. Select the original CSV first, then 
 
 Reports are bounded to 256 KiB. Unsupported formats, released/learning-enabled reports, unknown units/endpoints, invalid channels/ranges, missing notes and mismatched contents are rejected without replacing the current segment. Any newer input invalidates pending restoration. Fingerprints verify matching content, not authenticity of the operator note or vehicle identity.
 
-Validation: 39 desktop tests pass. Synthetic browser testing restored and re-exported a segment with exact JSON equality, rejected a mismatched source without losing the current view, and prevented a delayed restore from replacing a newly typed note. Existing import, timeline, save and note-clearing flows passed. Native Windows 0.10 testing remains outstanding.
+Validation: 39 desktop tests pass. Synthetic browser testing restored and re-exported a segment with exact JSON equality, rejected a mismatched source without losing the current view, and prevented a delayed restore from replacing a newly typed note. Existing import, timeline, save and note-clearing flows passed. Native Windows 0.10 source CSV import, selected-segment reopening and save passed; the Windows-saved JSON exactly matched the original 2–3 second synthetic report.
+
+
+## Save consistency patch
+
+Preview 0.10.1 fixes a full-log save race: changing channel-selection evidence while a source fingerprint was being calculated could alter an earlier save or cause it to fail. Channel selections are now validated and copied before hashing. Newer input, another CSV or a newer operation cancels pending full-log exports and prevents stale errors from replacing current status. Re-save after finishing changes to export the current review.
+
+Validation: a regression test reproduced the pre-fix mutation bug and passes after the fix; all 40 desktop tests pass. Browser checks deliberately paused hashing, edited the association note or reloaded a CSV, and verified no stale download occurred. A subsequent current save succeeded with the exact new note. Existing timeline, segment export and note-clearing checks passed. Native Windows 0.10.1 interaction remains untested.
