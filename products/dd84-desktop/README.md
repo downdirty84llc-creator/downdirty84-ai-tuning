@@ -104,4 +104,14 @@ Validation: 26 tests pass, including altered contents, forged release gates and 
 
 Preview 0.7 adds a read-only timeline for any non-time channel with finite numeric readings. Choose a channel after loading the CSV. At most 240 equal-duration intervals show independent observed minimum/maximum marks; empty intervals have no mark. Missing and nonnumeric counts are retained, zero is numeric, and the final interval includes the recording endpoint. There is no interpolation, connecting line, average, synchronized sensor model or correction calculation. A text interval listing accompanies the chart. Viewing a channel does not select it for a measurement role or save it into the review.
 
-Validation: 29 tests pass, including gaps, repeated timestamps, zero-duration and long recordings, endpoint preservation and numeric-range time rejection. Local VCM RPM and intake-temperature channels were processed successfully. A synthetic browser renderer harness verified marks, an empty interval, labels and accessible text. Full file-selection integration and native 0.7 UI testing remain follow-up checks. Native 0.6 import/restore/save passed previously. No customer data is packaged.
+Validation: 29 tests pass, including gaps, repeated timestamps, zero-duration and long recordings, endpoint preservation and numeric-range time rejection. Local VCM RPM and intake-temperature channels were processed successfully. A synthetic browser renderer harness verified marks, an empty interval, labels and accessible text. Native Windows 0.7 synthetic CSV import, channel switching, timeline gaps and saved-review restore/save passed; the saved report matched the fixture exactly. Native 0.6 import/restore/save passed previously. No customer data is packaged.
+
+
+## Focus on a time range
+
+Preview 0.8 adds start/end times in recording-offset seconds. Choose a channel, enter bounds and select **Show time range**. Both endpoints are included; equal bounds show all rows at that timestamp. **Show full recording** resets the bounds. Channel switching keeps the entered range; loading another CSV resets it. Editing bounds clears the prior chart until applied, avoiding a stale view.
+
+Counts and extrema are recalculated only from rows inside the chosen range. Empty or nonnumeric windows explicitly show no numeric readings and never borrow neighboring values. Invalid, reversed or out-of-recording bounds are rejected. The full CSV is still validated. The view is temporary: saved log reviews retain full-recording statistics and documented channel roles. This does not identify steady-state operation or calculate corrections.
+
+Validation: 33 desktop tests pass, covering inclusive boundaries, duplicate timestamps, absent readings, invalid ranges and full-range equivalence.
+Browser verification with synthetic data passed import, range application, channel switching, gaps, invalid/blank bounds, full-range reset, full-recording report save and CSV reload with no renderer errors. The Windows 0.8 package source/version were verified and customer files excluded. Native Windows 0.8 UI testing remains outstanding; prior native results apply to 0.7.
