@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.10.1
+# DD84 Calibration Studio — Windows preview 0.11.0
 
 An offline Windows x64 workbench for local calibration evidence and simulation editing. Real HPT files are read only. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -83,3 +83,21 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the current validation reco
 Use Node 22 for parity with CI. In this directory run `npm ci`, `npm test` and `npm start`. `npm run package` creates the Windows x64 portable folder under `dist/`. The [Windows workflow](../../.github/workflows/desktop.yml) installs dependencies, runs tests and the dependency audit, packages the app and retains its preview artifact for 14 days. Web/backend checks run separately.
 
 The renderer has no Node integration, preload bridge, remote content, network access or granted device permissions. Context isolation and sandboxing remain enabled; navigation, webviews and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+
+## USB bench board — 0.11.0
+
+Connect the FRDM-A-S32K344 running DD84 Bench 0.1.0, click **Find board**, select
+its OpenSDA COM port, then **Test DD84 board**. The app checks the versioned
+handshake and closes the port. Other serial applications must release the port.
+The UI reports the result of that check, not a continuously connected session.
+
+This uses the native `serialport` dependency through a narrow Electron preload
+and main-process IPC API. Only NXP/PEmicro VID 1357 / PID 0089 ports are eligible;
+there is no renderer API for arbitrary serial commands. Receive output is bounded
+and handshake waits time out after five seconds. No PowerShell policy changes
+are needed. Device identity is self-reported compatibility information, not
+cryptographic authentication. Vehicle access remains unavailable.
+
+Validation: 45 automated desktop tests passed; the production board transport
+successfully queried the physical board on COM8. See the link firmware bench
+README for hardware test scope and known limits.
