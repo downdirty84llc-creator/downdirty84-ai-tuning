@@ -2,7 +2,8 @@
 
 Implemented: a host-tested adapter between the board receive callbacks, existing
 capture queue and D84W encoder. **Not yet a FlexCAN peripheral driver or physical
-CAN capture release.** The USB-only Bench 0.1.0 firmware stays on the test board.
+CAN capture release.** USB-only Bench 0.2.0 is on the test board; its internal
+loopback does not enable external CAN capture. See [external bench preparation](EXTERNAL_BENCH.md).
 
 ## Behavior
 
