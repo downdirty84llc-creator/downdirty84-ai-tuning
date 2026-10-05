@@ -51,7 +51,9 @@ neither is an assembly or pin-number reference. NXP's official Rev A design ZIP,
 downloaded 2026-10-05, identifies J14/J15 in BOM item 56 as Wurth 61300411821:
 a four-position female socket with 2.54 mm pitch (100 mil). No user pitch
 measurement is needed for the documented Rev A design. Actual PCB revision,
-pin-1 orientation and mating contact fit still require physical checks.
+and mating contact fit still require physical checks. Rev A PCB layout page 1
+confirms pin 1 at the SW3/USER1 end of J15; verify the actual board's marking
+before assembly.
 
 NXP UM12406 rev 2.0 documents J15: 1 CAN-H, 2 CAN-L, 3 ground, 4 NC.
 This is a documentation mapping, not yet verified against the user's PCB revision.
@@ -99,6 +101,57 @@ and every unused pigtail wire. Do not connect OBD battery power to any J15 pin.
 This is a signal mapping, not a left-to-right connector drawing. Confirm pin 1
 physically and use molded OBD pin numbers plus continuity checks before assembly.
 Source for OBD signals: [OBD Solutions STN1110 datasheet, figure 8](https://cdn.sparkfun.com/datasheets/Widgets/stn1110-ds.pdf).
+
+### Physical orientation and assembly worksheet
+
+Rev A PCB layout page 1, component-side view: orient USB to the left,
+Ethernet to the right, and the J15 edge toward you. J15 is the small socket
+beside SW3/USER1, not the neighboring J14 LIN socket. Pin 1 is nearest SW3.
+The PCB drawing marks its pad square and numbers the opposite end 4.
+
+```text
+Toward J14 LIN                     Toward SW3/USER1
+                  J15 CAN0_OUT
+              [4]   [3]   [2]   [1]
+               NC   GND   CAN-L CAN-H
+```
+
+This is a board top-view orientation, not a drawing of the loose cable plug's
+wire side. Mark the plug's pin-1 end before attaching wires. OBD mating-face
+and wire-side views are mirrored; use molded terminal numbers and continuity.
+
+Assembly sequence:
+
+1. Keep the cable disconnected from the car and the board. Unplug board USB.
+2. Identify the pigtail wires for OBD 6, 14 and 5 using a meter and molded
+   terminal numbers. Record their actual colors below; do not assume a color code.
+3. Verify the male plug fits without force, then remove it before soldering.
+   Connect CAN-H/L and signal ground as listed; leave position 4 unwired.
+4. Insulate each joint and each unused OBD wire separately, especially pin 16.
+   Add strain relief without loading the board socket. Label the pin-1 end.
+5. Complete the disconnected cable tests below before plugging into the board.
+
+| Cable-only test (both ends disconnected) | Expected | Measured / wire color |
+| --- | --- | --- |
+| OBD 6 to plug position for J15-1 | Low resistance, near shorted-probe baseline | Pending |
+| OBD 14 to plug position for J15-2 | Low resistance, near shorted-probe baseline | Pending |
+| OBD 5 to plug position for J15-3 | Low resistance, near shorted-probe baseline | Pending |
+| Each pair of the three wired conductors | Open / no continuity | Pending |
+| OBD 16 to every board-plug contact | Open / no continuity | Pending |
+| Every other unused OBD terminal to every board-plug contact | Open / no continuity | Pending |
+| Plug position for J15-4 to every OBD terminal | Open / no continuity | Pending |
+| Gently flex cable while checking each intended connection | Stable continuity | Pending |
+
+These are cable-only expectations. Once attached to the board, the CAN-H/L
+pair has onboard termination and must not be expected to read open. Separately,
+with USB and all other cables removed, measure board J15-1 to J15-2: the Rev A
+fitted termination should be approximately 120.8 ohms. Record the result before
+assembling the isolated bus. Never use resistance mode on powered circuitry.
+
+Cable continuity does not validate firmware, electrical silence or vehicle
+compatibility. Physical checks remain Pending until actually measured. The next
+hardware milestone is isolated external CAN reception; vehicle connection is
+still blocked by termination review and incomplete external CAN acceptance.
 
 Candidate cable: [Yason/OBDWIRE J1962 male to open-end pigtail](https://www.yasoncable.com/products/16pin-obd2-male-to-open-end-pigtail-cable),
 30 cm, all 16 pins wired, advertised 20 AWG; displayed price $4.80 on 2026-10-05,
