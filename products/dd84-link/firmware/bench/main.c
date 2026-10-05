@@ -1,6 +1,6 @@
 /* DD84 FRDM-A-S32K344 bench adapter, using separately licensed NXP RTD 7.0.0.
  * Apply to nxp-appcodehub/dm-uart-button-s32k344 at 7b4fded after generation.
- * No CAN initialization, ECU commands, credentials, or calibration writes. */
+ * Fixed internal CAN self-test only; no external CAN commands or ECU writes. */
 #include "Mcal.h"
 #include "S32K344_NVIC.h"
 #include "Clock_Ip.h"
@@ -11,6 +11,7 @@
 #include "Lpuart_Uart_Ip.h"
 #include "Lpuart_Uart_Ip_Irq.h"
 #include "console.h"
+#include "loopback.h"
 
 #define UART_INSTANCE 6u
 #define RING_SIZE 1024u
@@ -88,6 +89,10 @@ int main(void) {
             int result = dd84_feed(&parser, byte);
             if (result < 0) sendText("ERR LINE\r\n");
             if (result > 0) {
+                if (!strcmp(parser.line, "can loopback")) {
+                    dd84_loopback(sendText);
+                    continue;
+                }
                 const char *reply = dd84_reply(parser.line, &led);
                 Siul2_Dio_Ip_WritePin(LED_GREEN_PORT, LED_GREEN_PIN, (uint8)led);
                 sendText(reply);

@@ -31,7 +31,7 @@ static int dd84_feed(dd84_line *s, unsigned char byte) {
 
 static const char *dd84_reply(const char *line, int *led) {
     if (!strcmp(line, "DD84 HELLO 1"))
-        return "{\"protocol\":\"DD84-BENCH/1\",\"board\":\"FRDM-A-S32K344\",\"firmware\":\"0.1.0\",\"mode\":\"bench\",\"capabilities\":[\"ping\",\"led\",\"status\"],\"vehicleAccess\":false}\r\n";
+        return "{\"protocol\":\"DD84-BENCH/1\",\"board\":\"FRDM-A-S32K344\",\"firmware\":\"0.2.0\",\"mode\":\"bench\",\"capabilities\":[\"ping\",\"led\",\"status\",\"can-loopback\"],\"vehicleAccess\":false}\r\n";
     if (!strncmp(line, "DD84 HELLO", 10)) return "ERR VERSION\r\n";
     if (!strcmp(line, "ping")) return "PONG\r\n";
     if (!strcmp(line, "led on")) { *led = 1; return "OK LED ON\r\n"; }
