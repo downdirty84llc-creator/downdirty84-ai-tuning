@@ -43,6 +43,13 @@ to CAN-H/L. This is a separate measurement step before vehicle testing.
 
 ## Wiring and power prerequisites
 
+The user's original 20261005_071730.jpg shows CAN0_OUT as the right-hand small
+four-position socket along the edge beside SW3 USER1, with LIN_OUT immediately
+to its left and Ethernet above. This establishes connector location only.
+The earlier generated yellow-box and red-arrow illustrations were incorrect;
+neither is an assembly or pin-number reference. Connector pitch, contact fit,
+pin-1 orientation and exact PCB revision still require measurement/BOM checks.
+
 NXP UM12406 rev 2.0 documents J15: 1 CAN-H, 2 CAN-L, 3 ground, 4 NC.
 This is a documentation mapping, not yet verified against the user's PCB revision.
 PEAK CAN DE-9: 7 CAN-H, 2 CAN-L, 3 CAN ground. Do not connect the remaining DE-9
@@ -64,6 +71,46 @@ Sources:
 - [NXP board documentation and latest manual](https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-A-S32K344)
 - [NXP UM12406 rev 2.0 distributor copy](https://www.mouser.com/pdfDocs/FRDM-A-S32K344-UM.pdf), sections 4 and 8
 - [PEAK specifications, pinout and downloads](https://www.peak-system.com/products/hardware/external-pc-interfaces/pcan-usb-pro-fd/)
+
+## OBD-II harness preparation (not released for vehicle use)
+
+For a vehicle with standard high-speed CAN on OBD-II pins 6 and 14, the proposed
+harness is a male J1962 OBD plug to a three-wire board lead. It does not support
+every OBD protocol or provide ECU-specific calibration access.
+
+| OBD-II pin | Function | J15 pin |
+| --- | --- | --- |
+| 6 | CAN-H | 1 |
+| 14 | CAN-L | 2 |
+| 5 | Signal ground | 3 |
+| All others, including 16 | Unused in this USB-powered prototype | No connection |
+
+Leave J15 pin 4 unwired. OBD pin 16 is battery power; individually insulate it
+and every unused pigtail wire. Do not connect OBD battery power to any J15 pin.
+This is a signal mapping, not a left-to-right connector drawing. Confirm pin 1
+physically and use molded OBD pin numbers plus continuity checks before assembly.
+Source for OBD signals: [OBD Solutions STN1110 datasheet, figure 8](https://cdn.sparkfun.com/datasheets/Widgets/stn1110-ds.pdf).
+
+Candidate cable: [Yason/OBDWIRE J1962 male to open-end pigtail](https://www.yasoncable.com/products/16pin-obd2-male-to-open-end-pigtail-cable),
+30 cm, all 16 pins wired, advertised 20 AWG; displayed price $4.80 on 2026-10-05,
+shipping/tax additional. This is an unterminated cable component, not a tested
+DD84 harness. Vendor does not establish twisted-pair construction or CAN-FD
+signal integrity on that listing; qualify it in the initial classic-CAN bench.
+
+If measurement confirms 2.54 mm pitch, a four-position section of
+[Pololu 2664 male breakaway header](https://www.pololu.com/product/2664)
+($1.09 displayed) is a candidate soldered bench plug. Verify pin thickness and
+insertion depth against the actual socket as well as pitch. Solder only with the
+plug removed from the unpowered board, insulate each joint separately and provide
+strain relief. An unlatched header is a temporary bench connection, not a finished
+vehicle connector. A housing/contact assembly with appropriate wire-size ratings
+or a purpose-built breakout is preferable for repeated use. Do not force the
+cable's 20 AWG wires into contacts rated only for thinner jumper wires.
+
+Before connecting to a vehicle: finish external bench acceptance, review the
+vehicle-specific CAN access and interface protection, and check onboard termination.
+The two bench terminators are for the isolated test bus; do not add them to an
+already terminated vehicle bus. Current Bench 0.2.0 remains USB-only.
 
 ## Offline acceptance preparation
 
