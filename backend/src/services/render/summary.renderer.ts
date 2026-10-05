@@ -6,6 +6,7 @@ export function renderSummaryText(diffSet: any, ctx: { brand: BrandProfile }): s
   lines.push(`${ctx.brand.brandName} — Log Review & Change List`);
   lines.push(`Website: ${ctx.brand.website}`);
   lines.push(`Support: ${ctx.brand.supportEmail}`);
+  lines.push(`Business phone: ${ctx.brand.businessPhone}`);
   lines.push(ctx.brand.disclaimer.short);
   lines.push("");
 
