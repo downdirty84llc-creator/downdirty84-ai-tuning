@@ -41,6 +41,9 @@ button.secondary{
   background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--line);
 }
 .small{color:var(--muted);font-size:13px}
+.business-contact{margin-top:24px;border-top:1px solid var(--line)}
+.business-contact .row a{padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.business-contact a:focus-visible{outline:2px solid #93c5fd;outline-offset:3px}
 
 select{padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text)}
 label{display:block}
