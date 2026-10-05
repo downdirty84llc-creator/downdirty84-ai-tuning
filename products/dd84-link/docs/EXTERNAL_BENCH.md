@@ -47,16 +47,25 @@ The user's original 20261005_071730.jpg shows CAN0_OUT as the right-hand small
 four-position socket along the edge beside SW3 USER1, with LIN_OUT immediately
 to its left and Ethernet above. This establishes connector location only.
 The earlier generated yellow-box and red-arrow illustrations were incorrect;
-neither is an assembly or pin-number reference. Connector pitch, contact fit,
-pin-1 orientation and exact PCB revision still require measurement/BOM checks.
+neither is an assembly or pin-number reference. NXP's official Rev A design ZIP,
+downloaded 2026-10-05, identifies J14/J15 in BOM item 56 as Wurth 61300411821:
+a four-position female socket with 2.54 mm pitch (100 mil). No user pitch
+measurement is needed for the documented Rev A design. Actual PCB revision,
+pin-1 orientation and mating contact fit still require physical checks.
 
 NXP UM12406 rev 2.0 documents J15: 1 CAN-H, 2 CAN-L, 3 ground, 4 NC.
 This is a documentation mapping, not yet verified against the user's PCB revision.
 PEAK CAN DE-9: 7 CAN-H, 2 CAN-L, 3 CAN ground. Do not connect the remaining DE-9
 pins (including LIN and power) to DD84 for this test. Never supply power on J15.
 
-Place one 120-ohm termination at each end of the trunk; DD84 is a short middle
-tap. Account for any fitted onboard/adapter termination before adding resistors.
+Rev A schematic sheet 8 and BOM item 101 show populated R176 and R178, each
+60.4 ohms, forming 120.8-ohm split termination across CAN-H/L. With this fitted,
+place DD84 at one end of the isolated bench trunk and enable only one additional
+120-ohm terminator at its opposite end. Keep both PCAN interfaces' other
+termination disabled. The second purchased switchable terminator is spare/off.
+Do not use DD84 as a terminated middle tap or add two external terminators.
+Verify the actual unpowered board's H-L resistance before assembly; a different
+assembly or modification needs its termination configuration reconciled first.
 With all devices unpowered, target approximately 60 ohms between H and L across
 the completed two-terminator bus. Confirm no shorts and match connector pin 1
 from the silkscreen/drawing, not from a photograph's left/right orientation.
@@ -97,7 +106,7 @@ shipping/tax additional. This is an unterminated cable component, not a tested
 DD84 harness. Vendor does not establish twisted-pair construction or CAN-FD
 signal integrity on that listing; qualify it in the initial classic-CAN bench.
 
-If measurement confirms 2.54 mm pitch, a four-position section of
+The official Rev A BOM confirms 2.54 mm pitch. A four-position section of
 [Pololu 2664 male breakaway header](https://www.pololu.com/product/2664)
 ($1.09 displayed) is a candidate soldered bench plug. Verify pin thickness and
 insertion depth against the actual socket as well as pitch. Solder only with the
@@ -108,7 +117,10 @@ or a purpose-built breakout is preferable for repeated use. Do not force the
 cable's 20 AWG wires into contacts rated only for thinner jumper wires.
 
 Before connecting to a vehicle: finish external bench acceptance, review the
-vehicle-specific CAN access and interface protection, and check onboard termination.
+vehicle-specific CAN access and interface protection, and resolve onboard termination.
+Rev A's fitted 120.8-ohm termination is not suitable as an extra termination on
+an already terminated vehicle CAN bus. A reviewed hardware change or suitable
+interface configuration is required; no resistor removal is authorized here.
 The two bench terminators are for the isolated test bus; do not add them to an
 already terminated vehicle bus. Current Bench 0.2.0 remains USB-only.
 
@@ -156,6 +168,19 @@ Missing hardware diagnostics cannot be interpreted as zero hardware loss.
    generator/reference traces with each DD84 capture and comparison result.
 
 No physical CAN or vehicle-readiness claim follows from the offline tests.
+
+## Connector evidence, 2026-10-05
+
+- [NXP Rev A design package](https://www.nxp.com/webapp/Download?colCode=FRDM-A-S32K344-DESIGN-FILES):
+  `FRDM-A-S32K344_RevA_BOM.BOM`, item 56 identifies J15; item 101 lists
+  R176/R178 as fitted. Schematic sheet 8 confirms CAN wiring and split termination.
+- [Wurth socket drawing](https://www.we-online.com/components/products/datasheet/61300411821.pdf):
+  four contacts, 2.54 mm pitch, first-to-fourth centers 7.62 mm. This is the
+  socket already on the board, not a male mating plug to purchase.
+- The Pololu header remains a provisional bench plug pending contact-length
+  and fit verification. No ready-made, tested OBD-to-J15 cable is established.
+- Official design files remain local reference material; they are not copied
+  into this repository. Firmware and hardware were not modified for this check.
 
 ## Preparation verification, 2026-10-05
 
