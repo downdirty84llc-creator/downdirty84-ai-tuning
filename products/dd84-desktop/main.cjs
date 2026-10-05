@@ -14,6 +14,7 @@ app.whenReady().then(()=>{
   };
   ipcMain.handle('dd84-board-list',event=>boardRequest(event,'List'));
   ipcMain.handle('dd84-board-probe',(event,port)=>boardRequest(event,'Probe',port));
+  ipcMain.handle('dd84-board-loopback',(event,port)=>boardRequest(event,'Loopback',port));
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',event=>event.preventDefault());
   win.webContents.on('will-attach-webview',event=>event.preventDefault());

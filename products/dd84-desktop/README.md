@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.11.0
+# DD84 Calibration Studio — Windows preview 0.12.0
 
 An offline Windows x64 workbench for local calibration evidence and simulation editing. Real HPT files are read only. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -101,3 +101,16 @@ cryptographic authentication. Vehicle access remains unavailable.
 Validation: 45 automated desktop tests passed; the production board transport
 successfully queried the physical board on COM8. See the link firmware bench
 README for hardware test scope and known limits.
+
+## Internal CAN loopback — 0.12.0
+
+With Bench 0.2.0 on the board and only USB attached, select **Find board**, then
+**Test DD84 board**. A compatible handshake enables **Run internal CAN self-test**.
+Studio displays the eight received frames, their fixed ID/payload and software
+observation times. **Save test report** exports a clearly labeled local JSON copy.
+Failure stays a failure and includes the firmware stage; no file is uploaded.
+
+The internal test does not validate wiring, transceiver operation or vehicle
+data. Reports remain ineligible for calibration learning. No real CAN capture
+or ECU writing is enabled. Version 0.12.0 has 49 passing desktop tests; the new
+hardware loopback and repeated restarts have been exercised on the USB board.
