@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+products/dd84-desktop/link-shared/
 
 # Lockfiles ARE committed — they are what makes a build reproducible.
 # (package-lock.json was previously ignored here while also being tracked.)

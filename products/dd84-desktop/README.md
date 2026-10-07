@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.12.0
+# DD84 Calibration Studio — Windows preview 0.13.0
 
 An offline Windows x64 workbench for local calibration evidence and simulation editing. Real HPT files are read only. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -82,7 +82,13 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the current validation reco
 
 Use Node 22 for parity with CI. In this directory run `npm ci`, `npm test` and `npm start`. `npm run package` creates the Windows x64 portable folder under `dist/`. The [Windows workflow](../../.github/workflows/desktop.yml) installs dependencies, runs tests and the dependency audit, packages the app and retains its preview artifact for 14 days. Web/backend checks run separately.
 
-The renderer has no Node integration, preload bridge, remote content, network access or granted device permissions. Context isolation and sandboxing remain enabled; navigation, webviews and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+The renderer has no Node integration, remote content, network access or granted device permissions. A narrow preload bridge supports the three USB bench operations described below. The offline CAN workspace uses a local module worker with no hardware API. Context isolation and sandboxing remain enabled; navigation, webviews and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+
+`pretest`, `prestart` and `prepackage` stage the canonical Link wire decoder and
+bench comparator into the ignored `link-shared/` directory. The package includes
+these copies; it does not need the repository beside it. Edit the originals in
+`products/dd84-link/shared/`, not generated copies. No extra runtime dependency
+is added for the CAN test workspace.
 
 ## USB bench board — 0.11.0
 
@@ -114,3 +120,37 @@ The internal test does not validate wiring, transceiver operation or vehicle
 data. Reports remain ineligible for calibration learning. No real CAN capture
 or ECU writing is enabled. Version 0.12.0 has 49 passing desktop tests; the new
 hardware loopback and repeated restarts have been exercised on the USB board.
+
+## Offline CAN test workspace — 0.13.0
+
+1. In **CAN test workspace**, set 1–10000 frames and choose **Create test pattern**.
+   Save its JSON. The pattern alternates standard/extended classic CAN frames at
+   a declared 500 kbit/s, with a fresh random run tag. It is a test specification,
+   not a PCAN-View import or a command that transmits anything.
+2. Choose **Run software rehearsal** to exercise generation, decoding, comparison
+   and reporting without hardware. It creates synthetic bytes with session 1.
+   The label **Software rehearsal** remains on the result and in its saved report.
+3. For an existing D84W binary capture, open its saved pattern, select the capture
+   and enter its actual recording session as a decimal integer. Choose **Compare
+   saved capture**. Imported captures are explicitly unverified sources, even if
+   they contain synthetic bytes or claim a valid session.
+4. Review expected/received/matched counts, issue totals (with at most 20 details),
+   and a preview of at most 20 decoded frames. A byte match does not prove silent
+   mode, correct wiring, bus timing or absence of hardware loss. Missing status
+   is not interpreted as measured zero loss.
+5. **Save comparison report** exports `DD84_STUDIO_BENCH_REVIEW_V1`, containing
+   capture SHA-256, canonical-pattern SHA-256, session, results and limited preview.
+   Keep the capture and pattern separately; report reopening is not implemented.
+   Filenames may contain private information; review reports before sharing.
+
+Captures are bounded to 16 MiB and saved patterns to 4 MiB. Imported patterns must
+match the supported generated structure, including frame bytes and disabled
+learning flags. Comparison runs in a cancellable worker. Changing the pattern,
+frame count, session or capture clears the old result and cancels pending work;
+start comparison again after the change. Closing the app discards this workspace's
+unsaved pattern/results. Complete save dialogs before closing.
+
+Bench 0.2.0 cannot record external CAN yet; its internal-loopback JSON is not a
+D84W capture. This workspace neither opens a hardware connection nor feeds
+calibration learning. External bench firmware/acceptance and controller-specific
+calibration adapters remain separate milestones.

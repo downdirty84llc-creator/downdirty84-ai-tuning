@@ -179,6 +179,11 @@ already terminated vehicle bus. Current Bench 0.2.0 remains USB-only.
 
 ## Offline acceptance preparation
 
+Studio 0.13.0 also exposes this comparator in its **CAN test workspace**. It can
+save/reopen a test plan, run a clearly labeled software rehearsal, compare an
+imported D84W capture and export a source-bound report. No hardware connection is
+opened by that workspace. See the [desktop guide](../../dd84-desktop/README.md).
+
 From products/dd84-link:
 
 ```text

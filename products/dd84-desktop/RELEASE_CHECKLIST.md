@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.10.1**. Updated: **2026-09-26**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.13.0**. Updated: **2026-10-07**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,12 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite, 0.13.0 | 55 tests passed | Includes pattern validation, import limits, source-bound reports and disabled hardware/learning claims |
+| Link automated suite, 0.13.0 source | 16 tests passed | Portable decoder cross-checked against 10,000 C-encoded records and golden fixture |
+| Browser workflow, 0.13.0 | 1,000-frame rehearsal, plan save/reopen, import comparison, wrong-session/corruption rejection and clearing stale results passed | Synthetic fixtures only; downloaded rehearsal report exactly matched independent calculation |
+| Desktop dependency audit, 0.13.0 | No reported vulnerabilities | Audit result at check time, not a guarantee |
+| Packaged worker, 0.13.0 | 1,000-frame rehearsal passed in Electron 44.4.5 from packaged ASAR modules | Hidden integration harness with sandbox, context isolation, no Node integration, local file origin and restrictive CSP; no hardware opened |
+| Native Windows UI, 0.13.0 | Pending | Browser and worker checks do not establish native save-dialog acceptance or clean-machine release acceptance |
 | Desktop automated suite, 0.10.1 | 40 tests passed | Parsers, validation, model/report behavior and regression coverage; not a native UI test |
 | Full-log save race, 0.10.1 | Regression reproduced before fix, passed afterward | Selections copied before asynchronous hashing |
 | Browser workflow, 0.10.1 | Delayed hashing plus note edit/CSV reload canceled stale saves; subsequent save kept current note | Controlled browser check, not native race reproduction |
