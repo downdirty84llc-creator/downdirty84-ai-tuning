@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet, apiFetch, apiPost } from "./client";
 import LinkConnection from "./LinkConnection";
+import CaptureFileReview from "./CaptureFileReview";
 
 type Device = {
   serial: string;
@@ -148,6 +149,7 @@ export default function DD84Link() {
       ) : (
         <>
           <LinkConnection />
+          <CaptureFileReview />
           <button
             className="secondary"
             disabled={busy}
