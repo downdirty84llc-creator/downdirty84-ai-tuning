@@ -6,3 +6,11 @@
 #bench-workspace pre{overflow-wrap:anywhere}
 #bench-workspace summary{cursor:pointer;padding:10px 0}
 #bench-workspace summary:focus-visible{outline:3px solid #7ad5ff}
+#workspace #parameter-list{display:block;width:100%;font:inherit;background:#0f1c26;color:#e8edf2;padding:10px;border:1px solid #7b91a2;border-radius:6px;margin-top:8px}
+#workspace #parameter-search{width:100%;max-width:500px}
+#workspace #parameter-list option{padding:6px}
+#workspace select:focus-visible{outline:3px solid #7ad5ff}
+#parameter-table small{display:block;color:#bfcdd8;margin:4px 0;white-space:nowrap}
+#parameter-table select{font:inherit;background:#0f1c26;color:#fff;padding:9px;border:1px solid #7b91a2;border-radius:5px}
+#parameter-table .edited-cell{background:#33452d}
+#parameter-description,#parameter-raw,#comparison{overflow-wrap:anywhere}

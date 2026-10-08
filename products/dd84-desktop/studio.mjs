@@ -1,18 +1,107 @@
-import {sample,parse,validate,edit,changes,review,LIMIT} from './model.mjs';
-const $=id=>document.getElementById(id);let project=null,history=[],dirty=false,request=0;
+import {sample,parse,validate,edit,restore,backup,changes,coordinates,review,LIMIT} from './project.mjs';
+import {definition} from './parameters.mjs';
+const $=id=>document.getElementById(id);
+let project=null,history=[],dirty=false,request=0,selected='';
 const message=text=>$('message').textContent=text;
-function replace(next){project=next;history=[];dirty=false;$('note').value='';render();}
+function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
+function replace(next){project=next;history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
 function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;render();}
-function render(){ $('workspace').hidden=!project;if(!project)return;$('name').value=project.name;$('identity').textContent=`${project.controller} · ${project.path} · ${dirty?'Unsaved edits':'Project loaded'}`;$('rows').replaceChildren();project.axis.forEach((hz,i)=>{const tr=document.createElement('tr');for(const text of [hz,project.original[i]]){const td=document.createElement('td');td.textContent=text;tr.append(td);}const td=document.createElement('td'),input=document.createElement('input');input.type='number';input.step='any';input.min='0';input.max='5000';input.value=project.values[i];input.setAttribute('aria-label',`Airflow at ${hz} Hz`);input.addEventListener('change',()=>{try{if(!input.value.trim())throw Error('Enter a numeric value.');mutate(edit(project,i,Number(input.value)));message('Working value updated.');}catch(e){message(e.message);input.value=project.values[i];}});td.append(input);tr.append(td);const delta=document.createElement('td');delta.textContent=((project.values[i]/project.original[i]-1)*100).toFixed(2)+'%';tr.append(delta);$('rows').append(tr);});const diff=changes(project);$('summary').textContent=`${diff.length} changed cells · Original preserved · Simulation only`;$('comparison').textContent=diff.length?diff.map(d=>`${d.coordinates.x} Hz: ${d.before} → ${d.after} g/s`).join('\n'):'No changes yet.';$('undo').disabled=!history.length;$('export').disabled=!diff.length;}
+function location(p,index){const d=definition(p.path);return Object.values(coordinates(p,index)).map((v,i)=>`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}
+function difference(before,after){
+  if(before===after)return 'Unchanged';
+  if(typeof before!=='number'||typeof after!=='number')return `${before} → ${after}`;
+  const delta=after-before;return `${delta>0?'+':''}${Number(delta.toPrecision(8))}${before===0?' (from zero)':` (${((after/before-1)*100).toFixed(2)}%)`}`;
+}
+function inputFor(p,index,d){
+  const input=element(d.kind==='enum'||d.kind==='boolean'?'select':'input');
+  if(input.tagName==='SELECT'){
+    const choices=d.kind==='boolean'?[false,true]:d.choices;
+    for(const choice of choices){const option=element('option',String(choice));option.value=String(choice);input.append(option);}
+  }else{input.type='number';input.step=d.integer?'1':'any';input.min=String(d.min);input.max=String(d.max);}
+  input.value=String(p.values[index]);input.setAttribute('aria-label',`${d.label}: ${location(p,index)}`);
+  input.addEventListener('input',()=>{request++;});
+  input.addEventListener('change',()=>{
+    try{
+      if(!input.value.trim())throw Error('Enter a value.');
+      const value=d.kind==='boolean'?input.value==='true':d.kind==='enum'?input.value:Number(input.value);
+      const focused=document.activeElement===input;
+      mutate(edit(project,p.path,index,value));message('Working value updated; original preserved.');
+      if(focused)$('parameter-table').querySelectorAll('input,select')[index]?.focus();
+    }catch(e){message(e.message);input.value=String(p.values[index]);}
+  });return input;
+}
+function renderParameter(){
+  const p=project.parameters.find(item=>item.path===selected);
+  $('parameter-table').replaceChildren();$('parameter-raw').hidden=true;
+  $('reset-selected').disabled=!p||!definition(p.path);
+  if(!p){$('parameter-description').textContent='No parameters match your search.';return;}
+  const d=definition(p.path);
+  if(!d){
+    $('parameter-description').textContent=`${p.path} · Read-only: no definition installed. Units and meaning are unknown. Values are preserved on save.`;
+    $('parameter-raw').hidden=false;$('parameter-raw').textContent=JSON.stringify(p,null,2);return;
+  }
+  const bounds=d.kind==='enum'?`Choices: ${d.choices.join(', ')}`:d.kind==='boolean'?'Choices: false / true':`Format bounds: ${d.exclusiveMin?'>':'≥'} ${d.min} to ${d.max} ${d.unit}${d.integer?' (integer)':''}`;
+  $('parameter-description').textContent=`${d.label} · ${p.path} · ${bounds}. These are synthetic definitions, not vehicle tuning limits. Axes stay fixed.`;
+  const table=$('parameter-table'),head=element('thead'),tr=element('tr'),body=element('tbody');
+  const titles=d.kind==='map'?[`${d.axes[1].label} (${d.axes[1].unit}) ↓ / ${d.axes[0].label} (${d.axes[0].unit}) →`,...p.axes[0].map(String)]:[p.axes.length?`${d.axes[0].label} (${d.axes[0].unit})`:'Setting',`Original${d.unit?` (${d.unit})`:''}`,`Working${d.unit?` (${d.unit})`:''}`,'Change'];
+  for(const title of titles){const th=element('th',title);th.scope='col';tr.append(th);}head.append(tr);table.append(head,body);
+  if(d.kind==='map'){
+    for(let y=0;y<p.axes[1].length;y++){
+      const row=element('tr'),axis=element('th',String(p.axes[1][y]));axis.scope='row';row.append(axis);
+      for(let x=0;x<p.axes[0].length;x++){
+        const i=y*p.axes[0].length+x,td=element('td');td.classList.toggle('edited-cell',p.values[i]!==p.original[i]);
+        td.append(element('small',`Original: ${p.original[i]} ${d.unit}`),inputFor(p,i,d),element('small',difference(p.original[i],p.values[i])));row.append(td);
+      }body.append(row);
+    }
+  }else p.values.forEach((value,i)=>{
+    const row=element('tr');row.classList.toggle('edited-cell',value!==p.original[i]);
+    row.append(element('td',p.axes.length?String(p.axes[0][i]):d.label),element('td',String(p.original[i])));
+    const working=element('td');working.append(inputFor(p,i,d));row.append(working,element('td',difference(p.original[i],value)));body.append(row);
+  });
+}
+function renderLibrary(){
+  const filter=$('parameter-search').value.trim().toLowerCase(),list=$('parameter-list');list.replaceChildren();
+  const visible=project.parameters.filter(p=>`${p.path} ${definition(p.path)?.label??''} ${definition(p.path)?.group??''}`.toLowerCase().includes(filter));
+  if(!visible.some(p=>p.path===selected))selected=visible[0]?.path??'';
+  for(const p of visible){const d=definition(p.path),count=p.values.filter((v,i)=>v!==p.original[i]).length,option=element('option',`${d?.group??'Unknown'} / ${d?.label??p.path}${!d?' [read-only]':''}${count?` · ${count} changed`:''}`);option.value=p.path;list.append(option);}
+  list.value=selected;list.disabled=!visible.length;
+  const editable=project.parameters.filter(p=>definition(p.path)).length;
+  $('parameter-count').textContent=`${project.parameters.length} parameters · ${editable} editable · ${project.parameters.length-editable} read-only · ${visible.length} shown`;
+  renderParameter();
+}
+function render(){
+  $('workspace').hidden=!project;if(!project)return;
+  $('name').value=project.name;$('identity').textContent=`${project.controller} · ${project.definitionSet} · ${dirty?'Unsaved edits':'Project loaded'}`;
+  renderLibrary();const diff=changes(project);
+  $('summary').textContent=`${diff.length} changed values across ${new Set(diff.map(d=>d.path)).size} parameters · Originals preserved · Simulation only`;
+  $('comparison').textContent=diff.length?diff.map(d=>{
+    const p=project.parameters.find(p=>p.path===d.path);
+    return `${d.path} · ${location(p,d.index)}: ${d.before} → ${d.after}${d.unit?` ${d.unit}`:''}${!d.definitionKnown?' [unknown definition; imported difference]':''}`;
+  }).join('\n'):'No changes yet.';
+  $('undo').disabled=!history.length;$('export').disabled=!diff.length;
+}
 const discard=()=>!dirty||confirm('Discard unsaved project edits?');
-$('new').onclick=()=>{if(discard()){request++;replace(sample());message('Sample project opened. Save an original backup before editing.');}};
-$('open').onchange=async event=>{const file=event.target.files[0];event.target.value='';if(!file||!discard())return;const id=++request;try{if(file.size>LIMIT)throw Error('Project exceeds 1 MB.');const p=parse(await file.text());if(id!==request)return;replace(p);message(`Opened ${file.name}`);}catch(e){if(id===request)message(e.message);}};
+$('new').onclick=()=>{if(discard()){request++;replace(sample());message('Six synthetic parameters opened. These do not represent a vehicle tune.');}};
+$('open').onchange=async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file||!discard())return;const id=++request;
+  try{if(file.size>LIMIT)throw Error('Project exceeds 1 MB.');const p=parse(await file.text());if(id!==request)return;replace(p);message(`Opened ${file.name}. Legacy V1 projects are upgraded to V2 when saved.`);}catch(e){if(id===request)message(e.message);}
+};
+$('parameter-search').oninput=()=>{if(project)renderLibrary();};
+$('parameter-list').onchange=()=>{selected=$('parameter-list').value;renderParameter();};
+$('name').oninput=()=>{request++;};
 $('name').onchange=()=>{try{mutate(validate({...project,name:$('name').value}));}catch(e){message(e.message);$('name').value=project.name;}};
-$('undo').onclick=()=>{if(history.length){project=history.pop();dirty=true;render();}};
-$('reset').onclick=()=>{if(confirm('Restore all working values from the original?'))mutate({...project,values:[...project.original]});};
-function download(value,suffix){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`DD84-${suffix}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);message('Save dialog opened. Confirm the file was saved before closing; edits remain marked unsaved because cancellation cannot be detected.');}
+$('undo').onclick=()=>{if(history.length){request++;project=history.pop();dirty=true;render();message('Last project edit undone.');}};
+$('reset').onclick=()=>{if(confirm('Restore all editable parameters from their originals?'))mutate(restore(project));};
+$('reset-selected').onclick=()=>{if(confirm('Restore this parameter from its original?'))mutate(restore(project,selected));};
+function download(value,suffix){
+  const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=element('a');a.href=url;a.download=`DD84-${suffix}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  message('Save dialog opened. Confirm the file was saved before closing; cancellation cannot be detected.');
+}
 $('save').onclick=()=>download(validate(project),'project');
-$('backup').onclick=()=>download({...validate(project),values:[...project.original]},'original');
-$('export').onclick=async()=>{try{download(await review(project,$('note').value),'review-draft');}catch(e){message(e.message);}};
-$('note').addEventListener('input',()=>{dirty=true;});
+$('backup').onclick=()=>download(backup(project),'original');
+$('export').onclick=async()=>{
+  const id=++request;
+  try{const result=await review(project,$('note').value);if(id!==request){message('Project changed while preparing the review. Export again after finishing edits.');return;}download(result,'review-draft');}catch(e){if(id===request)message(e.message);}
+};
+$('note').addEventListener('input',()=>{request++;dirty=true;});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});

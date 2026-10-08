@@ -36,7 +36,7 @@ The U.S. Copyright Office distinguishes protected program expression from ideas,
 4. **Controller adapters.** Add hardware/OS-specific definitions from documented permitted sources, with checksum and round-trip fixtures. Advertise support only after that adapter passes its tests. Track read, edit, export and write capabilities separately.
 5. **End-to-end hardware release.** Validate backup, recovery after interruption, identity binding and pre-write checks on a bench for each controller family before enabling physical writes. Then validate a signed Windows installer and update process.
 
-Current status: steps 1–5 are future milestones; preview 0.2 supplies the local case/fingerprint foundation and simulation editor. It does not provide universal controller support or real HPT calibration editing.
+Current status: preview 0.14 includes bounded native multi-parameter simulation editing, V1 migration, scalar/curve/map/choice/switch controls, complete original preservation and draft review. Readable CSV log inspection and comparison evidence are implemented separately. Step 1 remains incomplete for real calibration import: permitted absolute table exports, controller/OS identity and validated definitions are still required. Steps 3–5 and real HPT calibration editing remain future work. Simulation definitions never establish universal controller support.
 
 ## Measured-learning milestone
 

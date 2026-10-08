@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.13.0**. Updated: **2026-10-07**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.14.0**. Updated: **2026-10-08**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,10 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite, 0.14.0 | 64 tests passed | All five parameter shapes, V1 migration, units/bounds, unknown read-only paths, dimensions, original fingerprints and review snapshots |
+| Browser editor workflow, 0.14.0 | Six-parameter editing, switch undo, review-note gate, save/reopen, legacy migration, search and unknown read-only display passed | Synthetic only; project, backup and review downloads exactly matched independent expected values |
+| Desktop dependency audit, 0.14.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.14.0 | Pending | Browser validation does not establish native dialogs or clean-machine acceptance |
 | Desktop automated suite, 0.13.0 | 55 tests passed | Includes pattern validation, import limits, source-bound reports and disabled hardware/learning claims |
 | Link automated suite, 0.13.0 source | 16 tests passed | Portable decoder cross-checked against 10,000 C-encoded records and golden fixture |
 | Browser workflow, 0.13.0 | 1,000-frame rehearsal, plan save/reopen, import comparison, wrong-session/corruption rejection and clearing stale results passed | Synthetic fixtures only; downloaded rehearsal report exactly matched independent calculation |

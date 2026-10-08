@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.13.0
+# DD84 Calibration Studio — Windows preview 0.14.0
 
 An offline Windows x64 workbench for local calibration evidence and simulation editing. Real HPT files are read only. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -47,21 +47,24 @@ Under **Imported comparison evidence**, select a detailed Differences CSV and a 
 
 The independently authored parser preserves supported scalar/vector/matrix differences and unsupported blocks without guessing their meaning. Axis differences are not actual operating coordinates. Text transitions retain source notation; diagnostic-code entries do not establish enabled/disabled behavior. Reports omit description prose but retain parsed difference rows for review. The association to a tune pair is operator supplied. No changes are applied to the simulation editor or a vehicle.
 
-## Practice simulation editing
+## Multi-parameter simulation editing — 0.14.0
 
-1. Choose **New sample project**, then **Export original backup** and complete the save dialog.
-2. Change a working airflow value and leave the cell. Compare it with the unchanged original.
-3. Use **Undo** or **Restore original values** as needed.
-4. Choose **Save project copy**. Reopen the JSON with **Open DD84 project**.
-5. Enter a review note and choose **Export review draft**. This includes changes, the project and a fingerprint of the original table and identity. Review notes are not stored in project copies.
+1. Choose **New sample project**. The library has six synthetic definitions: a MAF curve, VE and spark maps, an idle scalar, a demonstration selection list and a demonstration switch. These are not decoded vehicle parameters or tuning recommendations.
+2. Search by label, group or path and select a parameter. Maps use X across columns and Y down rows. Axes remain fixed. Each cell shows original/working values; changed cells are highlighted. Format bounds and units come from the bundled definition set, not the imported file.
+3. Edit a working value and leave the cell. **Undo** reverses the last project edit (up to 100 in the current session). **Restore selected original** resets that parameter; **Restore all editable originals** resets known parameters. Unknown definitions stay visible and read-only, including any imported differences.
+4. **Export original backup** writes all supplied originals, including unknown parameters. **Save project copy** preserves every original/working value and fixed axis. Reopen using **Open DD84 project**. Legacy V1 projects upgrade to a one-parameter V2 project without inventing additional tables.
+5. Enter a note and **Export review draft**. It includes changes across all parameters, coordinates, units and a SHA-256 fingerprint of the complete original baseline. Numeric changes from zero omit a multiplier. Switches and choices have no numeric multiplier. Changing data or notes while a review is prepared cancels that export.
 
-Only `DD84_STUDIO_V1`, `SIM-ECM-01` and `Airflow.MAF.Curve` are supported for editing. Values are synthetic examples, not engine recommendations. Imported originals are supplied by the file and are not authenticated. A local draft is not cloud approval or a signed installation package.
+Only the bundled simulation controller and definitions are editable. HPT, BIN and Holley tune files are not decoded or converted to V2. Unknown definition paths are preserved read-only; an imported file cannot supply executable definitions or authorize writes. Supplied originals and their hashes establish matching content, not authenticity. Review notes appear in review drafts, not project copies; undo history is session-only.
+
+See [PARAMETER_PROJECT.md](PARAMETER_PROJECT.md) for the V2 format and the requirements for extending the editor to real controllers.
 
 ## Saved records and limits
 
 | Record | Contains | Needed to resume |
 |---|---|---|
-| `DD84_STUDIO_V1` | Simulation original and working table | Project JSON |
+| `DD84_STUDIO_V2` | Simulation parameters, fixed axes, original and working values | Project JSON; V1 also accepted and upgraded |
+| `DD84_STUDIO_REVIEW_V2` | Multi-parameter differences, baseline fingerprint, note and embedded project | Review-only report; reopen the separately saved project |
 | `DD84_FILE_PAIR_V1` | Vehicle/build notes and two file identities | Case JSON and both matching HPT files |
 | `DD84_LEARNING_CASE_V1` | Tune/log timeline, build notes and stated associations | Case JSON; retain and separately verify source files |
 | `DD84_DIFFERENCES_V1` | Comparison evidence, direction and source identity | Evidence report; keep comparison CSV and tune pair separately |
