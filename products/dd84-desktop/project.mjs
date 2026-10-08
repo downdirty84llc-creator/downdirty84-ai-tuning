@@ -1,6 +1,10 @@
 import {validate as validateLegacy,LIMIT} from './model.mjs';
 import {DEFINITION_SET,definition} from './parameters.mjs';
+import {REAL_FORMAT,REAL_LIMIT,validateReal,realDefinition,editReal,restoreReal,realChanges,reviewReal} from './realDraft.mjs';
 export {LIMIT};
+export const OPEN_LIMIT=REAL_LIMIT;
+export const isReal=p=>p?.format===REAL_FORMAT;
+export const projectDefinition=(p,path)=>isReal(p)?realDefinition(p,path):definition(path);
 const FORMAT='DD84_STUDIO_V2', MAX_CELLS=32768;
 function keys(object,allowed){
   if(!object||typeof object!=='object'||Array.isArray(object)||Object.keys(object).some(k=>!allowed.includes(k)))throw Error('Unsupported project fields.');
@@ -30,6 +34,7 @@ function validateParameter(p){
   return {path:p.path,axes:p.axes.map(a=>[...a]),original:[...p.original],values:[...p.values]};
 }
 export function validate(project){
+  if(isReal(project))return validateReal(project);
   if(project?.format==='DD84_STUDIO_V1'){
     const p=validateLegacy(project);
     return validate({format:FORMAT,writeStrategy:p.writeStrategy,controller:p.controller,definitionSet:DEFINITION_SET,name:p.name,parameters:[{path:p.path,axes:[p.axis],original:p.original,values:p.values}]});
@@ -46,7 +51,7 @@ export function validate(project){
   if(new TextEncoder().encode(JSON.stringify(result,null,2)).length>LIMIT)throw Error('Project exceeds 1 MB.');
   return result;
 }
-export function parse(text){if(new TextEncoder().encode(text).length>LIMIT)throw Error('Project exceeds 1 MB.');return validate(JSON.parse(text));}
+export function parse(text){const size=new TextEncoder().encode(text).length;if(size>OPEN_LIMIT)throw Error('Project exceeds 4 MB.');const p=JSON.parse(text);if(!isReal(p)&&size>LIMIT)throw Error('Simulation project exceeds 1 MB.');return validate(p);}
 export function sample(){
   const p=(path,axes,values)=>({path,axes,original:values,values});
   return validate({format:FORMAT,writeStrategy:'SIMULATION_ONLY',controller:'SIM-ECM-01',definitionSet:DEFINITION_SET,name:'My multi-parameter simulation',parameters:[
@@ -57,23 +62,26 @@ export function sample(){
   ]});
 }
 export function edit(project,path,index,value){
+  if(isReal(project))return editReal(project,path,index,value);
   const p=validate(project),parameter=p.parameters.find(item=>item.path===path);
   if(!parameter||!definition(path))throw Error('Parameter has no editable definition.');
   if(!Number.isInteger(index)||index<0||index>=parameter.values.length)throw Error('Invalid cell.');
   parameter.values[index]=value;return validate(p);
 }
 export function restore(project,path){
+  if(isReal(project))return restoreReal(project,path);
   const p=validate(project);
   if(path&&!p.parameters.some(item=>item.path===path&&definition(path)))throw Error('Parameter has no editable definition.');
   for(const parameter of p.parameters)if(definition(parameter.path)&&(!path||parameter.path===path))parameter.values=[...parameter.original];
   return p;
 }
-export function backup(project){const p=validate(project);for(const parameter of p.parameters)parameter.values=[...parameter.original];return p;}
+export function backup(project){if(isReal(project))return restoreReal(project,undefined,true);const p=validate(project);for(const parameter of p.parameters)parameter.values=[...parameter.original];return p;}
 export function coordinates(parameter,index){
   const axes=parameter.axes;
   return axes.length===0?{}:axes.length===1?{x:axes[0][index]}:{x:axes[0][index%axes[0].length],y:axes[1][Math.floor(index/axes[0].length)]};
 }
 export function changes(project){
+  if(isReal(project))return realChanges(project);
   return validate(project).parameters.flatMap(p=>{
     const d=definition(p.path);
     return p.values.flatMap((after,index)=>{
@@ -85,6 +93,7 @@ export function changes(project){
   });
 }
 export async function review(project,note){
+  if(isReal(project))return reviewReal(project,note);
   const p=validate(project);
   if(typeof note!=='string'||!note.trim()||note.length>2000)throw Error('Add a review note (1–2,000 characters).');
   const items=changes(p);if(!items.length)throw Error('No changes to review.');

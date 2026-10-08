@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.14.0**. Updated: **2026-10-08**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.15.0**. Updated: **2026-10-08**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,10 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite, 0.15.0 | 74 tests passed | Real draft types, provenance, malformed inputs, source verification, merging and read-only unknown definitions |
+| Browser real draft workflow, 0.15.0 | Source match/mismatch, edit/undo, required note, save/reopen, complete map display, import/merge and mixed-source rejection passed | Captured local exports; no native tune output or controller validation |
+| Local actual-export validation, 0.15.0 | Five prepared drafts; all five source fingerprints matched | Three Sierra stages and two read-only Holley candidates; sources unchanged and excluded from distribution |
+| Native Windows UI, 0.15.0 | Pending | Browser tests do not establish native dialog or clean-machine acceptance |
 | Desktop automated suite, 0.14.0 | 64 tests passed | All five parameter shapes, V1 migration, units/bounds, unknown read-only paths, dimensions, original fingerprints and review snapshots |
 | Browser editor workflow, 0.14.0 | Six-parameter editing, switch undo, review-note gate, save/reopen, legacy migration, search and unknown read-only display passed | Synthetic only; project, backup and review downloads exactly matched independent expected values |
 | Desktop dependency audit, 0.14.0 | No reported vulnerabilities | Audit result at check time |

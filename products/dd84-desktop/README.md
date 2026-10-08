@@ -1,6 +1,6 @@
-# DD84 Calibration Studio — Windows preview 0.14.0
+# DD84 Calibration Studio — Windows preview 0.15.0
 
-An offline Windows x64 workbench for local calibration evidence and simulation editing. Real HPT files are read only. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
+An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark exports are editable in separate DD84 drafts. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
 ## Start here
 
@@ -9,6 +9,10 @@ Extract the entire `DD84-Calibration-Studio-win32-x64` folder and run `DD84-Cali
 Use the workflow below that matches your task. Each panel stores a separate kind of record; saving one panel does not save the others. Retain source HPT, HPL and CSV files separately. Evidence reports contain fingerprints and notes, not backups of those source files.
 
 Save actions open a Windows dialog. Finish the dialog and verify the resulting file before closing. The renderer cannot detect save cancellation, so the unsaved-work warning is conservative. If you change inputs while an export is being prepared, that export may be canceled; finish your edits and save again.
+
+## Edit captured real parameters
+
+Open a prepared real-value DD84 project, or select the captured export stage and readable export JSON. Edit any defined value, compare with its preserved original, undo and save a draft copy. Recheck its native source fingerprint when needed. Unknown Holley candidate definitions remain read-only. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md) for supported inputs, complete workflow and the remaining native-controller requirements.
 
 ## Inspect a VCM Scanner CSV
 
@@ -47,7 +51,7 @@ Under **Imported comparison evidence**, select a detailed Differences CSV and a 
 
 The independently authored parser preserves supported scalar/vector/matrix differences and unsupported blocks without guessing their meaning. Axis differences are not actual operating coordinates. Text transitions retain source notation; diagnostic-code entries do not establish enabled/disabled behavior. Reports omit description prose but retain parsed difference rows for review. The association to a tune pair is operator supplied. No changes are applied to the simulation editor or a vehicle.
 
-## Multi-parameter simulation editing — 0.14.0
+## Multi-parameter simulation editing
 
 1. Choose **New sample project**. The library has six synthetic definitions: a MAF curve, VE and spark maps, an idle scalar, a demonstration selection list and a demonstration switch. These are not decoded vehicle parameters or tuning recommendations.
 2. Search by label, group or path and select a parameter. Maps use X across columns and Y down rows. Axes remain fixed. Each cell shows original/working values; changed cells are highlighted. Format bounds and units come from the bundled definition set, not the imported file.
@@ -55,7 +59,7 @@ The independently authored parser preserves supported scalar/vector/matrix diffe
 4. **Export original backup** writes all supplied originals, including unknown parameters. **Save project copy** preserves every original/working value and fixed axis. Reopen using **Open DD84 project**. Legacy V1 projects upgrade to a one-parameter V2 project without inventing additional tables.
 5. Enter a note and **Export review draft**. It includes changes across all parameters, coordinates, units and a SHA-256 fingerprint of the complete original baseline. Numeric changes from zero omit a multiplier. Switches and choices have no numeric multiplier. Changing data or notes while a review is prepared cancels that export.
 
-Only the bundled simulation controller and definitions are editable. HPT, BIN and Holley tune files are not decoded or converted to V2. Unknown definition paths are preserved read-only; an imported file cannot supply executable definitions or authorize writes. Supplied originals and their hashes establish matching content, not authenticity. Review notes appear in review drafts, not project copies; undo history is session-only.
+In V2 simulation projects, only the bundled synthetic controller and definitions are editable. Real exported-value drafts use a separate schema described above. HPT, BIN and Holley tune files are not decoded or converted to V2. Unknown definition paths are preserved read-only; an imported file cannot supply executable definitions or authorize writes. Supplied originals and their hashes establish matching content, not authenticity. Review notes appear in review drafts, not project copies; undo history is session-only.
 
 See [PARAMETER_PROJECT.md](PARAMETER_PROJECT.md) for the V2 format and the requirements for extending the editor to real controllers.
 

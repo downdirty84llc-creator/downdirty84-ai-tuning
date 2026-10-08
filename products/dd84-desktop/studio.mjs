@@ -1,10 +1,11 @@
-import {sample,parse,validate,edit,restore,backup,changes,coordinates,review,LIMIT} from './project.mjs';
-import {definition} from './parameters.mjs';
+import {sample,parse,validate,edit,restore,backup,changes,coordinates,review,OPEN_LIMIT,isReal,projectDefinition} from './project.mjs';
+import {importRealExport,mergeRealDrafts,verifyTuneSource} from './realImport.mjs';
 const $=id=>document.getElementById(id);
-let project=null,history=[],dirty=false,request=0,selected='';
+let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
+const definition=path=>projectDefinition(project,path);
 const message=text=>$('message').textContent=text;
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
-function replace(next){project=next;history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
+function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
 function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;render();}
 function location(p,index){const d=definition(p.path);return Object.values(coordinates(p,index)).map((v,i)=>`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}
 function difference(before,after){
@@ -37,11 +38,11 @@ function renderParameter(){
   if(!p){$('parameter-description').textContent='No parameters match your search.';return;}
   const d=definition(p.path);
   if(!d){
-    $('parameter-description').textContent=`${p.path} · Read-only: no definition installed. Units and meaning are unknown. Values are preserved on save.`;
+    $('parameter-description').textContent=`${p.path} · Read-only: no definition installed. ${p.definition?.reason??'Units and meaning are unknown.'} Values are preserved on save.`;
     $('parameter-raw').hidden=false;$('parameter-raw').textContent=JSON.stringify(p,null,2);return;
   }
   const bounds=d.kind==='enum'?`Choices: ${d.choices.join(', ')}`:d.kind==='boolean'?'Choices: false / true':`Format bounds: ${d.exclusiveMin?'>':'≥'} ${d.min} to ${d.max} ${d.unit}${d.integer?' (integer)':''}`;
-  $('parameter-description').textContent=`${d.label} · ${p.path} · ${bounds}. These are synthetic definitions, not vehicle tuning limits. Axes stay fixed.`;
+  $('parameter-description').textContent=`${d.label} · ${p.path} · ${bounds}. ${isReal(project)?'Exported values only; controller encoding and tuning limits are not validated.':'These are synthetic definitions, not vehicle tuning limits.'} Axes stay fixed.`;
   const table=$('parameter-table'),head=element('thead'),tr=element('tr'),body=element('tbody');
   const titles=d.kind==='map'?[`${d.axes[1].label} (${d.axes[1].unit}) ↓ / ${d.axes[0].label} (${d.axes[0].unit}) →`,...p.axes[0].map(String)]:[p.axes.length?`${d.axes[0].label} (${d.axes[0].unit})`:'Setting',`Original${d.unit?` (${d.unit})`:''}`,`Working${d.unit?` (${d.unit})`:''}`,'Change'];
   for(const title of titles){const th=element('th',title);th.scope='col';tr.append(th);}head.append(tr);table.append(head,body);
@@ -72,8 +73,11 @@ function renderLibrary(){
 function render(){
   $('workspace').hidden=!project;if(!project)return;
   $('name').value=project.name;$('identity').textContent=`${project.controller} · ${project.definitionSet} · ${dirty?'Unsaved edits':'Project loaded'}`;
+  $('editor-mode').textContent=isReal(project)?'Real exported values — local draft only. The source tune is not modified; native tune export and vehicle writing are unavailable. Displayed precision may differ from native stored precision.':'Synthetic simulation examples; no vehicle data.';
+  $('real-source-details').hidden=!isReal(project);
+  if(isReal(project))$('real-source-details').textContent=`Source: ${project.source.name} · SHA-256 ${project.source.sha256}\nController: ${project.source.controllerFamily??'unverified'} · OS: ${project.source.operatingSystem??'unverified'}\n${sourceCheck} Matching the source hash does not validate table extraction or controller definitions.`;
   renderLibrary();const diff=changes(project);
-  $('summary').textContent=`${diff.length} changed values across ${new Set(diff.map(d=>d.path)).size} parameters · Originals preserved · Simulation only`;
+  $('summary').textContent=`${diff.length} changed values across ${new Set(diff.map(d=>d.path)).size} parameters · Originals preserved · ${isReal(project)?'Real-data draft; no native export':'Simulation only'}`;
   $('comparison').textContent=diff.length?diff.map(d=>{
     const p=project.parameters.find(p=>p.path===d.path);
     return `${d.path} · ${location(p,d.index)}: ${d.before} → ${d.after}${d.unit?` ${d.unit}`:''}${!d.definitionKnown?' [unknown definition; imported difference]':''}`;
@@ -84,7 +88,7 @@ const discard=()=>!dirty||confirm('Discard unsaved project edits?');
 $('new').onclick=()=>{if(discard()){request++;replace(sample());message('Six synthetic parameters opened. These do not represent a vehicle tune.');}};
 $('open').onchange=async event=>{
   const file=event.target.files[0];event.target.value='';if(!file||!discard())return;const id=++request;
-  try{if(file.size>LIMIT)throw Error('Project exceeds 1 MB.');const p=parse(await file.text());if(id!==request)return;replace(p);message(`Opened ${file.name}. Legacy V1 projects are upgraded to V2 when saved.`);}catch(e){if(id===request)message(e.message);}
+  try{if(file.size>OPEN_LIMIT)throw Error('Project exceeds 4 MB.');const p=parse(await file.text());if(id!==request)return;replace(p);message(`Opened ${file.name}. ${isReal(p)?'Real-data draft; source-file verification is available below.':'Legacy V1 projects upgrade to V2 when saved.'}`);}catch(e){if(id===request)message(e.message);}
 };
 $('parameter-search').oninput=()=>{if(project)renderLibrary();};
 $('parameter-list').onchange=()=>{selected=$('parameter-list').value;renderParameter();};
@@ -97,11 +101,29 @@ function download(value,suffix){
   const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=element('a');a.href=url;a.download=`DD84-${suffix}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
   message('Save dialog opened. Confirm the file was saved before closing; cancellation cannot be detected.');
 }
-$('save').onclick=()=>download(validate(project),'project');
-$('backup').onclick=()=>download(backup(project),'original');
+$('save').onclick=()=>download(validate(project),isReal(project)?'real-calibration-draft':'project');
+$('backup').onclick=()=>download(backup(project),isReal(project)?'exported-original-values':'original');
 $('export').onclick=async()=>{
   const id=++request;
-  try{const result=await review(project,$('note').value);if(id!==request){message('Project changed while preparing the review. Export again after finishing edits.');return;}download(result,'review-draft');}catch(e){if(id===request)message(e.message);}
+  try{const result=await review(project,$('note').value);if(id!==request){message('Project changed while preparing the review. Export again after finishing edits.');return;}download(result,isReal(project)?'real-review-draft':'review-draft');}catch(e){if(id===request)message(e.message);}
 };
 $('note').addEventListener('input',()=>{request++;dirty=true;});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+
+$('real-import').onchange=async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file)return;
+  const add=$('real-import-mode').value==='ADD';
+  if(add&&!isReal(project)){message('Open a real-data draft before adding tables.');return;}
+  if(!add&&!discard())return;const id=++request,stage=$('real-import-stage').value;
+  try{if(file.size>OPEN_LIMIT)throw Error('Export exceeds 4 MB.');const incoming=await importRealExport(await file.text(),file.name,stage);if(id!==request)return;
+    if(add)mutate(mergeRealDrafts(project,incoming));else replace(incoming);
+    message('Readable tables imported as local draft values. Source tune remains unchanged.');
+  }catch(e){if(id===request)message(e.message);}
+};
+for(const key of ['real-import-stage','real-import-mode'])$(key).onchange=()=>{request++;};
+$('real-source-file').onchange=async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file)return;
+  if(!isReal(project)){message('Open a real-data draft before verifying its source. Native file decoding is not available.');return;}
+  const id=++sourceRevision;sourceCheck='Checking source bytes…';render();
+  try{const result=await verifyTuneSource(file,project.source);if(id!==sourceRevision)return;sourceCheck=result.matches?'Source bytes match the recorded fingerprint.':'SOURCE MISMATCH — this file does not match the draft.';render();message(sourceCheck);}catch(e){if(id===sourceRevision){sourceCheck='Source verification failed: '+e.message;render();message(sourceCheck);}}
+};

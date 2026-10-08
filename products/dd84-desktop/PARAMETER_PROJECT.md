@@ -1,4 +1,4 @@
-# Native parameter projects
+# DD84 simulation parameter projects
 
 Studio 0.14 introduces `DD84_STUDIO_V2`. The UI uses `project.mjs` and the bundled,
 independently authored `parameters.mjs` definition set. `model.mjs` remains the V1
@@ -71,3 +71,9 @@ cannot populate a real tune by itself. Never infer all parameters from a filenam
 VIN or a successful file read. Version definition changes deliberately and retain
 old definitions for reproducible reviews. Physical writes additionally require the
 handoff's controller-specific interruption/recovery bench acceptance.
+
+## Real exported-value drafts
+
+Studio 0.15 dispatches the separate `DD84_CALIBRATION_DRAFT_V1` format through
+`project.mjs` to `realDraft.mjs`. It does not extend the synthetic definition set
+with guessed controller definitions. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md).
