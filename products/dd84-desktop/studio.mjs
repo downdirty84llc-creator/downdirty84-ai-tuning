@@ -1,0 +1,18 @@
+import {sample,parse,validate,edit,changes,review,LIMIT} from './model.mjs';
+const $=id=>document.getElementById(id);let project=null,history=[],dirty=false,request=0;
+const message=text=>$('message').textContent=text;
+function replace(next){project=next;history=[];dirty=false;$('note').value='';render();}
+function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;render();}
+function render(){ $('workspace').hidden=!project;if(!project)return;$('name').value=project.name;$('identity').textContent=`${project.controller} · ${project.path} · ${dirty?'Unsaved edits':'Project loaded'}`;$('rows').replaceChildren();project.axis.forEach((hz,i)=>{const tr=document.createElement('tr');for(const text of [hz,project.original[i]]){const td=document.createElement('td');td.textContent=text;tr.append(td);}const td=document.createElement('td'),input=document.createElement('input');input.type='number';input.step='any';input.min='0';input.max='5000';input.value=project.values[i];input.setAttribute('aria-label',`Airflow at ${hz} Hz`);input.addEventListener('change',()=>{try{if(!input.value.trim())throw Error('Enter a numeric value.');mutate(edit(project,i,Number(input.value)));message('Working value updated.');}catch(e){message(e.message);input.value=project.values[i];}});td.append(input);tr.append(td);const delta=document.createElement('td');delta.textContent=((project.values[i]/project.original[i]-1)*100).toFixed(2)+'%';tr.append(delta);$('rows').append(tr);});const diff=changes(project);$('summary').textContent=`${diff.length} changed cells · Original preserved · Simulation only`;$('comparison').textContent=diff.length?diff.map(d=>`${d.coordinates.x} Hz: ${d.before} → ${d.after} g/s`).join('\n'):'No changes yet.';$('undo').disabled=!history.length;$('export').disabled=!diff.length;}
+const discard=()=>!dirty||confirm('Discard unsaved project edits?');
+$('new').onclick=()=>{if(discard()){request++;replace(sample());message('Sample project opened. Save an original backup before editing.');}};
+$('open').onchange=async event=>{const file=event.target.files[0];event.target.value='';if(!file||!discard())return;const id=++request;try{if(file.size>LIMIT)throw Error('Project exceeds 1 MB.');const p=parse(await file.text());if(id!==request)return;replace(p);message(`Opened ${file.name}`);}catch(e){if(id===request)message(e.message);}};
+$('name').onchange=()=>{try{mutate(validate({...project,name:$('name').value}));}catch(e){message(e.message);$('name').value=project.name;}};
+$('undo').onclick=()=>{if(history.length){project=history.pop();dirty=true;render();}};
+$('reset').onclick=()=>{if(confirm('Restore all working values from the original?'))mutate({...project,values:[...project.original]});};
+function download(value,suffix){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`DD84-${suffix}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);message('Save dialog opened. Confirm the file was saved before closing; edits remain marked unsaved because cancellation cannot be detected.');}
+$('save').onclick=()=>download(validate(project),'project');
+$('backup').onclick=()=>download({...validate(project),values:[...project.original]},'original');
+$('export').onclick=async()=>{try{download(await review(project,$('note').value),'review-draft');}catch(e){message(e.message);}};
+$('note').addEventListener('input',()=>{dirty=true;});
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
