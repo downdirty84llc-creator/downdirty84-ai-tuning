@@ -165,12 +165,21 @@ customer — the backend's production tree, and the frontend's `dependencies`,
 which is what gets bundled into the site. An advisory published after a green
 merge turns the next run red rather than sitting unnoticed.
 
-Build-only dependencies are treated differently. `vite`, `typescript` and the
-rest run on the CI runner and never reach a browser, so an advisory there is
-**reported, not fatal**: a warning annotation plus the full report in the job
-summary. The gate used to fail on any such finding down to `low`, which turned
-main red twice in a month for build-tool issues no customer could reach — and
-a red main for something unreachable is how people learn to ignore red main.
+Build-only dependencies are treated differently in **both** jobs. `vite`,
+`typescript`, `tsx` and the type packages run on the CI runner and are never
+shipped, so an advisory there is **reported, not fatal**: a warning annotation
+plus the full report in the job summary. The frontend gate used to fail on any
+such finding down to `low`, which turned main red twice in a month for
+build-tool issues no customer could reach — and a red main for something
+unreachable is how people learn to ignore red main. The backend had the
+mirror-image flaw: its gate omits dev dependencies entirely, so a compromised
+build tool left no trace in CI at all.
+
+One implementation serves both — `scripts/audit-report.mjs`, with its own
+tests (`npm run test:audit-report`, run in CI). Two copies of that logic would
+drift, which this repository has already been bitten by twice: a hardcoded
+price list against Stripe's real one, and a catalogue against its own
+metadata.
 
 The exception is `critical`. A critical in build tooling can mean a compromised
 package that injects into the bundle, which is a production problem wearing a

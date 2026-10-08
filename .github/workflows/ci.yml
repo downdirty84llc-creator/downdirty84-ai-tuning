@@ -104,9 +104,17 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/src/can_capture.c products/dd84-link/firmware/host_can_capture_test.c -o /tmp/dd84-capture
           /tmp/dd84-capture
 
+      # Blocking: anything that runs in the production server.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
         working-directory: backend
+
+      # Non-blocking: tsx, typescript and the type packages compile the server
+      # and are never deployed. Previously invisible here — the gate above
+      # omits dev dependencies entirely, so a compromised build tool left no
+      # trace in CI at all. Same script as the frontend, same rules.
+      - name: Report build-only advisories (fatal only if critical)
+        run: node scripts/audit-report.mjs backend backend
 
   frontend:
     name: Frontend — typecheck and build
@@ -127,6 +135,12 @@ jobs:
       - name: Wired capture file review
         run: npm run test:capture-review
 
+      # The shared audit reporter decides whether a build passes, so it is
+      # tested like anything else. Run here because this job already has node
+      # at the repo root; it covers the script both jobs use.
+      - name: Audit reporter behaves
+        run: npm run test:audit-report
+
       # Two tiers, because the two kinds of dependency carry different risk.
       #
       # `dependencies` here is react, react-dom and react-router-dom — code
@@ -136,73 +150,12 @@ jobs:
       - name: Audit dependencies that ship to the browser
         run: npm audit --omit=dev --audit-level=high
 
-      # `devDependencies` is vite, typescript and friends: they run on this
-      # runner and never reach a browser. The previous gate failed the build on
-      # any advisory here down to `low`, which turned main red twice in a month
-      # for build-tool findings that no customer could ever reach — and a red
-      # main for something unreachable is how people learn to ignore red main.
-      #
-      # So these are reported rather than fatal, and loudly: a warning
-      # annotation on the run plus the full report in the job summary, so
-      # nobody has to go digging in a log to find out it happened.
-      #
-      # The exception is `critical`. A critical in build tooling can mean a
-      # compromised package that injects into the bundle, which is a
-      # production problem wearing a dev-dependency label — that still stops
-      # the line.
+      # Build tooling runs on this runner and never reaches a browser, so it is
+      # reported rather than fatal — unless it is critical. See the script for
+      # the full reasoning; it is shared with the backend so the two cannot
+      # drift apart.
       - name: Report build-only advisories (fatal only if critical)
-        run: |
-          # Written outside the checkout: a report file inside the working
-          # tree is one `git add -A` away from being committed, which is
-          # exactly how it first got into this branch.
-          report="${RUNNER_TEMP:-/tmp}/audit-dev.txt"
-
-          set +e
-          npm audit --audit-level=low > "$report" 2>&1
-          had_findings=$?
-          set -e
-
-          if [ "$had_findings" -eq 0 ]; then
-            echo "No advisories in build-only dependencies."
-            exit 0
-          fi
-
-          {
-            echo "### Build-only dependency advisories"
-            echo
-            echo "These packages run on the CI runner and are not bundled into"
-            echo "the site, so they do not reach customers. Worth fixing, not"
-            echo "worth blocking a deploy."
-            echo
-            echo '```'
-            cat "$report"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          echo "::warning title=Build-only advisories::npm audit found advisories in devDependencies. Not blocking — see the job summary. Run 'npm audit fix'."
-
-          # Only a critical is fatal. Read from the machine-readable output
-          # rather than by grepping prose, which changes between npm versions.
-          #
-          # On unparseable output this prints "unknown" rather than 0. Zero
-          # would mean a check that could not run reporting the same thing as
-          # a check that passed, which is the failure mode this whole pipeline
-          # is built to avoid.
-          criticals=$(npm audit --json 2>/dev/null | node -e '
-            let s = "";
-            process.stdin.on("data", d => s += d).on("end", () => {
-              try {
-                const n = JSON.parse(s).metadata.vulnerabilities.critical;
-                console.log(Number.isInteger(n) ? n : "unknown");
-              } catch { console.log("unknown"); }
-            })')
-
-          if [ "$criticals" = "unknown" ]; then
-            echo "::warning title=Severity check could not run::Advisories were found, but 'npm audit --json' could not be read, so it is unknown whether any are critical. Run 'npm audit' locally. Not blocking, because the blocking gate for code that reaches customers is the step above."
-          elif [ "$criticals" -gt 0 ]; then
-            echo "::error title=Critical advisory in build tooling::$criticals critical advisory(ies) in devDependencies. A critical in build tooling can mean a compromised package that injects into the bundle, so this blocks the build."
-            exit 1
-          fi
+        run: node scripts/audit-report.mjs . frontend
 
   guardrails:
     name: Safety guardrails still in place

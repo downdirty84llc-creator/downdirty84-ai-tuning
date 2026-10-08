@@ -11,7 +11,8 @@
     "build": "tsc -b && vite build",
     "test:link-capture": "node scripts/test-link-capture.mjs",
     "test:capture-review": "node scripts/test-capture-review.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:audit-report": "node --test scripts/audit-report.test.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
