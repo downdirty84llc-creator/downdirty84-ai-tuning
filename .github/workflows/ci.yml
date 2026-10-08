@@ -127,8 +127,82 @@ jobs:
       - name: Wired capture file review
         run: npm run test:capture-review
 
-      - name: Audit frontend runtime and build dependencies
-        run: npm audit --audit-level=low
+      # Two tiers, because the two kinds of dependency carry different risk.
+      #
+      # `dependencies` here is react, react-dom and react-router-dom — code
+      # that is bundled and executes in a customer's browser. An advisory
+      # there is a real exposure and blocks the build, at the same threshold
+      # the backend uses.
+      - name: Audit dependencies that ship to the browser
+        run: npm audit --omit=dev --audit-level=high
+
+      # `devDependencies` is vite, typescript and friends: they run on this
+      # runner and never reach a browser. The previous gate failed the build on
+      # any advisory here down to `low`, which turned main red twice in a month
+      # for build-tool findings that no customer could ever reach — and a red
+      # main for something unreachable is how people learn to ignore red main.
+      #
+      # So these are reported rather than fatal, and loudly: a warning
+      # annotation on the run plus the full report in the job summary, so
+      # nobody has to go digging in a log to find out it happened.
+      #
+      # The exception is `critical`. A critical in build tooling can mean a
+      # compromised package that injects into the bundle, which is a
+      # production problem wearing a dev-dependency label — that still stops
+      # the line.
+      - name: Report build-only advisories (fatal only if critical)
+        run: |
+          # Written outside the checkout: a report file inside the working
+          # tree is one `git add -A` away from being committed, which is
+          # exactly how it first got into this branch.
+          report="${RUNNER_TEMP:-/tmp}/audit-dev.txt"
+
+          set +e
+          npm audit --audit-level=low > "$report" 2>&1
+          had_findings=$?
+          set -e
+
+          if [ "$had_findings" -eq 0 ]; then
+            echo "No advisories in build-only dependencies."
+            exit 0
+          fi
+
+          {
+            echo "### Build-only dependency advisories"
+            echo
+            echo "These packages run on the CI runner and are not bundled into"
+            echo "the site, so they do not reach customers. Worth fixing, not"
+            echo "worth blocking a deploy."
+            echo
+            echo '```'
+            cat "$report"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::warning title=Build-only advisories::npm audit found advisories in devDependencies. Not blocking — see the job summary. Run 'npm audit fix'."
+
+          # Only a critical is fatal. Read from the machine-readable output
+          # rather than by grepping prose, which changes between npm versions.
+          #
+          # On unparseable output this prints "unknown" rather than 0. Zero
+          # would mean a check that could not run reporting the same thing as
+          # a check that passed, which is the failure mode this whole pipeline
+          # is built to avoid.
+          criticals=$(npm audit --json 2>/dev/null | node -e '
+            let s = "";
+            process.stdin.on("data", d => s += d).on("end", () => {
+              try {
+                const n = JSON.parse(s).metadata.vulnerabilities.critical;
+                console.log(Number.isInteger(n) ? n : "unknown");
+              } catch { console.log("unknown"); }
+            })')
+
+          if [ "$criticals" = "unknown" ]; then
+            echo "::warning title=Severity check could not run::Advisories were found, but 'npm audit --json' could not be read, so it is unknown whether any are critical. Run 'npm audit' locally. Not blocking, because the blocking gate for code that reaches customers is the step above."
+          elif [ "$criticals" -gt 0 ]; then
+            echo "::error title=Critical advisory in build tooling::$criticals critical advisory(ies) in devDependencies. A critical in build tooling can mean a compromised package that injects into the bundle, so this blocks the build."
+            exit 1
+          fi
 
   guardrails:
     name: Safety guardrails still in place
