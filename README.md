@@ -160,9 +160,23 @@ npm i && npm run dev                                     # http://localhost:5173
 
 ### Dependencies
 
-CI fails the build on any **high** advisory in production dependencies
-(`npm audit --omit=dev --audit-level=high`), so an advisory published after a
-green merge turns the next run red rather than sitting unnoticed.
+CI fails the build on any **high** advisory in dependencies that reach a
+customer — the backend's production tree, and the frontend's `dependencies`,
+which is what gets bundled into the site. An advisory published after a green
+merge turns the next run red rather than sitting unnoticed.
+
+Build-only dependencies are treated differently. `vite`, `typescript` and the
+rest run on the CI runner and never reach a browser, so an advisory there is
+**reported, not fatal**: a warning annotation plus the full report in the job
+summary. The gate used to fail on any such finding down to `low`, which turned
+main red twice in a month for build-tool issues no customer could reach — and
+a red main for something unreachable is how people learn to ignore red main.
+
+The exception is `critical`. A critical in build tooling can mean a compromised
+package that injects into the bundle, which is a production problem wearing a
+dev-dependency label, so that still blocks. If the severity cannot be
+determined at all, the step says so explicitly rather than reporting zero —
+a check that could not run must never read like one that passed.
 
 `package.json` carries one override:
 
