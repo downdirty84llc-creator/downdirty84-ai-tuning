@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.15.0
+# DD84 Calibration Studio — Windows preview 0.16.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark exports are editable in separate DD84 drafts. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -13,6 +13,12 @@ Save actions open a Windows dialog. Finish the dialog and verify the resulting f
 ## Edit captured real parameters
 
 Open a prepared real-value DD84 project, or select the captured export stage and readable export JSON. Edit any defined value, compare with its preserved original, undo and save a draft copy. Recheck its native source fingerprint when needed. Unknown Holley candidate definitions remain read-only. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md) for supported inputs, complete workflow and the remaining native-controller requirements.
+
+## Compare real tune stages
+
+With a real draft open, choose **Reference DD84 draft** under **Compare real tune stages**. The comparison uses the open draft's working values minus the reference draft's working values. It checks parameter labels, units and exact axes; missing tables and incompatible metadata are reported separately. Controller compatibility is not established by this comparison.
+
+Select a parameter to see its changed cells. Add a comparison note and choose **Save tune-stage comparison** for all changes, both draft snapshots and their hashes. Editing either loaded stage clears the note; replacing the open project clears the reference. Project saves do not include this separate comparison. The reference is read only and never overwrites the open draft.
 
 ## Inspect a VCM Scanner CSV
 

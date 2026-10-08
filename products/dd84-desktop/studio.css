@@ -14,3 +14,7 @@
 #parameter-table select{font:inherit;background:#0f1c26;color:#fff;padding:9px;border:1px solid #7b91a2;border-radius:5px}
 #parameter-table .edited-cell{background:#33452d}
 #parameter-description,#parameter-raw,#comparison{overflow-wrap:anywhere}
+
+#real-compare-workspace pre{overflow-wrap:anywhere}
+#real-compare-list{display:block;width:100%;font:inherit;background:#0f1c26;color:#e8edf2;padding:10px;margin:8px 0}
+#real-compare-list option{padding:6px}

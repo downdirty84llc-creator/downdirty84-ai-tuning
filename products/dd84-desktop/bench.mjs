@@ -76,7 +76,7 @@ export async function reviewBenchCapture({plan:input,session,bytes,filename,sour
       if(event.type==='frame' && preview.length<20) preview.push(event);
   }
   const planSha256=await sha256(new TextEncoder().encode(JSON.stringify(plan)));
-  return {format:'DD84_STUDIO_BENCH_REVIEW_V1',studioVersion:'0.15.0',source,
+  return {format:'DD84_STUDIO_BENCH_REVIEW_V1',studioVersion:'0.16.0',source,
     input:{filename,byteLength:bytes.length,sha256:await sha256(bytes)},
     plan:{runTag:plan.runTag,count:plan.count,bitrate:plan.bitrate,sha256:planSha256},
     comparison,preview,

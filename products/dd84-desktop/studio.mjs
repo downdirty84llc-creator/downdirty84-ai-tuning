@@ -1,12 +1,14 @@
 import {sample,parse,validate,edit,restore,backup,changes,coordinates,review,OPEN_LIMIT,isReal,projectDefinition} from './project.mjs';
 import {importRealExport,mergeRealDrafts,verifyTuneSource} from './realImport.mjs';
+import {compareReal,reportRealComparison} from './realCompare.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
+let comparisonProject=null,comparisonResult=null,comparisonSelected='';
 const definition=path=>projectDefinition(project,path);
 const message=text=>$('message').textContent=text;
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
-function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
-function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;render();}
+function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
+function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;$('real-compare-note').value='';render();}
 function location(p,index){const d=definition(p.path);return Object.values(coordinates(p,index)).map((v,i)=>`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}
 function difference(before,after){
   if(before===after)return 'Unchanged';
@@ -83,6 +85,25 @@ function render(){
     return `${d.path} · ${location(p,d.index)}: ${d.before} → ${d.after}${d.unit?` ${d.unit}`:''}${!d.definitionKnown?' [unknown definition; imported difference]':''}`;
   }).join('\n'):'No changes yet.';
   $('undo').disabled=!history.length;$('export').disabled=!diff.length;
+  renderRealComparison();
+}
+const comparisonStatus={CHANGED:'Changed',UNCHANGED:'Unchanged',MISSING_REFERENCE:'Missing in reference',MISSING_CURRENT:'Missing in open draft',INCOMPATIBLE:'Not comparable'};
+function renderComparisonDetails(){
+  const item=comparisonResult?.parameters.find(p=>p.path===comparisonSelected);
+  if(!item){$('real-compare-details').textContent='';return;}
+  const rows=item.items.slice(0,200).map(c=>`${Object.entries(c.coordinates).map(([k,v])=>`${k}=${v}`).join(', ')||'Value'}: ${c.before} → ${c.after}${c.unit?' '+c.unit:''}${c.delta===null?'':` · change ${c.delta>0?'+':''}${Number(c.delta.toPrecision(10))}`}`);
+  $('real-compare-details').textContent=`${item.label} · ${comparisonStatus[item.status]}\n${item.reason}\n${rows.join('\n')}${item.items.length>200?`\nShowing 200 of ${item.items.length} changes. The saved report includes all changes.`:''}`;
+}
+function renderRealComparison(){
+  $('real-compare-workspace').hidden=!isReal(project);comparisonResult=null;
+  const list=$('real-compare-list');list.replaceChildren();$('real-compare-save').disabled=true;
+  $('real-compare-clear').disabled=!comparisonProject;
+  if(!isReal(project)||!comparisonProject){$('real-compare-summary').textContent='Choose a real DD84 draft to use as the reference.';renderComparisonDetails();return;}
+  comparisonResult=compareReal(comparisonProject,project);const s=comparisonResult.summary;
+  $('real-compare-summary').textContent=`Reference: ${comparisonProject.source.name}\nOpen draft: ${project.source.name}\nOpen working values minus reference working values. File names do not establish chronology.\n${s.changedCells} changed values across ${s.changed} parameters; ${s.unchanged} unchanged parameters; ${s.missingReference} missing in reference; ${s.missingCurrent} missing in open draft; ${s.incompatible} not comparable.\n${comparisonResult.identityConflicts.join(' ')} Matching exported metadata does not validate controller compatibility.`;
+  if(!comparisonResult.parameters.some(p=>p.path===comparisonSelected))comparisonSelected=comparisonResult.parameters[0]?.path??'';
+  for(const p of comparisonResult.parameters){const option=element('option',`${p.label} · ${comparisonStatus[p.status]}${p.items.length?` (${p.items.length})`:''}`);option.value=p.path;list.append(option);}
+  list.value=comparisonSelected;$('real-compare-save').disabled=false;renderComparisonDetails();
 }
 const discard=()=>!dirty||confirm('Discard unsaved project edits?');
 $('new').onclick=()=>{if(discard()){request++;replace(sample());message('Six synthetic parameters opened. These do not represent a vehicle tune.');}};
@@ -94,7 +115,7 @@ $('parameter-search').oninput=()=>{if(project)renderLibrary();};
 $('parameter-list').onchange=()=>{selected=$('parameter-list').value;renderParameter();};
 $('name').oninput=()=>{request++;};
 $('name').onchange=()=>{try{mutate(validate({...project,name:$('name').value}));}catch(e){message(e.message);$('name').value=project.name;}};
-$('undo').onclick=()=>{if(history.length){request++;project=history.pop();dirty=true;render();message('Last project edit undone.');}};
+$('undo').onclick=()=>{if(history.length){request++;project=history.pop();dirty=true;$('real-compare-note').value='';render();message('Last project edit undone.');}};
 $('reset').onclick=()=>{if(confirm('Restore all editable parameters from their originals?'))mutate(restore(project));};
 $('reset-selected').onclick=()=>{if(confirm('Restore this parameter from its original?'))mutate(restore(project,selected));};
 function download(value,suffix){
@@ -126,4 +147,20 @@ $('real-source-file').onchange=async event=>{
   if(!isReal(project)){message('Open a real-data draft before verifying its source. Native file decoding is not available.');return;}
   const id=++sourceRevision;sourceCheck='Checking source bytes…';render();
   try{const result=await verifyTuneSource(file,project.source);if(id!==sourceRevision)return;sourceCheck=result.matches?'Source bytes match the recorded fingerprint.':'SOURCE MISMATCH — this file does not match the draft.';render();message(sourceCheck);}catch(e){if(id===sourceRevision){sourceCheck='Source verification failed: '+e.message;render();message(sourceCheck);}}
+};
+
+$('real-compare-open').onchange=async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file||!isReal(project))return;const id=++request;
+  try{
+    if(file.size>OPEN_LIMIT)throw Error('Reference draft exceeds 4 MB.');
+    const next=parse(await file.text());if(!isReal(next))throw Error('Choose a real exported-value DD84 draft, not a simulation project.');
+    if(id!==request)return;comparisonProject=next;comparisonSelected='';$('real-compare-note').value='';renderRealComparison();message('Reference draft loaded for comparison. No values copied into your project.');
+  }catch(e){if(id===request)message(e.message);}
+};
+$('real-compare-clear').onclick=()=>{request++;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';renderRealComparison();message('Reference comparison cleared.');};
+$('real-compare-list').onchange=()=>{comparisonSelected=$('real-compare-list').value;renderComparisonDetails();};
+$('real-compare-note').oninput=()=>{request++;dirty=true;};
+$('real-compare-save').onclick=async()=>{
+  const id=++request;
+  try{const result=await reportRealComparison(comparisonProject,project,$('real-compare-note').value);if(id!==request){message('Comparison changed while preparing the report. Finish edits and export again.');return;}download(result,'tune-stage-comparison');}catch(e){if(id===request)message(e.message);}
 };

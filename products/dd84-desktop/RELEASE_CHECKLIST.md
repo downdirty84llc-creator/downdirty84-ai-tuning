@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.15.0**. Updated: **2026-10-08**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.16.0**. Updated: **2026-10-08**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,11 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite, 0.16.0 | 81 tests passed | Added stage comparison, missing/incompatible coverage, identity conflicts, typed changes and report snapshot binding |
+| Browser comparison workflow, 0.16.0 | Load reference, 140-change display, missing-table display, required note, export, live edits, note clearing, undo and clear passed | Downloaded full report exactly matched independently generated result; no native tune writing |
+| Local captured-table validation, 0.16.0 | Nine additional stage tables imported; 5,544 cell differences checked against independent VCM exports | Final minimum-spark capture absent; left missing. Native source hashes unchanged |
+| Desktop dependency audit, 0.16.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.16.0 | Pending | Browser checks do not establish native-dialog or clean-machine acceptance |
 | Desktop automated suite, 0.15.0 | 74 tests passed | Real draft types, provenance, malformed inputs, source verification, merging and read-only unknown definitions |
 | Browser real draft workflow, 0.15.0 | Source match/mismatch, edit/undo, required note, save/reopen, complete map display, import/merge and mixed-source rejection passed | Captured local exports; no native tune output or controller validation |
 | Local actual-export validation, 0.15.0 | Five prepared drafts; all five source fingerprints matched | Three Sierra stages and two read-only Holley candidates; sources unchanged and excluded from distribution |

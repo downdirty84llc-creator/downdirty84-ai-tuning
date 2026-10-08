@@ -1,4 +1,4 @@
-# Real exported parameter drafts — 0.15
+# Real exported parameter drafts — 0.16
 
 Studio can edit complete, readable exported values in a separate DD84 draft.
 It cannot decode all parameters from an HPT/Holley container, save a native
@@ -82,6 +82,35 @@ Reviews explicitly declare `nativeFileExport: false`, `vehicleWriting: false` an
 `controllerDefinitionsValidated: false`. Pending source verification is tied to
 the loaded source; replacing the project prevents stale verification results.
 
+## Comparing two real drafts
+
+`realCompare.mjs` compares working values in a selected reference draft with the
+open draft. Direction is always open minus reference; no chronological order is
+inferred from names. Both drafts are validated and cloned. Different vendors or
+conflicting nonempty controller/OS claims prevent all shared-table comparisons.
+Unknown controller/OS metadata remains unknown even when numeric comparison is
+possible.
+
+Shared paths require exported-value status, equal parameter labels, kind, units,
+axis labels/units, choices and exact axes. Different dimensions or axis order do
+not trigger interpolation. Missing paths are coverage gaps, not zero values or
+unchanged tables. Numeric changes preserve coordinates and signed deltas; enum
+and boolean changes retain their typed values and have no numeric delta.
+
+`DD84_CALIBRATION_COMPARISON_V1` reports include all compared changes, coverage
+counts, both complete draft snapshots and SHA-256 hashes of their normalized JSON.
+The snapshots are taken before asynchronous hashing. A required note explains
+what was reviewed; report size is limited to 16 MiB. The display limits cell details
+to 200 changes for the selected parameter, while the report retains every change.
+The report is not a reopenable project or a native tune export. It explicitly
+keeps vehicle writing, native export, controller validation and learning approval
+false. Hashes establish content identity, not authenticity.
+
+The UI recalculates after project edits/undo and clears the comparison note.
+Replacing the project clears its reference. Failed reference imports preserve the
+previous comparison. Replacing the reference clears the note. Stale asynchronous
+imports/reports are ignored when the project or relevant inputs change.
+
 ## Native support still required
 
 For each exact controller, OS and native container version, the next adapter needs:
@@ -94,7 +123,7 @@ For each exact controller, OS and native container version, the next adapter nee
 4. Separate read/edit/native-export capability declarations. Physical write
    support also requires the handoff's bench interruption/recovery acceptance.
 
-No validated native decoders or writers are bundled in 0.15. Definitions for an
+No validated native decoders or writers are bundled in 0.16. Definitions for an
 older GM ECM or a Corvette body controller do not establish support for Sierra
 engine controllers or Holley EFI. Vendor parameter IDs are not binary addresses.
 
