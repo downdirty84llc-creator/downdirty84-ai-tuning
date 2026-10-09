@@ -8,9 +8,9 @@ export async function importRealExport(raw,fileName,stage){
   const data=JSON.parse(raw),proof={name:basename(fileName),sha256:await sha256(new TextEncoder().encode(raw))};
   const tables=[];let selectedSource;
   const takeSource=(s,vendor='HP_TUNERS')=>{const next=source(s,vendor);if(selectedSource&&(next.sha256!==selectedSource.sha256||next.vendor!==selectedSource.vendor))throw Error('Export mixes different source tunes.');selectedSource=next;};
-  const spark=(t,id,label)=>{
+  const spark=(t,id,label,evidence=[proof])=>{
     if(!Number.isInteger(id)||id<1||id>1000000||!Array.isArray(t.rpm)||!Array.isArray(t.airmass))throw Error('Invalid spark table identity or axes.');
-    tables.push(numericParameter(`HPT.ECM.P${id}`,label,'degrees',[t.rpm,t.airmass],[{label:'Engine speed',unit:'rpm'},{label:'Cylinder airmass',unit:'g'}],flat(t.values,t.airmass.length,t.rpm.length),[proof]));
+    tables.push(numericParameter(`HPT.ECM.P${id}`,label,'degrees',[t.rpm,t.airmass],[{label:'Engine speed',unit:'rpm'},{label:'Cylinder airmass',unit:'g'}],flat(t.values,t.airmass.length,t.rpm.length),evidence));
   };
   if(data.format==='DD84_SIERRA_ABSOLUTE_MAF_V1'){
     if(!['intermediate','final'].includes(stage)||!Array.isArray(data.tables)||data.tables.length!==2)throw Error('Choose intermediate or final for this complete MAF export.');
@@ -24,6 +24,29 @@ export async function importRealExport(raw,fileName,stage){
   }else if(data.format==='DD84_SIERRA_ORIGINAL_SPARK_BASELINES_V1'){
     if(stage!=='original'||!Array.isArray(data.tables)||!data.tables.length)throw Error('This export contains original spark baselines only.');
     takeSource(data.source);for(const t of data.tables){if(t.units?.rpm!=='rpm'||t.units?.airmass!=='g'||t.units?.values!=='degrees')throw Error('Unrecognized exported spark units.');spark(t,t.parameterId,t.title);}
+  }else if(data.format==='DD84_SIERRA_REMAINING_SPARK_STAGES_V1'){
+    const ids=new Set([12601,12593,12598,12599,12701]);
+    if(!['original','intermediate','final'].includes(stage)||!Array.isArray(data.tables)||data.tables.length!==ids.size)throw Error('Choose a captured stage from the complete five-table spark export.');
+    takeSource(data.sources?.[stage]);
+    for(const t of data.tables){
+      const v=t.captures?.[stage];
+      if(!ids.delete(t.parameterId)||t.units?.rpm!=='rpm'||t.units?.airmass!=='g'||t.units?.values!=='degrees')throw Error('Unrecognized or duplicate exported spark parameter or units.');
+      if(!v||!Number.isInteger(t.rows)||!Number.isInteger(t.columns)||t.rows!==v.airmass?.length||t.columns!==v.rpm?.length)throw Error('Missing spark stage or inconsistent captured dimensions.');
+      if(!v.evidence)throw Error('Missing spark capture evidence.');
+      spark(v,t.parameterId,t.title,[proof,v.evidence]);
+    }
+  }else if(data.format==='DD84_SIERRA_COOLING_STAGES_V1'){
+    const ids=new Set([18170,18060]);
+    if(!['original','intermediate','final'].includes(stage)||!Array.isArray(data.tables)||data.tables.length!==ids.size)throw Error('Choose a captured stage from the complete cooling export.');
+    takeSource(data.sources?.[stage]);
+    for(const t of data.tables){
+      const v=t.captures?.[stage],zones=t.parameterId===18170;
+      const units=zones?{x:'zone index',y:'zone index',values:'°F'}:{x:'°F',y:'°F',values:'%'};
+      if(!ids.delete(t.parameterId)||!t.units||Object.keys(t.units).length!==3||Object.keys(units).some(k=>t.units[k]!==units[k]))throw Error('Unrecognized or duplicate cooling parameter or units.');
+      if(!v||!Array.isArray(v.x)||!Array.isArray(v.y)||!v.evidence||t.rows!==v.y.length||t.columns!==v.x.length)throw Error('Missing cooling stage, evidence or captured dimensions.');
+      if(zones&&(!same(v.x,[0,1,2,3,4,5])||!same(v.y,[0,1,2,3])))throw Error('Desired ECT requires the captured torque/RPM zone indices.');
+      tables.push(numericParameter(`HPT.ECM.P${t.parameterId}`,zones?'Desired ECT':'Fan Desired % vs. ECT vs. Desired ECT',units.values,[v.x,v.y],[{label:zones?'Torque Zone':'Engine Coolant Temp',unit:units.x},{label:zones?'RPM Zone':'Desired ECT',unit:units.y}],flat(v.values,v.y.length,v.x.length),[proof,v.evidence],'EXPORTED_VALUES',zones?'Complete displayed coolant targets. Axes identify numbered zones, not physical RPM or torque breakpoints. No native encoding or controller limits established.':'Complete displayed fan targets and temperature axes. No native encoding or controller limits established.'));
+    }
   }else if(data.format==='DD84_CANDIDATE_RAW_SPARK_EXTRACTION_V1'){
     if(!['base','comparison'].includes(stage)||!data.tables?.[stage])throw Error('Choose base or comparison for this Holley candidate extraction.');
     const t=data.tables[stage];takeSource(t.source,'HOLLEY');

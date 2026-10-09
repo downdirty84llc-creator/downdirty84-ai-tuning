@@ -1,4 +1,4 @@
-# Real exported parameter drafts — 0.16
+# Real exported parameter drafts — 0.17
 
 Studio can edit complete, readable exported values in a separate DD84 draft.
 It cannot decode all parameters from an HPT/Holley container, save a native
@@ -10,6 +10,7 @@ tune file, or write an ECU. Export metadata is not a controller definition.
 |---|---|---|---|
 | Captured Sierra MAF exports | Complete absolute curves with Hz and airflow units | Every imported value | DD84 JSON draft, original-value backup, review |
 | Captured Sierra spark exports | Complete absolute RPM/airmass maps in degrees | Every imported value | DD84 JSON draft, original-value backup, review |
+| Captured Sierra cooling exports | Desired ECT in Fahrenheit with numbered zones; fan percent with Fahrenheit axes | Every imported value | DD84 JSON draft, original-value backup, review |
 | Holley candidate spark extraction | Candidate numeric matrix and source fingerprint | Read-only; units and full decoding not verified | DD84 inspection draft |
 | Arbitrary HPT / HEFI / TERX / Sniper container | Source fingerprint only | No | No native tune output |
 | HPL / Holley native log | No native measurement decoder | Not calibration parameters | No native output |
@@ -72,6 +73,10 @@ validated independently. Originals are deep-copied before edits.
 - `DD84_SIERRA_ORIGINAL_FINAL_MAF_V1`: original or final.
 - `DD84_SIERRA_SPARK_STAGES_V1`: original, intermediate or final.
 - `DD84_SIERRA_ORIGINAL_SPARK_BASELINES_V1`: original.
+- `DD84_SIERRA_REMAINING_SPARK_STAGES_V1`: original, intermediate or final;
+  five complete maps, including minimum final spark, with capture fingerprints.
+- `DD84_SIERRA_COOLING_STAGES_V1`: original, intermediate or final; desired
+  coolant temperature and fan-target maps with capture fingerprints.
 - `DD84_CANDIDATE_RAW_SPARK_EXTRACTION_V1`: Holley base or comparison, read-only.
 
 The parser requires complete arrays and expected units and rejects mixed source
@@ -81,6 +86,14 @@ axes, originals and evidence; working values and the project title are excluded.
 Reviews explicitly declare `nativeFileExport: false`, `vehicleWriting: false` and
 `controllerDefinitionsValidated: false`. Pending source verification is tied to
 the loaded source; replacing the project prevents stale verification results.
+
+Cooling import retains displayed Fahrenheit values without converting them. The
+Desired ECT axes are Torque Zone 0–5 and RPM Zone 0–3, represented as `zone index`;
+these are not physical torque or RPM breakpoints. Fan-table axes are engine coolant
+temperature and desired ECT in Fahrenheit. Neither target table proves a measured
+temperature, actual fan operation or improved performance. Hardware notes and edit
+intent remain separate owner evidence. Differences-only VE/cooling review records
+are not accepted as absolute parameter exports.
 
 ## Comparing two real drafts
 
@@ -123,7 +136,7 @@ For each exact controller, OS and native container version, the next adapter nee
 4. Separate read/edit/native-export capability declarations. Physical write
    support also requires the handoff's bench interruption/recovery acceptance.
 
-No validated native decoders or writers are bundled in 0.16. Definitions for an
+No validated native decoders or writers are bundled in 0.17. Definitions for an
 older GM ECM or a Corvette body controller do not establish support for Sierra
 engine controllers or Holley EFI. Vendor parameter IDs are not binary addresses.
 

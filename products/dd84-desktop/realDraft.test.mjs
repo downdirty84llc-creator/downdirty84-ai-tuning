@@ -53,6 +53,50 @@ test('Holley candidate import cannot promote partial checks to editable definiti
   const e={format:'DD84_CANDIDATE_RAW_SPARK_EXTRACTION_V1',tables:{base:{source:{path:'C:/synthetic.terx',sha256:'c'.repeat(64)},rpm:[500,1000],map:[0,100],valuesByAscendingMap:[[1,2],[3,4]]}}};
   const p=await importRealExport(JSON.stringify(e),'candidate.json','base');assert.equal(p.source.vendor,'HOLLEY');assert.equal(projectDefinition(p,'Holley.Spark.Base'),null);assert.equal(p.parameters[0].definition.unit,null);assert.throws(()=>edit(p,'Holley.Spark.Base',0,10));
 });
+function remainingSparkExport(){
+  const stages=['original','intermediate','final'];
+  return {format:'DD84_SIERRA_REMAINING_SPARK_STAGES_V1',sources:Object.fromEntries(stages.map((s,i)=>[s,{path:`C:/fixture-${s}.hpt`,sha256:String(i+1).repeat(64)}])),tables:[12601,12593,12598,12599,12701].map(parameterId=>({parameterId,title:`Fixture spark ${parameterId}`,units:{rpm:'rpm',airmass:'g',values:'degrees'},rows:2,columns:2,captures:Object.fromEntries(stages.map((s,i)=>[s,{evidence:proof,rpm:[1000,2000],airmass:[0.5,0.2],values:[[i,-10],[15,0]]}]))}))};
+}
+test('remaining spark stages import absolute values, descending axes and both evidence fingerprints',async()=>{
+  const e=remainingSparkExport(),raw=JSON.stringify(e);
+  for(const [i,stage] of ['original','intermediate','final'].entries()){
+    const p=await importRealExport(raw,'remaining.json',stage);assert.equal(p.source.sha256,String(i+1).repeat(64));assert.equal(p.parameters.length,5);
+    assert.deepEqual(p.parameters.at(-1).values,[i,-10,15,0]);assert.deepEqual(p.parameters.at(-1).axes,[[1000,2000],[0.5,0.2]]);
+    assert.deepEqual(p.parameters.at(-1).evidence,[{name:'remaining.json',sha256:await sha256(new TextEncoder().encode(raw))},proof]);
+    assert.equal(edit(p,'HPT.ECM.P12701',0,3).parameters.at(-1).original[0],i);
+    assert.deepEqual(parse(JSON.stringify(p)),p);
+  }
+});
+test('remaining spark adapter rejects incomplete stages, units, dimensions, evidence and duplicate IDs',async()=>{
+  for(const mutate of [e=>e.tables.pop(),e=>e.tables[0].parameterId=12701,e=>e.tables[0].units.values='radians',e=>delete e.tables[0].captures.final,e=>e.tables[0].rows=3,e=>e.tables[0].captures.final.values.pop(),e=>delete e.tables[0].captures.final.evidence,e=>e.tables[0].captures.final.evidence={...proof,sha256:'bad'},e=>delete e.sources.final,e=>e.tables[0].captures.final.rpm=[1000,1000]]){
+    const e=remainingSparkExport();mutate(e);await assert.rejects(importRealExport(JSON.stringify(e),'remaining.json','final'));
+  }
+  await assert.rejects(importRealExport(JSON.stringify(remainingSparkExport()),'remaining.json','comparison'));
+});
+function coolingExport(){
+  const stages=['original','intermediate','final'];
+  return {format:'DD84_SIERRA_COOLING_STAGES_V1',sources:Object.fromEntries(stages.map(s=>[s,originalSource])),tables:[18170,18060].map(parameterId=>{
+    const zones=parameterId===18170,x=zones?[0,1,2,3,4,5]:[100,200],y=zones?[0,1,2,3]:[190,220];
+    return {parameterId,rows:y.length,columns:x.length,units:zones?{values:'°F',y:'zone index',x:'zone index'}:{x:'°F',y:'°F',values:'%'},captures:Object.fromEntries(stages.map((s,i)=>[s,{x,y,evidence:proof,values:y.map(()=>x.map(()=>zones?190+i:20+i))}]))};
+  })};
+}
+test('cooling import preserves Fahrenheit, percent and explicit zone indices through edits and save',async()=>{
+  const e=coolingExport();
+  for(const [i,stage] of ['original','intermediate','final'].entries()){
+    const p=await importRealExport(JSON.stringify(e),'cooling.json',stage),ect=p.parameters[0],fan=p.parameters[1];
+    assert.equal(ect.values[0],190+i);assert.equal(ect.values.length,24);assert.equal(ect.definition.unit,'°F');
+    assert.deepEqual(ect.definition.axes,[{label:'Torque Zone',unit:'zone index'},{label:'RPM Zone',unit:'zone index'}]);
+    assert.equal(fan.definition.unit,'%');assert.equal(fan.values[0],20+i);assert.equal(fan.definition.axes[0].unit,'°F');
+    assert.deepEqual(parse(JSON.stringify(p)),p);assert.equal(edit(p,ect.path,0,195).parameters[0].original[0],190+i);
+    assert.throws(()=>mergeRealDrafts(p,p),/Duplicate/);
+  }
+});
+test('cooling adapter rejects invented zones, missing stages, dimensions and changed units',async()=>{
+  for(const mutate of [e=>e.tables.pop(),e=>e.tables[0].captures.final.x=[1000,2000,3000,4000,5000,6000],e=>e.tables[0].units.x='rpm',e=>e.tables[1].units.x='°C',e=>e.tables[0].units.values='°C',e=>e.tables[1].units.values='fraction',e=>e.tables[1].parameterId=18170,e=>delete e.tables[1].captures.final,e=>delete e.tables[1].captures.final.evidence,e=>e.tables[1].captures.final.values[0].pop(),e=>e.tables[1].rows=4]){
+    const e=coolingExport();mutate(e);await assert.rejects(importRealExport(JSON.stringify(e),'cooling.json','final'));
+  }
+  await assert.rejects(importRealExport(JSON.stringify(coolingExport()),'cooling.json','base'));
+});
 test('source verification requires exact bytes and rejects oversized inputs before reading',async()=>{
   const bytes=new Uint8Array([72,80,84,32,1,2]),file={size:bytes.length,arrayBuffer:async()=>bytes.buffer};const expected={...source,sha256:await sha256(bytes)};
   assert.equal((await verifyTuneSource(file,expected)).matches,true);assert.equal((await verifyTuneSource(file,source)).matches,false);

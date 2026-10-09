@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.16.0**. Updated: **2026-10-08**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.17.0**. Updated: **2026-10-09**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,11 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite, 0.17.0 | 85 tests passed | Remaining spark stages and cooling imports; evidence, source, units, zones, dimensions, malformed input and draft round-trips |
+| Browser workflow, 0.17.0 | Cooling import, spark merge, ten-table comparison, edit/undo, note clearing, project save/reopen and report export passed | A blocking browser discard dialog required native dismissal; native Studio UI acceptance remains pending |
+| Local captured-table validation, 0.17.0 | 15 spark and 6 cooling captures checked; 6,816 cell differences checked against independent vendor exports | Displayed precision with explicit rounding tolerances; source tune hashes unchanged; no performance validation |
+| Desktop dependency audit, 0.17.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.17.0 | Pending | Browser checks do not establish native-dialog or clean-machine acceptance |
 | Desktop automated suite, 0.16.0 | 81 tests passed | Added stage comparison, missing/incompatible coverage, identity conflicts, typed changes and report snapshot binding |
 | Browser comparison workflow, 0.16.0 | Load reference, 140-change display, missing-table display, required note, export, live edits, note clearing, undo and clear passed | Downloaded full report exactly matched independently generated result; no native tune writing |
 | Local captured-table validation, 0.16.0 | Nine additional stage tables imported; 5,544 cell differences checked against independent VCM exports | Final minimum-spark capture absent; left missing. Native source hashes unchanged |
