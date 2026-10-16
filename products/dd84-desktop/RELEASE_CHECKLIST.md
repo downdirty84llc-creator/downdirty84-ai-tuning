@@ -11,7 +11,7 @@ This record distinguishes tests of the current source from historical native che
 | Desktop automated suite, 0.19.0 | 100 tests passed | Atomic curve/map range operations, stale/forged previews, signed/zero values, full 4,096-cell table, fixed axes, originals and read-only protection |
 | Browser workflow, 0.19.0 | Curve percent, map add/set, preview invalidation, whole-range rejection, one-step undo, labeled real-draft ranges and simulation save/reopen passed | Synthetic fixtures; both saved project types exactly match independently assembled expected values; fresh-origin stylesheet verified |
 | Desktop dependency audit, 0.19.0 | No reported vulnerabilities | Audit result at check time |
-| Native Windows UI, 0.19.0 | Pending | Browser checks and packaged-source verification do not establish native-dialog or clean-machine acceptance |
+| Native Windows UI, 0.19.0 | Core draft workflow passed: native import, labeled range preview/apply, one-step Undo, note rejection, save cancellation/retry, save/reopen, original backup, review export, overwrite cancellation and default keep-editing close guard | Candidate `1ade437`; synthetic fixtures on Windows 11 Home build 26300; saved project/backup/review contents verified. Read-only coefficient controls stay protected. Clean-machine and remaining full-workflow acceptance are still incomplete |
 | Desktop automated suite, 0.18.0 | 91 tests passed | Complete coefficient/boundary imports, displayed precision agreement, categorical axes, source-bound identity, malformed input, merge preservation and comparison exclusion |
 | Browser workflow, 0.18.0 | Import/merge, read-only coefficient display, labeled boundary edit/undo, note clearing, identity mismatch rejection, source verification, save/reopen and comparison export passed | Saved project/report exactly match independently assembled drafts; native Windows acceptance remains pending |
 | Local capture validation, 0.18.0 | 2,334 values matched 27 raw table captures; 3 identity captures checked; 720 coefficient differences checked against independent vendor export | Source hashes unchanged; coefficients remain read-only; no physical scaling or performance validation |
@@ -54,6 +54,15 @@ This record distinguishes tests of the current source from historical native che
 | Native Windows 0.3 | Sample editing, undo and save smoke checks passed | Simulation editor only |
 
 The 0.10.1 implementation head had successful main CI and Windows packaging checks before this documentation revision. Future commits must use their own check results; this statement does not pre-approve a later build.
+
+## Native 0.19 candidate record
+
+The tested portable candidate was built from `1ade4379c6b87ebb2ca5221522454f93df31e798`.
+Its archive SHA-256 is `d691506a87c102ef5962b8c5a462007d205957a14eb935af8790cf722aaa5818`;
+its packaged `app.asar` SHA-256 is `5daad033ffa80e212593c70f35998e0ffa7a54939a0106c442afa23ad3fff827`.
+Testing on 2026-10-16 used a synthetic exported-value draft with eight editable labeled boundary values and four read-only unknown coefficients. A 2×2 range received +100 rpm as one transaction. Saving, undoing and reopening preserved the expected originals, edits, axes and evidence. Native backup and review exports matched complete expected JSON objects. Declining an overwrite preserved both backup content and modification time. The default close choice kept the app open.
+
+The 0.18 test interrupted by Windows Update remains a historical partial result; these results belong to the separate 0.19 candidate. No product code changed during this acceptance pass, and no replacement archive was generated. The machine already has development tools installed. Do not treat this as clean-machine or comprehensive release acceptance.
 
 ## Next milestone: candidate acceptance on Windows
 
