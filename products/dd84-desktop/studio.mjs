@@ -1,6 +1,7 @@
 import {sample,parse,validate,edit,restore,backup,changes,coordinates,review,OPEN_LIMIT,isReal,projectDefinition} from './project.mjs';
 import {importRealExport,mergeRealDrafts,verifyTuneSource} from './realImport.mjs';
 import {compareReal,reportRealComparison} from './realCompare.mjs';
+import {attachControllerIdentity} from './realAirflow.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
 let comparisonProject=null,comparisonResult=null,comparisonSelected='';
@@ -9,7 +10,8 @@ const message=text=>$('message').textContent=text;
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
 function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
 function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;$('real-compare-note').value='';render();}
-function location(p,index){const d=definition(p.path);return Object.values(coordinates(p,index)).map((v,i)=>`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}
+function axisValue(p,d,axis,index){return d.axes[axis].labels?.[index]??String(p.axes[axis][index]);}
+function location(p,index){const d=definition(p.path)??p.definition;return Object.values(coordinates(p,index)).map((v,i)=>d?.axes[i].labels?.[p.axes[i].indexOf(v)]??`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}
 function difference(before,after){
   if(before===after)return 'Unchanged';
   if(typeof before!=='number'||typeof after!=='number')return `${before} → ${after}`;
@@ -38,35 +40,35 @@ function renderParameter(){
   $('parameter-table').replaceChildren();$('parameter-raw').hidden=true;
   $('reset-selected').disabled=!p||!definition(p.path);
   if(!p){$('parameter-description').textContent='No parameters match your search.';return;}
-  const d=definition(p.path);
+  const editable=!!definition(p.path),d=definition(p.path)??p.definition;
   if(!d){
     $('parameter-description').textContent=`${p.path} · Read-only: no definition installed. ${p.definition?.reason??'Units and meaning are unknown.'} Values are preserved on save.`;
     $('parameter-raw').hidden=false;$('parameter-raw').textContent=JSON.stringify(p,null,2);return;
   }
   const bounds=d.kind==='enum'?`Choices: ${d.choices.join(', ')}`:d.kind==='boolean'?'Choices: false / true':`Format bounds: ${d.exclusiveMin?'>':'≥'} ${d.min} to ${d.max} ${d.unit}${d.integer?' (integer)':''}`;
-  $('parameter-description').textContent=`${d.label} · ${p.path} · ${bounds}. ${isReal(project)?'Exported values only; controller encoding and tuning limits are not validated.':'These are synthetic definitions, not vehicle tuning limits.'} Axes stay fixed.`;
+  $('parameter-description').textContent=editable?`${d.label} · ${p.path} · ${bounds}. ${isReal(project)?'Exported values only; controller encoding and tuning limits are not validated. '+d.reason:'These are synthetic definitions, not vehicle tuning limits.'} Axes stay fixed.`:`${d.label} · ${p.path} · Read-only. ${d.reason} Unknown units are not inferred. Values are preserved on save.`;
   const table=$('parameter-table'),head=element('thead'),tr=element('tr'),body=element('tbody');
-  const titles=d.kind==='map'?[`${d.axes[1].label} (${d.axes[1].unit}) ↓ / ${d.axes[0].label} (${d.axes[0].unit}) →`,...p.axes[0].map(String)]:[p.axes.length?`${d.axes[0].label} (${d.axes[0].unit})`:'Setting',`Original${d.unit?` (${d.unit})`:''}`,`Working${d.unit?` (${d.unit})`:''}`,'Change'];
+  const titles=d.kind==='map'?[`${d.axes[1].label} (${d.axes[1].unit??'unknown units'}) ↓ / ${d.axes[0].label} (${d.axes[0].unit??'unknown units'}) →`,...p.axes[0].map((_,i)=>axisValue(p,d,0,i))]:[p.axes.length?`${d.axes[0].label} (${d.axes[0].unit??'unknown units'})`:'Setting',`Original${d.unit?` (${d.unit})`:''}`,`Working${d.unit?` (${d.unit})`:''}`,'Change'];
   for(const title of titles){const th=element('th',title);th.scope='col';tr.append(th);}head.append(tr);table.append(head,body);
   if(d.kind==='map'){
     for(let y=0;y<p.axes[1].length;y++){
-      const row=element('tr'),axis=element('th',String(p.axes[1][y]));axis.scope='row';row.append(axis);
+      const row=element('tr'),axis=element('th',axisValue(p,d,1,y));axis.scope='row';row.append(axis);
       for(let x=0;x<p.axes[0].length;x++){
         const i=y*p.axes[0].length+x,td=element('td');td.classList.toggle('edited-cell',p.values[i]!==p.original[i]);
-        td.append(element('small',`Original: ${p.original[i]} ${d.unit}`),inputFor(p,i,d),element('small',difference(p.original[i],p.values[i])));row.append(td);
+        td.append(element('small',`Original: ${p.original[i]} ${d.unit??'(units unverified)'}`),editable?inputFor(p,i,d):element('span',String(p.values[i])),element('small',difference(p.original[i],p.values[i])));row.append(td);
       }body.append(row);
     }
   }else p.values.forEach((value,i)=>{
     const row=element('tr');row.classList.toggle('edited-cell',value!==p.original[i]);
-    row.append(element('td',p.axes.length?String(p.axes[0][i]):d.label),element('td',String(p.original[i])));
-    const working=element('td');working.append(inputFor(p,i,d));row.append(working,element('td',difference(p.original[i],value)));body.append(row);
+    row.append(element('td',p.axes.length?axisValue(p,d,0,i):d.label),element('td',String(p.original[i])));
+    const working=element('td');working.append(editable?inputFor(p,i,d):element('span',String(value)));row.append(working,element('td',difference(p.original[i],value)));body.append(row);
   });
 }
 function renderLibrary(){
   const filter=$('parameter-search').value.trim().toLowerCase(),list=$('parameter-list');list.replaceChildren();
-  const visible=project.parameters.filter(p=>`${p.path} ${definition(p.path)?.label??''} ${definition(p.path)?.group??''}`.toLowerCase().includes(filter));
+  const visible=project.parameters.filter(p=>{const d=definition(p.path)??p.definition;return `${p.path} ${d?.label??''} ${d?.group??''}`.toLowerCase().includes(filter);});
   if(!visible.some(p=>p.path===selected))selected=visible[0]?.path??'';
-  for(const p of visible){const d=definition(p.path),count=p.values.filter((v,i)=>v!==p.original[i]).length,option=element('option',`${d?.group??'Unknown'} / ${d?.label??p.path}${!d?' [read-only]':''}${count?` · ${count} changed`:''}`);option.value=p.path;list.append(option);}
+  for(const p of visible){const d=definition(p.path)??p.definition,count=p.values.filter((v,i)=>v!==p.original[i]).length,option=element('option',`${d?.group??'Unknown'} / ${d?.label??p.path}${!definition(p.path)?' [read-only]':''}${count?` · ${count} changed`:''}`);option.value=p.path;list.append(option);}
   list.value=selected;list.disabled=!visible.length;
   const editable=project.parameters.filter(p=>definition(p.path)).length;
   $('parameter-count').textContent=`${project.parameters.length} parameters · ${editable} editable · ${project.parameters.length-editable} read-only · ${visible.length} shown`;
@@ -77,7 +79,7 @@ function render(){
   $('name').value=project.name;$('identity').textContent=`${project.controller} · ${project.definitionSet} · ${dirty?'Unsaved edits':'Project loaded'}`;
   $('editor-mode').textContent=isReal(project)?'Real exported values — local draft only. The source tune is not modified; native tune export and vehicle writing are unavailable. Displayed precision may differ from native stored precision.':'Synthetic simulation examples; no vehicle data.';
   $('real-source-details').hidden=!isReal(project);
-  if(isReal(project))$('real-source-details').textContent=`Source: ${project.source.name} · SHA-256 ${project.source.sha256}\nController: ${project.source.controllerFamily??'unverified'} · OS: ${project.source.operatingSystem??'unverified'}\n${sourceCheck} Matching the source hash does not validate table extraction or controller definitions.`;
+  if(isReal(project))$('real-source-details').textContent=`Source: ${project.source.name} · SHA-256 ${project.source.sha256}\nController: ${project.source.controllerFamily??'unverified'} · OS: ${project.source.operatingSystem??'unverified'}\n${project.source.identityEvidence??'No captured controller identity attached.'}\n${sourceCheck} Matching the source hash does not validate table extraction or controller definitions.`;
   renderLibrary();const diff=changes(project);
   $('summary').textContent=`${diff.length} changed values across ${new Set(diff.map(d=>d.path)).size} parameters · Originals preserved · ${isReal(project)?'Real-data draft; no native export':'Simulation only'}`;
   $('comparison').textContent=diff.length?diff.map(d=>{
@@ -91,7 +93,8 @@ const comparisonStatus={CHANGED:'Changed',UNCHANGED:'Unchanged',MISSING_REFERENC
 function renderComparisonDetails(){
   const item=comparisonResult?.parameters.find(p=>p.path===comparisonSelected);
   if(!item){$('real-compare-details').textContent='';return;}
-  const rows=item.items.slice(0,200).map(c=>`${Object.entries(c.coordinates).map(([k,v])=>`${k}=${v}`).join(', ')||'Value'}: ${c.before} → ${c.after}${c.unit?' '+c.unit:''}${c.delta===null?'':` · change ${c.delta>0?'+':''}${Number(c.delta.toPrecision(10))}`}`);
+  const p=project.parameters.find(p=>p.path===item.path);
+  const rows=item.items.slice(0,200).map(c=>`${location(p,c.index)}: ${c.before} → ${c.after}${c.unit?' '+c.unit:''}${c.delta===null?'':` · change ${c.delta>0?'+':''}${Number(c.delta.toPrecision(10))}`}`);
   $('real-compare-details').textContent=`${item.label} · ${comparisonStatus[item.status]}\n${item.reason}\n${rows.join('\n')}${item.items.length>200?`\nShowing 200 of ${item.items.length} changes. The saved report includes all changes.`:''}`;
 }
 function renderRealComparison(){
@@ -142,6 +145,16 @@ $('real-import').onchange=async event=>{
   }catch(e){if(id===request)message(e.message);}
 };
 for(const key of ['real-import-stage','real-import-mode'])$(key).onchange=()=>{request++;};
+$('real-identity-import').onchange=async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file)return;
+  if(!isReal(project)){message('Open a real-data draft before attaching captured controller identity.');return;}
+  const id=++request,stage=$('real-import-stage').value;
+  try{
+    if(file.size>OPEN_LIMIT)throw Error('Identity export exceeds 4 MB.');
+    const next=await attachControllerIdentity(project,await file.text(),file.name,stage);if(id!==request)return;
+    mutate(next);message('Captured controller identity attached to this source fingerprint. Native definitions remain unavailable.');
+  }catch(e){if(id===request)message(e.message);}
+};
 $('real-source-file').onchange=async event=>{
   const file=event.target.files[0];event.target.value='';if(!file)return;
   if(!isReal(project)){message('Open a real-data draft before verifying its source. Native file decoding is not available.');return;}

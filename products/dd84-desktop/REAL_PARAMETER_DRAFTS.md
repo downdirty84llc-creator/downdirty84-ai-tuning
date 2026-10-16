@@ -1,4 +1,4 @@
-# Real exported parameter drafts — 0.17
+# Real exported parameter drafts — 0.18
 
 Studio can edit complete, readable exported values in a separate DD84 draft.
 It cannot decode all parameters from an HPT/Holley container, save a native
@@ -11,6 +11,8 @@ tune file, or write an ECU. Export metadata is not a controller definition.
 | Captured Sierra MAF exports | Complete absolute curves with Hz and airflow units | Every imported value | DD84 JSON draft, original-value backup, review |
 | Captured Sierra spark exports | Complete absolute RPM/airmass maps in degrees | Every imported value | DD84 JSON draft, original-value backup, review |
 | Captured Sierra cooling exports | Desired ECT in Fahrenheit with numbered zones; fan percent with Fahrenheit axes | Every imported value | DD84 JSON draft, original-value backup, review |
+| Captured Sierra VE zone boundaries | RPM and pressure-ratio boundaries with named mode/zone positions | Every imported value | DD84 JSON draft, original-value backup, review |
+| Captured Sierra VE coefficients | Six complete maps with named mode rows | Read-only; physical units and scaling unverified | DD84 inspection draft |
 | Holley candidate spark extraction | Candidate numeric matrix and source fingerprint | Read-only; units and full decoding not verified | DD84 inspection draft |
 | Arbitrary HPT / HEFI / TERX / Sniper container | Source fingerprint only | No | No native tune output |
 | HPL / Holley native log | No native measurement decoder | Not calibration parameters | No native output |
@@ -67,6 +69,14 @@ canonical JSON, 1–1,024 parameters, at most two axes, 2–256 points per axis,
 bounded to 1e9; narrower bounds can be recorded. Enum choices and booleans are
 validated independently. Originals are deep-copied before edits.
 
+From 0.18, axis descriptors may contain optional `labels`, one unique nonempty
+label per coordinate. Numeric indices remain fixed; category labels are retained
+on save, shown in the table and editor, and included in comparison compatibility
+checks. Older drafts without labels remain supported. Open drafts containing
+labels with Studio 0.18 or later; older builds reject this additional metadata.
+Read-only exported maps are now searchable by name and displayed in a table
+without editing controls; their unknown units remain explicit.
+
 `realImport.mjs` currently accepts these explicitly versioned captured records:
 
 - `DD84_SIERRA_ABSOLUTE_MAF_V1`: intermediate or final.
@@ -77,6 +87,14 @@ validated independently. Originals are deep-copied before edits.
   five complete maps, including minimum final spark, with capture fingerprints.
 - `DD84_SIERRA_COOLING_STAGES_V1`: original, intermediate or final; desired
   coolant temperature and fan-target maps with capture fingerprints.
+- `DD84_SIERRA_VE_THREE_STAGES_V1`: six complete coefficient maps, original,
+  intermediate or final. Exact expected IDs, mode order, zone indices and numeric
+  agreement with displayed decimal strings are required. Unknown physical units
+  keep all coefficients read-only and excluded from numeric stage comparison.
+- `DD84_SIERRA_VE_OPERATING_CONTEXT_V1`: three complete boundary tables from
+  `boundaryStages`, original, intermediate or final. RPM transitions and normal/
+  DoD pressure-ratio transitions retain their category labels. Other log evidence,
+  scalar observations and proposed algorithms in this record are not imported.
 - `DD84_CANDIDATE_RAW_SPARK_EXTRACTION_V1`: Holley base or comparison, read-only.
 
 The parser requires complete arrays and expected units and rejects mixed source
@@ -94,6 +112,25 @@ temperature and desired ECT in Fahrenheit. Neither target table proves a measure
 temperature, actual fan operation or improved performance. Hardware notes and edit
 intent remain separate owner evidence. Differences-only VE/cooling review records
 are not accepted as absolute parameter exports.
+
+VE coefficients are not percentages. Boundary tables do not establish runtime
+row selection, equality rules, hysteresis behavior or an ECU airflow algorithm.
+The application neither reconstructs a VE surface nor learns corrections from
+these captures. Numeric draft editing does not validate controller tuning limits.
+
+## Attaching captured controller identity
+
+The separate **Captured controller identity JSON** input uses the selected export
+stage and `DD84_SIERRA_AIRFLOW_APPLICABILITY_V1`. This adapter recognizes captured
+E92/OS 12664769 metadata. It requires the exact source SHA-256 and matching recorded
+byte count, rejects conflicting controller/OS claims, and retains record/capture
+fingerprints as evidence. Vehicle identifiers and controller serials are not
+copied. Identity attachment can be undone and survives same-source table merges.
+
+The metadata is a source-bound observation, not a verified binary definition,
+authenticated assertion, native decoder or supported-vehicle declaration. It does
+not prove which tune ran during a log. No file-provided instruction or claimed
+controller identity enables native output, automatic learning or vehicle writing.
 
 ## Comparing two real drafts
 
@@ -136,7 +173,7 @@ For each exact controller, OS and native container version, the next adapter nee
 4. Separate read/edit/native-export capability declarations. Physical write
    support also requires the handoff's bench interruption/recovery acceptance.
 
-No validated native decoders or writers are bundled in 0.17. Definitions for an
+No validated native decoders or writers are bundled in 0.18. Definitions for an
 older GM ECM or a Corvette body controller do not establish support for Sierra
 engine controllers or Holley EFI. Vendor parameter IDs are not binary addresses.
 

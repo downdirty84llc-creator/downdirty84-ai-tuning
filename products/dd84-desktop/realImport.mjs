@@ -1,4 +1,5 @@
 import {REAL_LIMIT,validateReal,makeRealDraft,numericParameter,sha256} from './realDraft.mjs';
+import {importAirflowTables} from './realAirflow.mjs';
 const basename=p=>typeof p==='string'?p.split(/[\\/]/).at(-1):'';
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function source(s,vendor){if(!s||!s.path)throw Error('Export lacks its source tune identity.');return {vendor,name:basename(s.path),sha256:s.sha256,bytes:s.bytes??null,controllerFamily:null,operatingSystem:null,identityEvidence:null};}
@@ -47,6 +48,8 @@ export async function importRealExport(raw,fileName,stage){
       if(zones&&(!same(v.x,[0,1,2,3,4,5])||!same(v.y,[0,1,2,3])))throw Error('Desired ECT requires the captured torque/RPM zone indices.');
       tables.push(numericParameter(`HPT.ECM.P${t.parameterId}`,zones?'Desired ECT':'Fan Desired % vs. ECT vs. Desired ECT',units.values,[v.x,v.y],[{label:zones?'Torque Zone':'Engine Coolant Temp',unit:units.x},{label:zones?'RPM Zone':'Desired ECT',unit:units.y}],flat(v.values,v.y.length,v.x.length),[proof,v.evidence],'EXPORTED_VALUES',zones?'Complete displayed coolant targets. Axes identify numbered zones, not physical RPM or torque breakpoints. No native encoding or controller limits established.':'Complete displayed fan targets and temperature axes. No native encoding or controller limits established.'));
     }
+  }else if(['DD84_SIERRA_VE_THREE_STAGES_V1','DD84_SIERRA_VE_OPERATING_CONTEXT_V1'].includes(data.format)){
+    tables.push(...importAirflowTables(data,stage,proof,takeSource));
   }else if(data.format==='DD84_CANDIDATE_RAW_SPARK_EXTRACTION_V1'){
     if(!['base','comparison'].includes(stage)||!data.tables?.[stage])throw Error('Choose base or comparison for this Holley candidate extraction.');
     const t=data.tables[stage];takeSource(t.source,'HOLLEY');
@@ -60,7 +63,15 @@ export function mergeRealDrafts(current,incoming){
   if(current.source.sha256!==incoming.source.sha256||current.source.vendor!==incoming.source.vendor)throw Error('Tables belong to different source tunes. Open them as separate drafts.');
   for(const key of ['controllerFamily','operatingSystem'])if(current.source[key]&&incoming.source[key]&&current.source[key]!==incoming.source[key])throw Error('Controller/OS metadata conflicts.');
   const paths=new Set(current.parameters.map(t=>t.path));if(incoming.parameters.some(t=>paths.has(t.path)))throw Error('Duplicate parameters would overwrite work. Import into a separate draft.');
-  return validateReal({...current,parameters:[...current.parameters,...incoming.parameters]});
+  const source={...current.source};
+  if(source.bytes!==null&&incoming.source.bytes!==null&&source.bytes!==incoming.source.bytes)throw Error('Source byte counts conflict.');
+  source.bytes??=incoming.source.bytes;
+  const addsIdentity=['controllerFamily','operatingSystem'].some(key=>!source[key]&&incoming.source[key]);
+  if(addsIdentity){
+    source.controllerFamily??=incoming.source.controllerFamily;source.operatingSystem??=incoming.source.operatingSystem;
+    source.identityEvidence=[source.identityEvidence,incoming.source.identityEvidence].filter(Boolean).join('\n');
+  }
+  return validateReal({...current,source,parameters:[...current.parameters,...incoming.parameters]});
 }
 export async function verifyTuneSource(file,expected){
   if(!Number.isSafeInteger(file.size)||file.size<4||file.size>64*1024*1024)throw Error('Source must be 4 bytes to 64 MB.');

@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.17.0**. Updated: **2026-10-09**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.18.0**. Updated: **2026-10-16**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,11 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite, 0.18.0 | 91 tests passed | Complete coefficient/boundary imports, displayed precision agreement, categorical axes, source-bound identity, malformed input, merge preservation and comparison exclusion |
+| Browser workflow, 0.18.0 | Import/merge, read-only coefficient display, labeled boundary edit/undo, note clearing, identity mismatch rejection, source verification, save/reopen and comparison export passed | Saved project/report exactly match independently assembled drafts; native Windows acceptance remains pending |
+| Local capture validation, 0.18.0 | 2,334 values matched 27 raw table captures; 3 identity captures checked; 720 coefficient differences checked against independent vendor export | Source hashes unchanged; coefficients remain read-only; no physical scaling or performance validation |
+| Desktop dependency audit, 0.18.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.18.0 | Pending | Browser checks do not establish native-dialog or clean-machine acceptance |
 | Desktop automated suite, 0.17.0 | 85 tests passed | Remaining spark stages and cooling imports; evidence, source, units, zones, dimensions, malformed input and draft round-trips |
 | Browser workflow, 0.17.0 | Cooling import, spark merge, ten-table comparison, edit/undo, note clearing, project save/reopen and report export passed | A blocking browser discard dialog required native dismissal; native Studio UI acceptance remains pending |
 | Local captured-table validation, 0.17.0 | 15 spark and 6 cooling captures checked; 6,816 cell differences checked against independent vendor exports | Displayed precision with explicit rounding tolerances; source tune hashes unchanged; no performance validation |

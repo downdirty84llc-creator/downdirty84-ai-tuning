@@ -15,14 +15,21 @@ function source(s){
   if((s.controllerFamily||s.operatingSystem)&&!s.identityEvidence)throw Error('Controller/OS claims require identity evidence.');
   return {...s};
 }
-function descriptor(d,count){
+function descriptor(d,axes){
+  const count=axes.length;
   keys(d,['label','group','kind','unit','axes','min','max','choices','status','reason']);
   text(d.label,240,'parameter label');text(d.group,120,'parameter group');text(d.reason,2000,'definition evidence');
   if(!['scalar','curve','map','enum','boolean'].includes(d.kind)||!['EXPORTED_VALUES','UNVERIFIED'].includes(d.status))throw Error('Unsupported parameter descriptor.');
   if(!Array.isArray(d.axes)||d.axes.length!==count||count!==({scalar:0,curve:1,map:2,enum:0,boolean:0}[d.kind]))throw Error('Descriptor axes do not match parameter kind.');
   const units=d.unit===null?false:typeof d.unit==='string'&&d.unit.length<=80;
   if(d.unit!==null&&!units)throw Error('Invalid value units.');
-  for(const a of d.axes){keys(a,['label','unit']);text(a.label,120,'axis label');if(a.unit!==null)text(a.unit,80,'axis unit');}
+  for(const [i,a] of d.axes.entries()){
+    keys(a,['label','unit','labels']);text(a.label,120,'axis label');if(a.unit!==null)text(a.unit,80,'axis unit');
+    if(a.labels!==undefined){
+      if(!Array.isArray(a.labels)||a.labels.length!==axes[i].length||new Set(a.labels).size!==a.labels.length)throw Error('Axis labels must uniquely identify every coordinate.');
+      a.labels.forEach(v=>text(v,120,'coordinate label'));
+    }
+  }
   for(const v of [d.min,d.max])if(v!==null&&!finite(v))throw Error('Invalid format bound.');
   if(d.min!==null&&d.max!==null&&d.min>d.max)throw Error('Reversed format bounds.');
   if(!Array.isArray(d.choices)||d.choices.length>128||new Set(d.choices).size!==d.choices.length)throw Error('Invalid enum choices.');
@@ -44,7 +51,7 @@ export function validateReal(p){
     for(const axis of t.axes){if(!Array.isArray(axis)||axis.length<2||axis.length>256)throw Error('Invalid axis length.');let direction=0;for(const [i,n] of axis.entries()){if(!finite(n))throw Error('Invalid axis value.');if(i){const sign=Math.sign(n-axis[i-1]);if(!sign||(direction&&direction!==sign))throw Error('Axes must be strictly monotonic.');direction=sign;}}}
     const count=t.axes.reduce((n,a)=>n*a.length,1);total+=count;
     if(count>4096||!Array.isArray(t.original)||!Array.isArray(t.values)||t.original.length!==count||t.values.length!==count)throw Error('Invalid complete-table dimensions.');
-    const d=descriptor(t.definition,t.axes.length);
+    const d=descriptor(t.definition,t.axes);
     for(const row of [t.original,t.values])for(const v of row){
       if(d.kind==='boolean'){if(typeof v!=='boolean')throw Error('Expected a boolean.');}
       else if(d.kind==='enum'){if(!d.choices.includes(v))throw Error('Unknown enum choice.');}
