@@ -2,9 +2,11 @@ import {sample,parse,validate,edit,restore,backup,changes,coordinates,review,OPE
 import {importRealExport,mergeRealDrafts,verifyTuneSource} from './realImport.mjs';
 import {compareReal,reportRealComparison} from './realCompare.mjs';
 import {attachControllerIdentity} from './realAirflow.mjs';
+import {previewTableEdit,applyTableEdit} from './tableEdit.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
 let comparisonProject=null,comparisonResult=null,comparisonSelected='';
+let rangePreview=null;
 const definition=path=>projectDefinition(project,path);
 const message=text=>$('message').textContent=text;
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
@@ -24,7 +26,7 @@ function inputFor(p,index,d){
     for(const choice of choices){const option=element('option',String(choice));option.value=String(choice);input.append(option);}
   }else{input.type='number';input.step=d.integer?'1':'any';input.min=String(d.min);input.max=String(d.max);}
   input.value=String(p.values[index]);input.setAttribute('aria-label',`${d.label}: ${location(p,index)}`);
-  input.addEventListener('input',()=>{request++;});
+  input.addEventListener('input',()=>{request++;clearRangePreview();});
   input.addEventListener('change',()=>{
     try{
       if(!input.value.trim())throw Error('Enter a value.');
@@ -36,6 +38,7 @@ function inputFor(p,index,d){
   });return input;
 }
 function renderParameter(){
+  clearRangePreview();$('range-editor').hidden=true;
   const p=project.parameters.find(item=>item.path===selected);
   $('parameter-table').replaceChildren();$('parameter-raw').hidden=true;
   $('reset-selected').disabled=!p||!definition(p.path);
@@ -63,7 +66,55 @@ function renderParameter(){
     row.append(element('td',p.axes.length?axisValue(p,d,0,i):d.label),element('td',String(p.original[i])));
     const working=element('td');working.append(editable?inputFor(p,i,d):element('span',String(value)));row.append(working,element('td',difference(p.original[i],value)));body.append(row);
   });
+  renderRangeEditor(p,editable?d:null);
 }
+function clearRangePreview(){
+  rangePreview=null;$('range-apply').disabled=true;$('range-preview-summary').textContent='Preview the selected working values before applying.';$('range-preview-values').textContent='';
+}
+function rangeSelection(){
+  if(!$('range-amount').value.trim())throw Error('Enter an adjustment amount.');
+  return {path:selected,xStart:Number($('range-x-start').value),xEnd:Number($('range-x-end').value),yStart:Number($('range-y-start').value),yEnd:Number($('range-y-end').value),operation:$('range-operation').value,amount:Number($('range-amount').value)};
+}
+function highlightRange(){
+  const p=project?.parameters.find(p=>p.path===selected);if(!p)return;
+  const xs=Number($('range-x-start').value),xe=Number($('range-x-end').value),ys=Number($('range-y-start').value),ye=Number($('range-y-end').value),width=p.axes[0]?.length??1;
+  $('parameter-table').querySelectorAll('input').forEach((input,index)=>{
+    const x=index%width,y=Math.floor(index/width);input.closest('td').classList.toggle('range-cell',x>=xs&&x<=xe&&y>=ys&&y<=ye);
+  });
+}
+function renderRangeEditor(p,d){
+  if(!d||!['curve','map'].includes(d.kind))return;
+  $('range-editor').hidden=false;$('range-y-controls').hidden=d.kind!=='map';
+  for(const [axis,key] of [[0,'x'],[1,'y']]){
+    for(const edge of ['start','end']){
+      const select=$(`range-${key}-${edge}`);select.replaceChildren();
+      for(let i=0;i<(p.axes[axis]?.length??1);i++){
+        const option=element('option',p.axes[axis]?`${i+1}: ${axisValue(p,d,axis,i)}${d.axes[axis].labels?'':` ${d.axes[axis].unit}`}`:'1');option.value=String(i);select.append(option);
+      }
+    }
+    $(`range-${key}-label`).textContent=p.axes[axis]?`${axis===0?'Columns':'Rows'} · ${d.axes[axis].label}`:'Rows';
+  }
+  $('range-operation').value='ADD';$('range-amount').value='';$('range-amount').step=d.integer?'1':'any';
+  $('range-unit').textContent=`Set / add use ${d.unit||'the table units'}. Percent scales each working value by 1 + amount ÷ 100; +5 means ×1.05. Range endpoints include both positions, in displayed order.`;
+  highlightRange();
+}
+for(const id of ['range-x-start','range-x-end','range-y-start','range-y-end','range-operation','range-amount'])$(id).addEventListener('input',()=>{request++;clearRangePreview();highlightRange();});
+$('range-preview').onclick=()=>{
+  clearRangePreview();
+  try{
+    rangePreview=previewTableEdit(project,rangeSelection());const p=project.parameters.find(p=>p.path===selected);
+    $('range-preview-summary').textContent=`${rangePreview.selectedCount} selected values · ${rangePreview.changedCount} will change. Apply commits the entire range as one undoable edit.`;
+    $('range-preview-values').textContent=rangePreview.items.slice(0,200).map(c=>`${location(p,c.index)}: ${c.before} → ${c.after}`).join('\n')+(rangePreview.items.length>200?`\nShowing the first 200 of ${rangePreview.items.length} selected values. Apply includes all selected values.`:'');
+    $('range-apply').disabled=!rangePreview.changedCount;message('Range preview ready. Check the values before applying.');
+  }catch(e){$('range-preview-summary').textContent=e.message;message(e.message);}
+};
+$('range-apply').onclick=()=>{
+  try{
+    if(!rangePreview||JSON.stringify(rangeSelection())!==JSON.stringify(rangePreview.selection))throw Error('Preview the range again before applying.');
+    const count=rangePreview.changedCount;if(!count)return;
+    mutate(applyTableEdit(project,rangePreview));message(`${count} values updated in one undoable edit; originals preserved.`);
+  }catch(e){clearRangePreview();message(e.message);}
+};
 function renderLibrary(){
   const filter=$('parameter-search').value.trim().toLowerCase(),list=$('parameter-list');list.replaceChildren();
   const visible=project.parameters.filter(p=>{const d=definition(p.path)??p.definition;return `${p.path} ${d?.label??''} ${d?.group??''}`.toLowerCase().includes(filter);});

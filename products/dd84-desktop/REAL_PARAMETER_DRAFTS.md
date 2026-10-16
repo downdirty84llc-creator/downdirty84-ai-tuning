@@ -1,4 +1,4 @@
-# Real exported parameter drafts — 0.18
+# Real exported parameter drafts — 0.19
 
 Studio can edit complete, readable exported values in a separate DD84 draft.
 It cannot decode all parameters from an HPT/Holley container, save a native
@@ -173,7 +173,7 @@ For each exact controller, OS and native container version, the next adapter nee
 4. Separate read/edit/native-export capability declarations. Physical write
    support also requires the handoff's bench interruption/recovery acceptance.
 
-No validated native decoders or writers are bundled in 0.18. Definitions for an
+No validated native decoders or writers are bundled in 0.19. Definitions for an
 older GM ECM or a Corvette body controller do not establish support for Sierra
 engine controllers or Holley EFI. Vendor parameter IDs are not binary addresses.
 

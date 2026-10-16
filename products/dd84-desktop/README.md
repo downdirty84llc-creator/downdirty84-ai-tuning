@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.18.0
+# DD84 Calibration Studio — Windows preview 0.19.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -13,6 +13,16 @@ Save actions open a Windows dialog. Finish the dialog and verify the resulting f
 ## Edit captured real parameters
 
 Open a prepared real-value DD84 project, or select the captured export stage and readable export JSON. Edit any defined value, compare with its preserved original, undo and save a draft copy. Recheck its native source fingerprint when needed. Unknown Holley candidate definitions remain read-only. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md) for supported inputs, complete workflow and the remaining native-controller requirements.
+
+## Adjust a table range
+
+For an editable curve or map, use **Edit a table range** below the table. Choose the first/last columns and, for a map, first/last rows in displayed order. Both endpoints are included, and blue outlines identify the selection. Named axis labels remain visible.
+
+Choose **Set to value**, **Add amount**, or **Scale by percent**. For example, +5 percent multiplies each selected working value by 1.05; zero remains zero and negative values keep their sign for a positive percentage. These are manual calculations, not suggested tuning corrections. Values use JavaScript numeric precision without deliberate rounding or native-controller quantization.
+
+Choose **Preview range adjustment**, inspect before/after values, then **Apply previewed adjustment**. One invalid result rejects the entire adjustment. Changing the selection or amount invalidates the preview. One **Undo** reverses the whole range, preserving originals and fixed axes. A preview with no changed values cannot be applied. The preview lists up to 200 cells; its total count and applied change include the full selection (up to the existing 4,096-cell table limit).
+
+Range editing supports the same defined numeric curves/maps as single-cell editing. Scalars, switches and choices keep their existing individual controls; unknown and unverified tables remain read-only. Save/reopen uses the existing project formats. Native HPT/Holley editing and vehicle writing remain unavailable.
 
 ## Compare real tune stages
 

@@ -77,3 +77,9 @@ handoff's controller-specific interruption/recovery bench acceptance.
 Studio 0.15 dispatches the separate `DD84_CALIBRATION_DRAFT_V1` format through
 `project.mjs` to `realDraft.mjs`. It does not extend the synthetic definition set
 with guessed controller definitions. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md).
+
+## Table range transactions (0.19)
+
+`tableEdit.mjs` validates inclusive column/row index ranges on editable curves and maps. Set, add and percent operations use current working values, preserve all originals/axes/other parameters, and validate the whole resulting project before applying. It never clamps values, skips invalid cells or infers controller resolution. Real exported-value drafts use the same transaction path and retain their source/evidence and disabled native-writing gates.
+
+Preview handles are immutable in-memory objects with a private full-project snapshot. Altered, caller-constructed or stale handles cannot apply. The renderer also clears previews when relevant controls, individual cell inputs, the project or parameter selection change. Applying a valid nonempty change creates one history entry; one Undo restores the prior project. Range selections/previews are transient and do not add fields to saved projects. The visual preview is bounded to 200 entries; all selected cells are validated and applied.
