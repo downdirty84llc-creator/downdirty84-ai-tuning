@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.21.0
+# DD84 Calibration Studio — Windows preview 0.22.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -18,7 +18,7 @@ When closing with unsaved work, **Keep editing** is the default and Escape also 
 
 ## Move around the workbench
 
-The navigation bar stays visible as you scroll. Choose **Open project**, **Recorded logs**, **Edit parameters**, **Review changes** or **Save** to move directly to that section. Project actions appear after a project is open. Activating a shortcut focuses the section heading; Tab continues into its controls.
+The navigation bar stays visible as you scroll. Choose **Open project**, **Recorded logs**, **Learning case**, **Edit parameters**, **Review changes** or **Save** to move directly to that section. Project actions appear after a project is open. Activating a shortcut focuses the section heading; Tab continues into its controls.
 
 In the Windows app, **View size** enlarges the interface from 100% to 200%.
 Use **Reset view** or Ctrl+0 to return to 100%; Ctrl+Plus and Ctrl+Minus move
@@ -78,7 +78,17 @@ Under **Real calibration file pair**, enter the vehicle/build notes and select o
 
 Under **Learning preparation**, record displacement, exact cam specifications/source, build notes and the original/intermediate/final tune and earlier/before-final/after-final log references. Explicitly identify the calibration running during each log only when known. Recording order does not prove an association. Replacing a tune clears associations to its former fingerprint. Reopening a learning case restores references only; it does not automatically verify or back up files.
 
-The learning panel remains blocked pending measurements: its HPL attachments are fingerprinted only, and the separate CSV inspector is not connected to an adaptive learning engine. Cam/displacement notes provide context, not calculated tuning values. MAF, VE and timing require validated measurements and controller-specific definitions before any correction capability can be developed.
+### Attach reviewed CSV measurements to a learning case
+
+1. Include the tune in the learning case. Under **Recorded logs**, import its readable CSV, enter that tune's exact SHA-256 and explain the association. Select at least one supported channel and record why you selected it.
+2. Return using **Learning case**, select **CSV timeline role**, explain why the recording belongs in that stage, and choose **Attach current reviewed CSV**. The association must match an included tune. An after-final CSV must match the final tune; the same CSV contents cannot occupy multiple stages.
+3. Review numeric, missing and nonnumeric counts, channel flags and unselected roles. These counts are recomputed from the CSV; sparse cells are not filled, and constant values remain flagged without being declared failed sensors.
+4. Save the learning case. Reopening it restores references and notes only. Use **Recheck CSV** for each saved stage to match its contents and recompute coverage. Renamed matching CSVs are accepted. Changed contents or incompatible channel choices are rejected without replacing current evidence.
+5. Replacing a native tune clears CSV references and native-log associations tied to its previous fingerprint. Replacing a native HPL timeline slot clears its CSV stage. **Remove … CSV** removes only that case reference.
+
+New saves use `DD84_LEARNING_CASE_V2`, up to 256 KiB. Legacy V1 cases open and upgrade with no invented measurements. Older Studio versions do not support V2 cases; keep a separate legacy copy if needed. Saved cases contain source fingerprints, channel choices and notes, not raw CSV/HPT/HPL contents, computed statistics or persistent source-verification claims. Retain the source files separately.
+
+CSV placement and calibration associations remain operator statements. Matching timeline roles do not verify that a CSV was exported from an attached HPL. Rechecking CSV bytes does not reverify a native tune, authenticate sensors, establish comparable runs or prove performance improvement. The learning panel remains blocked: no adaptive learning engine, automatic corrections or ECU writes are enabled. Cam/displacement notes provide context, not calculated tuning values. MAF, VE and timing still require validated measurements and controller-specific definitions.
 
 ## Review exported tune differences
 

@@ -5,6 +5,12 @@ import {measurementChecks,measurementCheckText} from './measurements.mjs';
 import {MAX_LOG_BYTES,inspectLog,logReport,reopenLogReport,MAX_LOG_REPORT_BYTES} from './logs.mjs';
 const $=id=>document.getElementById(id);let raw=null,name='',request=0,dirty=false,recordingTime=null;
 const selections=new Map();let appliedSegment=null;
+export function currentLogReviewInput(){
+  if(raw===null)throw Error('Open a readable CSV in Recorded logs first.');
+  const revision=request;
+  return {raw,name,tuneSha256:$('log-tune').value.trim(),associationNote:$('log-association').value,
+    selections:[...selections.values()].map(s=>({...s})),isCurrent:()=>revision===request};
+}
 function clearSegment(){appliedSegment=null;$('log-segment-controls').disabled=true;$('log-segment-save').disabled=true;$('log-segment-note').value='';}
 function renderSelections(checks,restored=[]){
   selections.clear();$('log-mapping').replaceChildren();
