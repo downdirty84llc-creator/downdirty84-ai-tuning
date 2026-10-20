@@ -20,8 +20,9 @@ const {createHash} = require('node:crypto');
   assert.deepEqual(edited, expected);
   assert.deepEqual(original, project.sample());
   const bytes = Buffer.from(JSON.stringify(edited, null, 2));
-  const {writeVerifiedCopy} = require(path.join(archive, 'saveFile.cjs'));
+  const {writeVerifiedCopy,validateRequest} = require(path.join(archive, 'saveFile.cjs'));
   const filename = path.join(process.cwd(), 'runtime-project.json');
+  const caseFilename = path.join(process.cwd(), 'runtime-learning-case.json');
   try {
     const saved = await writeVerifiedCopy(filename, bytes);
     assert.deepEqual(await fs.readFile(filename), bytes);
@@ -37,13 +38,34 @@ const {createHash} = require('node:crypto');
     assert.equal(report.comparison.matchedFrames, 4);
     assert.equal(report.externalCanValidated, false);
     assert.equal(report.vehicleData, false);
+    const learning = await load('learning.mjs'), measurements = await load('learningMeasurements.mjs');
+    const csv = 'HP Tuners CSV Log File\nVersion: 1.0\n[Channel Information]\n0,1\nOffset,Engine RPM\ns,rpm\n[Channel Data]\n0,0\n1,1000\n';
+    const tuneHash = 'a'.repeat(64);
+    const measured = await measurements.captureLearningMeasurement({
+      raw: csv, name: 'synthetic.csv', tuneSha256: tuneHash, associationNote: 'Synthetic package check',
+      selections: [{role: 'RPM', channelId: '1', evidence: 'Synthetic RPM channel'}]
+    }, 'BEFORE_FINAL_LOG', 'Synthetic before-final recording');
+    const learningCase = learning.attachLearningMeasurement({
+      vehicle: 'Synthetic package check', displacementLiters: 5.3, camNotes: '', buildNotes: '',
+      files: [{role: 'ORIGINAL', name: 'original.hpt', bytes: 4, sha256: tuneHash, tuneSha256: null}]
+    }, measured);
+    const caseBytes = validateRequest({filename: 'case.json', text: JSON.stringify(learningCase)});
+    await writeVerifiedCopy(caseFilename, caseBytes);
+    assert.deepEqual(await fs.readFile(caseFilename), caseBytes);
+    const reopenedCase = learning.parseLearningCase(await fs.readFile(caseFilename, 'utf8'));
+    assert.deepEqual(reopenedCase, learningCase);
+    assert.equal(measurements.measurementCoverage(reopenedCase.measurements[0]).sourceStatus, 'SOURCE_RECHECK_REQUIRED');
+    const rechecked = await measurements.recheckLearningMeasurement(reopenedCase.measurements[0], csv, 'renamed.csv');
+    assert.equal(measurements.measurementCoverage(reopenedCase.measurements[0], [rechecked]).rows, 2);
+    assert.equal(learning.learningReadiness(reopenedCase, [rechecked]).learningReady, false);
     console.log(JSON.stringify({
       version: manifest.version, electron: process.versions.electron,
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
-      savedProjectSha256: saved.sha256, hardwareAccessed: false
+      savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    await fs.unlink(caseFilename).catch(error => { if (error.code !== 'ENOENT') throw error; });
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
