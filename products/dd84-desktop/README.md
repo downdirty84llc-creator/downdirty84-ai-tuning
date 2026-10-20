@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.20.0
+# DD84 Calibration Studio — Windows preview 0.21.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -19,6 +19,13 @@ When closing with unsaved work, **Keep editing** is the default and Escape also 
 ## Move around the workbench
 
 The navigation bar stays visible as you scroll. Choose **Open project**, **Recorded logs**, **Edit parameters**, **Review changes** or **Save** to move directly to that section. Project actions appear after a project is open. Activating a shortcut focuses the section heading; Tab continues into its controls.
+
+In the Windows app, **View size** enlarges the interface from 100% to 200%.
+Use **Reset view** or Ctrl+0 to return to 100%; Ctrl+Plus and Ctrl+Minus move
+through the available sizes. Each launch starts at 100%. View size changes
+presentation only and is not saved in a calibration project. On a short window
+at high zoom, the navigation area scrolls independently; Tab also brings its
+focused controls into view. Browser previews use the browser's own zoom.
 
 Editor status and validation messages stay in the bar until replaced or dismissed. Tab and Shift+Tab commit a numeric cell through the normal validation rules and move to the next or previous control, including after a rejected value. A rejected value restores the last accepted value. Wide tables have a keyboard-focusable scroll region: Tab to the outlined region and use the arrow keys to scroll, or Tab again to enter its cells.
 
@@ -116,6 +123,28 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the current validation reco
 ## Development
 
 Use Node 22 for parity with CI. In this directory run `npm ci`, `npm test` and `npm start`. `npm run package` creates the Windows x64 portable folder under `dist/`. The [Windows workflow](../../.github/workflows/desktop.yml) installs dependencies, runs tests and the dependency audit, packages the app and retains its preview artifact for 14 days. Web/backend checks run separately.
+
+Packaging now uses ASAR and an explicit application-file allowlist. It excludes
+local customer data, test fixtures and build scripts; production dependencies
+are pruned separately. Native serial bindings are unpacked for loading. The
+build fails if required files, source bytes, displayed version or manifest do
+not match. Seven archive tests exercise positive validation and rejection of
+changed code, missing modules/bindings, extra files, tune data inside dependencies
+and a wrong version.
+
+On Windows, the package check runs the packaged executable in non-GUI runtime
+mode with system Node and Node search/options variables excluded. It loads the
+native serial binding without opening a port, edits a synthetic project, saves
+and reopens its complete contents, checks the preserved original, and runs a
+four-frame software rehearsal through the bundled shared modules. The resulting
+`dist/package-verification.json` records the source commit, working-tree status,
+archive hash and check results; CI retains it with the preview.
+
+Existing builds are never overwritten. For another build, use
+`npm run package -- --out dist/your-new-build-name`. To recheck one against current
+source, run `npm run verify:package -- dist/your-new-build-name/DD84-Calibration-Studio-win32-x64`.
+Runtime isolation on a development PC does not establish clean-machine,
+Windows display-scaling, native-dialog or complete release acceptance.
 
 The renderer has no Node integration, remote content, network access or granted device permissions. Narrow preload bridges support the three USB bench operations described below and saving a bounded DD84 JSON snapshot through a native file chooser. The renderer cannot choose a destination path or read arbitrary local files through the save bridge. The main process verifies the calling frame, limits saves to 32 MiB, stages a new sibling file, flushes and checks its bytes, and renames it into place. It never truncates or deletes the destination as a fallback. The offline CAN workspace uses a local module worker with no hardware API. Context isolation and sandboxing remain enabled; navigation, webviews, generic downloads and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
 

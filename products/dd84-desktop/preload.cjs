@@ -1,4 +1,13 @@
-const {contextBridge,ipcRenderer} = require('electron');
+const {contextBridge,ipcRenderer,webFrame} = require('electron');
+// Display-only capability: no arbitrary zoom factors, paths or IPC channels.
+webFrame.setZoomFactor(1);
+contextBridge.exposeInMainWorld('dd84View', {
+  setSize: percent => {
+    if (![100,125,150,175,200].includes(percent)) throw Error('Unsupported view size.');
+    webFrame.setZoomFactor(percent / 100);
+    return Math.round(webFrame.getZoomFactor() * 100);
+  }
+});
 contextBridge.exposeInMainWorld('dd84Files', {
   saveJson: request => ipcRenderer.invoke('dd84-save-json', request),
   onSaveWait: callback => {

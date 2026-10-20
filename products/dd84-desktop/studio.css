@@ -43,4 +43,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 #message-dismiss{flex:none;margin-top:8px!important}
 h2[tabindex]{scroll-margin-top:12px}
 .scroll:focus-visible{outline-offset:-3px}
+#view-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;font-size:14px}
+#view-controls label{display:flex;align-items:center;gap:8px}
+#view-size{font:inherit;padding:5px;border-radius:5px;background:#0f1c26;color:#fff}
+/* At high zoom, keep both the tools and the workspace reachable by keyboard. */
+@media(max-height:450px){#workspace-tools{max-height:40vh;overflow:auto;box-sizing:border-box}#workspace-tools button{padding:6px 8px}#message{max-height:15vh}}
 @media(max-width:760px){section{padding:16px}.file{max-width:100%;box-sizing:border-box}header{padding:16px}th,td{padding:10px}.range-controls label{min-width:min(180px,100%)}}

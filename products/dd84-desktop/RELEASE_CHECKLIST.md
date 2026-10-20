@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.20.0**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.21.0**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,7 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Adjustable view and verified packaging, 0.21.0 | 130 desktop tests passed; no reported dependency vulnerabilities; native view-size/navigation/save checks and complete sample-file comparison passed | Packaged runtime also passed with system Node excluded. These are development-PC checks, not clean-machine or OS scaling acceptance; see the scoped record below |
 | Confirmed JSON saving, 0.20.0 | 123 desktop tests passed; no reported dependency vulnerabilities; 7 native observations and 3 complete saved-file comparisons passed | Automated fault injection covers disk-full/locked files, write/flush/verification/rename failures, changed destinations, save concurrency and close races. Native sample, backup and log saves checked on the development PC; remaining export panels share the bridge but were not all exercised natively in this release |
 | Desktop automated suite and dependency audit, 0.19.2 | 105 tests passed; no reported vulnerabilities | Adds close-dialog state tests for keep, duplicate requests, one-use explicit discard, failure and destroyed windows; native focus checked separately |
 | Native close-dialog focus, 0.19.2 | Enter and Escape retain edits and restore visible focus; subsequent Tab and native save passed | Synthetic sample on the development PC at captured 1189×845 and 701×545 sizes; complete saved project checked against the expected sample and changed name. System display scaling and clean-machine acceptance remain pending |
@@ -147,6 +148,40 @@ The 0.19.1 close warning preserved data when Enter chose Keep editing, but the p
 Native verification of the final 0.19.2 implementation restored the focused search field after Enter chose Keep editing, and Tab continued to the parameter library with a visible outline. At captured 701×545 size, Escape from another close warning restored the selected project name; Tab then reached the search field. Save remained reachable from the shortcut and keyboard. The resulting native project exactly matched the original six-parameter baseline with only the intended synthetic name change. The earlier 0.19.1 cancellation/retry output also matched its complete expected project.
 
 This pass recorded seven observations on 0.19.1, four on the corrected 0.19.2 candidate, and five file checks. Windows Settings did not expose a targetable window, so OS display scaling was not changed or verified. This was not clean-machine acceptance, a real-file calibration test, a native destructive-discard test, or a rerun of all historical UI workflows. The complete automated desktop suite passed 105 tests; the five close-state tests cover the explicit-discard path without discarding customer data.
+
+## View size and reproducible package checks, 0.21.0
+
+Native checks on 2026-10-20 used an isolated packaged build with ASAR SHA-256
+`cc0f6b1e6f151c01d4cadd2d56855f9e77a47b7edb81c88aed772913c1963288`.
+The window initially showed 100%. Ctrl+Plus selected 125%; the View size selector
+applied 200%. At captured 690×545 minimum window size, Open project and Save
+shortcuts remained reachable, the sample button created a project, and Tab from
+the Save heading visibly focused Save project copy. Enter opened the native
+dialog. Its saved JSON matched the independently recorded six-parameter sample
+byte for byte: 2,158 bytes, SHA-256
+`7fadae73328fd77abec6d58917b1ec602a91fbbda3f1a87344e6d8be4f18c859`.
+The toolbar could be scrolled independently to read the save status. Ctrl+Minus
+selected 175%, Ctrl+0 returned to 100%, and Reset view separately returned from
+125% to 100%. These checks used synthetic data only.
+
+The standard package command now checks all 44 allowlisted application files,
+the displayed/manifest version and native binding placement, and rejects
+unexpected application paths or forbidden tune/test data. It runs the bundled
+Electron runtime in a temporary working directory with only the Windows system
+directory on PATH and no Node search/options variables. Loading the native serial
+binding, saving/reopening a complete edited project, preserving its original,
+and a four-frame software rehearsal all passed without enumerating or opening
+hardware. Seven archive-validation tests include six deliberate broken packages.
+The full suite passed 130 tests on local Node 24.13.1; the audit reported zero
+vulnerabilities. The Windows Node 22 workflow now retains the verification report,
+but remote CI was not run in this pass.
+
+Final packaging after these documentation updates must match the tested
+application code byte for byte; documentation changes may change the ASAR hash.
+Record that final hash and source commit in the generated verification report.
+App view size is distinct from Windows display scaling. No clean machine,
+OS scaling, real tune editing, physical CAN test or comprehensive workflow rerun
+is claimed. The public distribution gates below remain open.
 
 ## Next milestone: candidate acceptance on Windows
 
