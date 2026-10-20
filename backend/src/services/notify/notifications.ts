@@ -40,7 +40,8 @@ export function signInEmail(to: string, url: string, ttlMinutes: number): EmailM
       "useless without this inbox.",
       "",
       `— ${brand.brandName}`,
-      brand.website
+      brand.website,
+      `Business phone: ${brand.businessPhone}`
     ].join("\n")
   };
 }
@@ -87,7 +88,8 @@ export function paymentReceivedEmail(args: {
       `Questions: ${brand.supportEmail}`,
       "",
       `— ${brand.brandName}`,
-      brand.website
+      brand.website,
+      `Business phone: ${brand.businessPhone}`
     ].join("\n")
   };
 }
@@ -126,7 +128,8 @@ export function reportReadyEmail(args: {
       `Questions: ${brand.supportEmail}`,
       "",
       `— ${brand.brandName}`,
-      brand.website
+      brand.website,
+      `Business phone: ${brand.businessPhone}`
     ].join("\n")
   };
 }

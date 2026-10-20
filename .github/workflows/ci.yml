@@ -111,9 +111,17 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror products/dd84-link/firmware/bench/console_test.c -o /tmp/dd84-console
           /tmp/dd84-console
 
+      # Blocking: anything that runs in the production server.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
         working-directory: backend
+
+      # Non-blocking: tsx, typescript and the type packages compile the server
+      # and are never deployed. Previously invisible here — the gate above
+      # omits dev dependencies entirely, so a compromised build tool left no
+      # trace in CI at all. Same script as the frontend, same rules.
+      - name: Report build-only advisories (fatal only if critical)
+        run: node scripts/audit-report.mjs backend backend
 
   frontend:
     name: Frontend — typecheck and build
@@ -131,8 +139,30 @@ jobs:
       - name: Connection screen state and reports
         run: npm run test:link-capture
 
-      - name: Audit frontend runtime and build dependencies
-        run: npm audit --audit-level=low
+      - name: Wired capture file review
+        run: npm run test:capture-review
+
+      # The shared audit reporter decides whether a build passes, so it is
+      # tested like anything else. Run here because this job already has node
+      # at the repo root; it covers the script both jobs use.
+      - name: Audit reporter behaves
+        run: npm run test:audit-report
+
+      # Two tiers, because the two kinds of dependency carry different risk.
+      #
+      # `dependencies` here is react, react-dom and react-router-dom — code
+      # that is bundled and executes in a customer's browser. An advisory
+      # there is a real exposure and blocks the build, at the same threshold
+      # the backend uses.
+      - name: Audit dependencies that ship to the browser
+        run: npm audit --omit=dev --audit-level=high
+
+      # Build tooling runs on this runner and never reaches a browser, so it is
+      # reported rather than fatal — unless it is critical. See the script for
+      # the full reasoning; it is shared with the backend so the two cannot
+      # drift apart.
+      - name: Report build-only advisories (fatal only if critical)
+        run: node scripts/audit-report.mjs . frontend
 
   guardrails:
     name: Safety guardrails still in place

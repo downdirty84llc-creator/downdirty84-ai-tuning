@@ -8,9 +8,11 @@ import ReviewQueue from "./ReviewQueue";
 import DiffSetView from "./DiffSetView";
 import Buy from "./Buy";
 import Paid from "./Paid";
+import BusinessContact from "./BusinessContact";
 
 export default function App() {
   return (
+    <>
     <Routes>
       {/* The front door of a business is its shop, not its login form. */}
       <Route path="/" element={<Navigate to="/buy" replace />} />
@@ -31,5 +33,7 @@ export default function App() {
       <Route path="/diffsets/:diffSetId" element={<DiffSetView />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    <BusinessContact />
+    </>
   );
 }

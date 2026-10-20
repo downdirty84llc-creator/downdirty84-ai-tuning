@@ -2,6 +2,7 @@ export type BrandProfile = {
   brandName: string;
   website: string;
   supportEmail: string;
+  businessPhone: string;
   reportTitleTemplate: string;
   watermarkText: string | null;
   logoAssetId: string | null;
@@ -14,6 +15,7 @@ export function getBrandProfile(): BrandProfile {
     brandName: "Down Dirty 84",
     website: "https://www.downdirty84llc.com/",
     supportEmail: "Downdirty84llc@gmail.com",
+    businessPhone: "706-208-7465",
     reportTitleTemplate: "Down Dirty 84 • Log Review & Change List",
     watermarkText: null,
     logoAssetId: null,

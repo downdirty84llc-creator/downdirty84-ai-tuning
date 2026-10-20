@@ -53,7 +53,7 @@ export default function Login() {
         </p>
 
         <p className="small" style={{marginTop:16}}>
-          Support: <a href="mailto:support@downdirty84llc.com">support@downdirty84llc.com</a>
+          Support: <a href="mailto:Downdirty84llc@gmail.com">Downdirty84llc@gmail.com</a>
         </p>
       </div>
     </div>
