@@ -1,6 +1,6 @@
-# DD84 Calibration Studio — Windows preview 0.10.1
+# DD84 Calibration Studio — Windows preview 0.21.0
 
-An offline Windows x64 workbench for local calibration evidence and simulation editing. Real HPT files are read only. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
+An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
 ## Start here
 
@@ -8,7 +8,46 @@ Extract the entire `DD84-Calibration-Studio-win32-x64` folder and run `DD84-Cali
 
 Use the workflow below that matches your task. Each panel stores a separate kind of record; saving one panel does not save the others. Retain source HPT, HPL and CSV files separately. Evidence reports contain fingerprints and notes, not backups of those source files.
 
-Save actions open a Windows dialog. Finish the dialog and verify the resulting file before closing. The renderer cannot detect save cancellation, so the unsaved-work warning is conservative. If you change inputs while an export is being prepared, that export may be canceled; finish your edits and save again.
+Save actions open a Windows dialog, then show **Saved**, **Save canceled** or **Save failed** in the pinned status area. A successful save flushes and checks the complete JSON contents before replacing the destination. Cancellation writes nothing; a write or verification failure leaves an existing destination intact. A changed destination detected during preparation is rejected. The bridge accepts bounded DD84 JSON records only and refuses native tune extensions. Choose a different name to keep an older JSON copy.
+
+Only one save can run at a time, and normal closing is blocked while its dialog or disk write is pending. Wait for the result, then close again. Saving captures a copy of that panel at the time of the request; later edits and other panels need separate saves. Panel unsaved-work warnings remain conservative, including after a successful save. If inputs change while a report is being prepared, its existing validation may cancel that export; finish your edits and save again.
+
+These safeguards are not crash recovery, autosave or a power-loss guarantee. A force-quit or disconnected drive can leave a temporary file; keep your source files and backups. Browser development previews retain an explicitly unconfirmed download fallback.
+
+When closing with unsaved work, **Keep editing** is the default and Escape also keeps the window open. Keyboard focus returns to the active field so you can continue editing. Only **Discard and close** allows the pending changes to be discarded.
+
+## Move around the workbench
+
+The navigation bar stays visible as you scroll. Choose **Open project**, **Recorded logs**, **Edit parameters**, **Review changes** or **Save** to move directly to that section. Project actions appear after a project is open. Activating a shortcut focuses the section heading; Tab continues into its controls.
+
+In the Windows app, **View size** enlarges the interface from 100% to 200%.
+Use **Reset view** or Ctrl+0 to return to 100%; Ctrl+Plus and Ctrl+Minus move
+through the available sizes. Each launch starts at 100%. View size changes
+presentation only and is not saved in a calibration project. On a short window
+at high zoom, the navigation area scrolls independently; Tab also brings its
+focused controls into view. Browser previews use the browser's own zoom.
+
+Editor status and validation messages stay in the bar until replaced or dismissed. Tab and Shift+Tab commit a numeric cell through the normal validation rules and move to the next or previous control, including after a rejected value. A rejected value restores the last accepted value. Wide tables have a keyboard-focusable scroll region: Tab to the outlined region and use the arrow keys to scroll, or Tab again to enter its cells.
+
+## Edit captured real parameters
+
+Open a prepared real-value DD84 project, or select the captured export stage and readable export JSON. Edit any defined value, compare with its preserved original, undo and save a draft copy. Recheck its native source fingerprint when needed. Unknown Holley candidate definitions remain read-only. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md) for supported inputs, complete workflow and the remaining native-controller requirements.
+
+## Adjust a table range
+
+For an editable curve or map, use **Edit a table range** below the table. Choose the first/last columns and, for a map, first/last rows in displayed order. Both endpoints are included, and blue outlines identify the selection. Named axis labels remain visible.
+
+Choose **Set to value**, **Add amount**, or **Scale by percent**. For example, +5 percent multiplies each selected working value by 1.05; zero remains zero and negative values keep their sign for a positive percentage. These are manual calculations, not suggested tuning corrections. Values use JavaScript numeric precision without deliberate rounding or native-controller quantization.
+
+Choose **Preview range adjustment**, inspect before/after values, then **Apply previewed adjustment**. One invalid result rejects the entire adjustment. Changing the selection or amount invalidates the preview. One **Undo** reverses the whole range, preserving originals and fixed axes. A preview with no changed values cannot be applied. The preview lists up to 200 cells; its total count and applied change include the full selection (up to the existing 4,096-cell table limit).
+
+Range editing supports the same defined numeric curves/maps as single-cell editing. Scalars, switches and choices keep their existing individual controls; unknown and unverified tables remain read-only. Save/reopen uses the existing project formats. Native HPT/Holley editing and vehicle writing remain unavailable.
+
+## Compare real tune stages
+
+With a real draft open, choose **Reference DD84 draft** under **Compare real tune stages**. The comparison uses the open draft's working values minus the reference draft's working values. It checks parameter labels, units and exact axes; missing tables and incompatible metadata are reported separately. Controller compatibility is not established by this comparison.
+
+Select a parameter to see its changed cells. Add a comparison note and choose **Save tune-stage comparison** for all changes, both draft snapshots and their hashes. Editing either loaded stage clears the note; replacing the open project clears the reference. Project saves do not include this separate comparison. The reference is read only and never overwrites the open draft.
 
 ## Inspect a VCM Scanner CSV
 
@@ -47,21 +86,24 @@ Under **Imported comparison evidence**, select a detailed Differences CSV and a 
 
 The independently authored parser preserves supported scalar/vector/matrix differences and unsupported blocks without guessing their meaning. Axis differences are not actual operating coordinates. Text transitions retain source notation; diagnostic-code entries do not establish enabled/disabled behavior. Reports omit description prose but retain parsed difference rows for review. The association to a tune pair is operator supplied. No changes are applied to the simulation editor or a vehicle.
 
-## Practice simulation editing
+## Multi-parameter simulation editing
 
-1. Choose **New sample project**, then **Export original backup** and complete the save dialog.
-2. Change a working airflow value and leave the cell. Compare it with the unchanged original.
-3. Use **Undo** or **Restore original values** as needed.
-4. Choose **Save project copy**. Reopen the JSON with **Open DD84 project**.
-5. Enter a review note and choose **Export review draft**. This includes changes, the project and a fingerprint of the original table and identity. Review notes are not stored in project copies.
+1. Choose **New sample project**. The library has six synthetic definitions: a MAF curve, VE and spark maps, an idle scalar, a demonstration selection list and a demonstration switch. These are not decoded vehicle parameters or tuning recommendations.
+2. Search by label, group or path and select a parameter. Maps use X across columns and Y down rows. Axes remain fixed. Each cell shows original/working values; changed cells are highlighted. Format bounds and units come from the bundled definition set, not the imported file.
+3. Edit a working value and leave the cell. **Undo** reverses the last project edit (up to 100 in the current session). **Restore selected original** resets that parameter; **Restore all editable originals** resets known parameters. Unknown definitions stay visible and read-only, including any imported differences.
+4. **Export original backup** writes all supplied originals, including unknown parameters. **Save project copy** preserves every original/working value and fixed axis. Reopen using **Open DD84 project**. Legacy V1 projects upgrade to a one-parameter V2 project without inventing additional tables.
+5. Enter a note and **Export review draft**. It includes changes across all parameters, coordinates, units and a SHA-256 fingerprint of the complete original baseline. Numeric changes from zero omit a multiplier. Switches and choices have no numeric multiplier. Changing data or notes while a review is prepared cancels that export.
 
-Only `DD84_STUDIO_V1`, `SIM-ECM-01` and `Airflow.MAF.Curve` are supported for editing. Values are synthetic examples, not engine recommendations. Imported originals are supplied by the file and are not authenticated. A local draft is not cloud approval or a signed installation package.
+In V2 simulation projects, only the bundled synthetic controller and definitions are editable. Real exported-value drafts use a separate schema described above. HPT, BIN and Holley tune files are not decoded or converted to V2. Unknown definition paths are preserved read-only; an imported file cannot supply executable definitions or authorize writes. Supplied originals and their hashes establish matching content, not authenticity. Review notes appear in review drafts, not project copies; undo history is session-only.
+
+See [PARAMETER_PROJECT.md](PARAMETER_PROJECT.md) for the V2 format and the requirements for extending the editor to real controllers.
 
 ## Saved records and limits
 
 | Record | Contains | Needed to resume |
 |---|---|---|
-| `DD84_STUDIO_V1` | Simulation original and working table | Project JSON |
+| `DD84_STUDIO_V2` | Simulation parameters, fixed axes, original and working values | Project JSON; V1 also accepted and upgraded |
+| `DD84_STUDIO_REVIEW_V2` | Multi-parameter differences, baseline fingerprint, note and embedded project | Review-only report; reopen the separately saved project |
 | `DD84_FILE_PAIR_V1` | Vehicle/build notes and two file identities | Case JSON and both matching HPT files |
 | `DD84_LEARNING_CASE_V1` | Tune/log timeline, build notes and stated associations | Case JSON; retain and separately verify source files |
 | `DD84_DIFFERENCES_V1` | Comparison evidence, direction and source identity | Evidence report; keep comparison CSV and tune pair separately |
@@ -82,4 +124,97 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the current validation reco
 
 Use Node 22 for parity with CI. In this directory run `npm ci`, `npm test` and `npm start`. `npm run package` creates the Windows x64 portable folder under `dist/`. The [Windows workflow](../../.github/workflows/desktop.yml) installs dependencies, runs tests and the dependency audit, packages the app and retains its preview artifact for 14 days. Web/backend checks run separately.
 
-The renderer has no Node integration, preload bridge, remote content, network access or granted device permissions. Context isolation and sandboxing remain enabled; navigation, webviews and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+Packaging now uses ASAR and an explicit application-file allowlist. It excludes
+local customer data, test fixtures and build scripts; production dependencies
+are pruned separately. Native serial bindings are unpacked for loading. The
+build fails if required files, source bytes, displayed version or manifest do
+not match. Seven archive tests exercise positive validation and rejection of
+changed code, missing modules/bindings, extra files, tune data inside dependencies
+and a wrong version.
+
+On Windows, the package check runs the packaged executable in non-GUI runtime
+mode with system Node and Node search/options variables excluded. It loads the
+native serial binding without opening a port, edits a synthetic project, saves
+and reopens its complete contents, checks the preserved original, and runs a
+four-frame software rehearsal through the bundled shared modules. The resulting
+`dist/package-verification.json` records the source commit, working-tree status,
+archive hash and check results; CI retains it with the preview.
+
+Existing builds are never overwritten. For another build, use
+`npm run package -- --out dist/your-new-build-name`. To recheck one against current
+source, run `npm run verify:package -- dist/your-new-build-name/DD84-Calibration-Studio-win32-x64`.
+Runtime isolation on a development PC does not establish clean-machine,
+Windows display-scaling, native-dialog or complete release acceptance.
+
+The renderer has no Node integration, remote content, network access or granted device permissions. Narrow preload bridges support the three USB bench operations described below and saving a bounded DD84 JSON snapshot through a native file chooser. The renderer cannot choose a destination path or read arbitrary local files through the save bridge. The main process verifies the calling frame, limits saves to 32 MiB, stages a new sibling file, flushes and checks its bytes, and renames it into place. It never truncates or deletes the destination as a fallback. The offline CAN workspace uses a local module worker with no hardware API. Context isolation and sandboxing remain enabled; navigation, webviews, generic downloads and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+
+`pretest`, `prestart` and `prepackage` stage the canonical Link wire decoder and
+bench comparator into the ignored `link-shared/` directory. The package includes
+these copies; it does not need the repository beside it. Edit the originals in
+`products/dd84-link/shared/`, not generated copies. No extra runtime dependency
+is added for the CAN test workspace.
+
+## USB bench board — 0.11.0
+
+Connect the FRDM-A-S32K344 running DD84 Bench 0.1.0, click **Find board**, select
+its OpenSDA COM port, then **Test DD84 board**. The app checks the versioned
+handshake and closes the port. Other serial applications must release the port.
+The UI reports the result of that check, not a continuously connected session.
+
+This uses the native `serialport` dependency through a narrow Electron preload
+and main-process IPC API. Only NXP/PEmicro VID 1357 / PID 0089 ports are eligible;
+there is no renderer API for arbitrary serial commands. Receive output is bounded
+and handshake waits time out after five seconds. No PowerShell policy changes
+are needed. Device identity is self-reported compatibility information, not
+cryptographic authentication. Vehicle access remains unavailable.
+
+Validation: 45 automated desktop tests passed; the production board transport
+successfully queried the physical board on COM8. See the link firmware bench
+README for hardware test scope and known limits.
+
+## Internal CAN loopback — 0.12.0
+
+With Bench 0.2.0 on the board and only USB attached, select **Find board**, then
+**Test DD84 board**. A compatible handshake enables **Run internal CAN self-test**.
+Studio displays the eight received frames, their fixed ID/payload and software
+observation times. **Save test report** exports a clearly labeled local JSON copy.
+Failure stays a failure and includes the firmware stage; no file is uploaded.
+
+The internal test does not validate wiring, transceiver operation or vehicle
+data. Reports remain ineligible for calibration learning. No real CAN capture
+or ECU writing is enabled. Version 0.12.0 has 49 passing desktop tests; the new
+hardware loopback and repeated restarts have been exercised on the USB board.
+
+## Offline CAN test workspace — 0.13.0
+
+1. In **CAN test workspace**, set 1–10000 frames and choose **Create test pattern**.
+   Save its JSON. The pattern alternates standard/extended classic CAN frames at
+   a declared 500 kbit/s, with a fresh random run tag. It is a test specification,
+   not a PCAN-View import or a command that transmits anything.
+2. Choose **Run software rehearsal** to exercise generation, decoding, comparison
+   and reporting without hardware. It creates synthetic bytes with session 1.
+   The label **Software rehearsal** remains on the result and in its saved report.
+3. For an existing D84W binary capture, open its saved pattern, select the capture
+   and enter its actual recording session as a decimal integer. Choose **Compare
+   saved capture**. Imported captures are explicitly unverified sources, even if
+   they contain synthetic bytes or claim a valid session.
+4. Review expected/received/matched counts, issue totals (with at most 20 details),
+   and a preview of at most 20 decoded frames. A byte match does not prove silent
+   mode, correct wiring, bus timing or absence of hardware loss. Missing status
+   is not interpreted as measured zero loss.
+5. **Save comparison report** exports `DD84_STUDIO_BENCH_REVIEW_V1`, containing
+   capture SHA-256, canonical-pattern SHA-256, session, results and limited preview.
+   Keep the capture and pattern separately; report reopening is not implemented.
+   Filenames may contain private information; review reports before sharing.
+
+Captures are bounded to 16 MiB and saved patterns to 4 MiB. Imported patterns must
+match the supported generated structure, including frame bytes and disabled
+learning flags. Comparison runs in a cancellable worker. Changing the pattern,
+frame count, session or capture clears the old result and cancels pending work;
+start comparison again after the change. Closing the app discards this workspace's
+unsaved pattern/results. Complete save dialogs before closing.
+
+Bench 0.2.0 cannot record external CAN yet; its internal-loopback JSON is not a
+D84W capture. This workspace neither opens a hardware connection nor feeds
+calibration learning. External bench firmware/acceptance and controller-specific
+calibration adapters remain separate milestones.

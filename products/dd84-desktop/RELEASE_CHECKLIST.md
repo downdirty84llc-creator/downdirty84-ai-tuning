@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.10.1**. Updated: **2026-09-26**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.21.0**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,50 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Adjustable view and verified packaging, 0.21.0 | 130 desktop tests passed; no reported dependency vulnerabilities; native view-size/navigation/save checks and complete sample-file comparison passed | Packaged runtime also passed with system Node excluded. These are development-PC checks, not clean-machine or OS scaling acceptance; see the scoped record below |
+| Confirmed JSON saving, 0.20.0 | 123 desktop tests passed; no reported dependency vulnerabilities; 7 native observations and 3 complete saved-file comparisons passed | Automated fault injection covers disk-full/locked files, write/flush/verification/rename failures, changed destinations, save concurrency and close races. Native sample, backup and log saves checked on the development PC; remaining export panels share the bridge but were not all exercised natively in this release |
+| Desktop automated suite and dependency audit, 0.19.2 | 105 tests passed; no reported vulnerabilities | Adds close-dialog state tests for keep, duplicate requests, one-use explicit discard, failure and destroyed windows; native focus checked separately |
+| Native close-dialog focus, 0.19.2 | Enter and Escape retain edits and restore visible focus; subsequent Tab and native save passed | Synthetic sample on the development PC at captured 1189×845 and 701×545 sizes; complete saved project checked against the expected sample and changed name. System display scaling and clean-machine acceptance remain pending |
+| Desktop automated suite and dependency audit, 0.19.1 | 100 tests passed; no reported vulnerabilities | Existing data/model/parser/board-mock suite; native keyboard behavior checked separately below |
+| Native navigation and numeric keyboard editing, 0.19.1 | 9 observed UI checks and 2 saved-file checks passed | Packaged preview on the existing development PC, synthetic data only; captures at 1189×845 and 695×845. Minimum-height layout, Windows display scaling and clean-machine acceptance remain pending |
+| Desktop automated suite, 0.19.0 | 100 tests passed | Atomic curve/map range operations, stale/forged previews, signed/zero values, full 4,096-cell table, fixed axes, originals and read-only protection |
+| Browser workflow, 0.19.0 | Curve percent, map add/set, preview invalidation, whole-range rejection, one-step undo, labeled real-draft ranges and simulation save/reopen passed | Synthetic fixtures; both saved project types exactly match independently assembled expected values; fresh-origin stylesheet verified |
+| Desktop dependency audit, 0.19.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.19.0 | Core draft workflow passed: native import, labeled range preview/apply, one-step Undo, note rejection, save cancellation/retry, save/reopen, original backup, review export, overwrite cancellation and default keep-editing close guard | Candidate `1ade437`; synthetic fixtures on Windows 11 Home build 26300; saved project/backup/review contents verified. Read-only coefficient controls stay protected. Clean-machine and remaining full-workflow acceptance are still incomplete |
+| Native comparison and log review, 0.19.0 | Draft comparison export, CSV quality flags, required channel-selection evidence, full-log save/reopen, renamed-source round-trip, changed-source rejection and narrow segment export passed | Same candidate and development machine; synthetic data only. Complete saved reports checked against expected objects, with independently specified changes/counts/ranges. A rejected review preserved the current note and unselected roles |
+| Native timeline and segment review, 0.19.0 | Narrow, equal-time, missing-only and empty ranges; invalid-range rejection; full reset; channel switching; note clearing; segment save/reopen; mismatched/unsupported report rejection passed | Same candidate and synthetic CSV; 12 observed UI checks, 3 complete native output comparisons and unchanged archive/ASAR identity. Initial, reopened and post-rejection segment reports are byte-identical. Clean-machine and remaining workflow acceptance are still incomplete |
+| Native file-pair and learning cases, 0.19.0 | File-pair save/reopen, source re-verification, changed-source rejection, learning-case save/reopen and obsolete log-association clearing passed | Same candidate and development machine; synthetic file references only. 11 observed UI checks, 5 complete output comparisons, unchanged fixtures and unchanged archive/ASAR identity. Learning stayed blocked; this does not validate native calibration or log decoding |
+| Native detailed comparison import, 0.19.0 | Unknown direction, pair-reference requirement, both numeric directions, required explanation, names-only rejection and valid reimport passed | Same candidate and development machine; 7 observed UI checks, 3 complete native report comparisons, unchanged synthetic inputs and unchanged archive/ASAR identity. Text transitions and incomplete blocks stayed uninterpreted; numeric differences did not become absolute values or coordinates |
+| Native sample-project workflow, 0.19.0 | All five parameter shapes, selected/full restore, undo, required review note and save/reopen passed | Same candidate and development machine; 13 observed UI checks, 5 complete native JSON comparisons, 2 byte-equality checks, review timestamp bounds and unchanged archive/ASAR identity. Originals before/after editing and project copies before/after reopening were respectively byte-identical. Synthetic simulation only |
+| Desktop automated suite, 0.18.0 | 91 tests passed | Complete coefficient/boundary imports, displayed precision agreement, categorical axes, source-bound identity, malformed input, merge preservation and comparison exclusion |
+| Browser workflow, 0.18.0 | Import/merge, read-only coefficient display, labeled boundary edit/undo, note clearing, identity mismatch rejection, source verification, save/reopen and comparison export passed | Saved project/report exactly match independently assembled drafts; native Windows acceptance remains pending |
+| Local capture validation, 0.18.0 | 2,334 values matched 27 raw table captures; 3 identity captures checked; 720 coefficient differences checked against independent vendor export | Source hashes unchanged; coefficients remain read-only; no physical scaling or performance validation |
+| Desktop dependency audit, 0.18.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.18.0 | Partial: launch, native project open, labeled edit/undo, empty-note rejection and save-dialog cancellation passed | Isolated synthetic fixtures on Windows 11 Home build 26300; Windows Update prompt interrupted save/reopen. Existing development machine, not clean-machine acceptance |
+| Desktop automated suite, 0.17.0 | 85 tests passed | Remaining spark stages and cooling imports; evidence, source, units, zones, dimensions, malformed input and draft round-trips |
+| Browser workflow, 0.17.0 | Cooling import, spark merge, ten-table comparison, edit/undo, note clearing, project save/reopen and report export passed | A blocking browser discard dialog required native dismissal; native Studio UI acceptance remains pending |
+| Local captured-table validation, 0.17.0 | 15 spark and 6 cooling captures checked; 6,816 cell differences checked against independent vendor exports | Displayed precision with explicit rounding tolerances; source tune hashes unchanged; no performance validation |
+| Desktop dependency audit, 0.17.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.17.0 | Pending | Browser checks do not establish native-dialog or clean-machine acceptance |
+| Desktop automated suite, 0.16.0 | 81 tests passed | Added stage comparison, missing/incompatible coverage, identity conflicts, typed changes and report snapshot binding |
+| Browser comparison workflow, 0.16.0 | Load reference, 140-change display, missing-table display, required note, export, live edits, note clearing, undo and clear passed | Downloaded full report exactly matched independently generated result; no native tune writing |
+| Local captured-table validation, 0.16.0 | Nine additional stage tables imported; 5,544 cell differences checked against independent VCM exports | Final minimum-spark capture absent; left missing. Native source hashes unchanged |
+| Desktop dependency audit, 0.16.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.16.0 | Pending | Browser checks do not establish native-dialog or clean-machine acceptance |
+| Desktop automated suite, 0.15.0 | 74 tests passed | Real draft types, provenance, malformed inputs, source verification, merging and read-only unknown definitions |
+| Browser real draft workflow, 0.15.0 | Source match/mismatch, edit/undo, required note, save/reopen, complete map display, import/merge and mixed-source rejection passed | Captured local exports; no native tune output or controller validation |
+| Local actual-export validation, 0.15.0 | Five prepared drafts; all five source fingerprints matched | Three Sierra stages and two read-only Holley candidates; sources unchanged and excluded from distribution |
+| Native Windows UI, 0.15.0 | Pending | Browser tests do not establish native dialog or clean-machine acceptance |
+| Desktop automated suite, 0.14.0 | 64 tests passed | All five parameter shapes, V1 migration, units/bounds, unknown read-only paths, dimensions, original fingerprints and review snapshots |
+| Browser editor workflow, 0.14.0 | Six-parameter editing, switch undo, review-note gate, save/reopen, legacy migration, search and unknown read-only display passed | Synthetic only; project, backup and review downloads exactly matched independent expected values |
+| Desktop dependency audit, 0.14.0 | No reported vulnerabilities | Audit result at check time |
+| Native Windows UI, 0.14.0 | Pending | Browser validation does not establish native dialogs or clean-machine acceptance |
+| Desktop automated suite, 0.13.0 | 55 tests passed | Includes pattern validation, import limits, source-bound reports and disabled hardware/learning claims |
+| Link automated suite, 0.13.0 source | 16 tests passed | Portable decoder cross-checked against 10,000 C-encoded records and golden fixture |
+| Browser workflow, 0.13.0 | 1,000-frame rehearsal, plan save/reopen, import comparison, wrong-session/corruption rejection and clearing stale results passed | Synthetic fixtures only; downloaded rehearsal report exactly matched independent calculation |
+| Desktop dependency audit, 0.13.0 | No reported vulnerabilities | Audit result at check time, not a guarantee |
+| Packaged worker, 0.13.0 | 1,000-frame rehearsal passed in Electron 44.4.5 from packaged ASAR modules | Hidden integration harness with sandbox, context isolation, no Node integration, local file origin and restrictive CSP; no hardware opened |
+| Native Windows UI, 0.13.0 | Pending | Browser and worker checks do not establish native save-dialog acceptance or clean-machine release acceptance |
 | Desktop automated suite, 0.10.1 | 40 tests passed | Parsers, validation, model/report behavior and regression coverage; not a native UI test |
 | Full-log save race, 0.10.1 | Regression reproduced before fix, passed afterward | Selections copied before asynchronous hashing |
 | Browser workflow, 0.10.1 | Delayed hashing plus note edit/CSV reload canceled stale saves; subsequent save kept current note | Controlled browser check, not native race reproduction |
@@ -22,21 +66,138 @@ This record distinguishes tests of the current source from historical native che
 
 The 0.10.1 implementation head had successful main CI and Windows packaging checks before this documentation revision. Future commits must use their own check results; this statement does not pre-approve a later build.
 
+## Confirmed-save acceptance, 0.20.0
+
+All JSON exports now use one bounded, caller-checked native save bridge. Tests
+verify that failures preserve destination bytes and modification time, partial
+temporary files are cleaned on handled failures, concurrent saves and normal
+closing are blocked during a pending write, and a save starting during a close
+prompt invalidates the pending discard approval. Renderer tests preserve the
+selected snapshot while later edits occur and never report a canceled, failed or
+browser-only download as a completed save.
+
+Native checks on 2026-10-20 used the packaged preview and synthetic data on the
+existing Windows development PC. Escape canceled a named save without creating
+it; retry saved a complete six-parameter project. A `.hpt` destination was
+rejected with a visible failure and no file. Declining replacement preserved the
+existing JSON and its modification time. Selecting a new name then saved the
+original backup. Project and backup matched the complete independently recorded
+sample baseline byte for byte. A full-log export matched the complete previously
+verified synthetic report with the deliberately unselected channel roles. Both
+panel and pinned messages reported the confirmed save, and Enter in the
+subsequent close warning kept the window open.
+
+The 123 tests ran locally on Node 24.13.1; remote Node 22 CI was not rerun.
+Disk-full/locked-file and pending-write close races were automated tests, not
+native Windows reproductions. Native replacement acceptance, the remaining
+export panels, Windows scaling, clean-machine launch and comprehensive candidate
+acceptance remain pending. No hardware or customer tuning files were used.
+These protections are not autosave, crash recovery or a power-loss guarantee.
+
+## Native 0.19 candidate record
+
+The tested portable candidate was built from `1ade4379c6b87ebb2ca5221522454f93df31e798`.
+Its archive SHA-256 is `d691506a87c102ef5962b8c5a462007d205957a14eb935af8790cf722aaa5818`;
+its packaged `app.asar` SHA-256 is `5daad033ffa80e212593c70f35998e0ffa7a54939a0106c442afa23ad3fff827`.
+Testing on 2026-10-16 used a synthetic exported-value draft with eight editable labeled boundary values and four read-only unknown coefficients. A 2×2 range received +100 rpm as one transaction. Saving, undoing and reopening preserved the expected originals, edits, axes and evidence. Native backup and review exports matched complete expected JSON objects. Declining an overwrite preserved both backup content and modification time. The default close choice kept the app open.
+
+The 0.18 test interrupted by Windows Update remains a historical partial result; these results belong to the separate 0.19 candidate. No product code changed during this acceptance pass, and no replacement archive was generated. The machine already has development tools installed. Do not treat this as clean-machine or comprehensive release acceptance.
+
+The follow-up native review pass on 2026-10-16 used the same ASAR hash. Comparing the saved four-cell edit against its original produced the expected four +100 rpm differences; the unknown coefficient parameter remained not comparable. The saved report preserved both draft snapshots and matched the complete expected report.
+
+A six-row synthetic CSV contained two RPM candidates, one missing RPM value, one nonnumeric RPM value, a duplicate timestamp, a text channel and an unsupported airflow unit. Selection remained explicit, and saving a selected channel without an explanation was rejected. The full-log export preserved the chosen channel and explanation, counts, flags and source fingerprint. Reopening worked with matching contents and with an identical renamed CSV; the resaved report changed only the source filename. Changing one RPM sample from 800 to 801 caused the old review to be rejected. A subsequent save verified that the current note and unselected roles survived the failed restore.
+
+The inclusive 2–3 second segment contained two numeric readings (1,200–1,600 rpm) and one nonnumeric reading. Its native export matched the complete expected range, note, counts and fingerprint. The subsequent timeline pass below completed the corresponding range and segment checklist steps. These checks did not exercise a board or vehicle, and did not change product code or the archive.
+
+The native timeline pass on 2026-10-16 used the altered six-row synthetic CSV. Equal-time bounds at 1 second showed one missing cell and no numeric readings; equal-time bounds at 2 seconds retained both the numeric and nonnumeric rows at that timestamp. The empty 1.1–1.9 second window showed zero readings with no numeric chart. Reversed 2–1.9 second bounds and out-of-recording 2–5 second bounds were rejected with segment saving disabled. The full-recording interval list preserved the missing 1–2 second interval without numeric extrema. Switching to the second RPM channel retained 0–4 second bounds and showed all six numeric readings.
+
+Full reset, channel switching and manual range editing cleared the segment note; changing range inputs also invalidated the displayed segment until applied. Reopening a saved segment restored channel 1, inclusive 2–3 second bounds and its exact note after fingerprint verification. A segment tied to the original CSV and a full-log report presented as a segment were both rejected without changing the active segment or its note. The full-log association note also remained present in the observed UI. The initial segment, resaved reopened segment and resaved post-rejection segment each matched a complete expected JSON object independently assembled from the synthetic rows; all three files were byte-identical. Twelve observed UI checks, three output comparisons and the unchanged candidate hashes passed. This was an acceptance/documentation pass only; no automated product suite rerun or new package is implied.
+
+The file-pair and learning-case pass on 2026-10-18 used the same candidate. Two eight-byte header-only HPT fixtures were fingerprinted without a claim of decoded tables or controller validity. Reopening their saved case restored the vehicle/build notes and required both source files to be reselected before saving again. A same-size fixture with one changed byte was rejected; selecting both matching files enabled saving. The initial and reopened native records matched the complete independently assembled expected JSON and were byte-identical.
+
+A separately prepared synthetic learning record contained original/final tune references, two logs associated with the original fingerprint and one associated with the final fingerprint. Native save, reopen and resave preserved the complete record; both saved copies were byte-identical. Reopening explicitly identified unverified source references and owner-stated associations. Replacing the original tune with the changed fixture cleared its two log associations, preserved the final tune's association and reset the readiness display. Rechecking still blocked learning and required the exact calibration for the unconfirmed logs. The changed saved record matched a complete expected object, including notes, displacement, file order and association values. This pass did not exercise initial attachment of every log role or establish that the arbitrary HPL bytes were a valid recording.
+
+Eleven observed UI checks, five native JSON comparisons, unchanged source fixture bytes and unchanged candidate hashes passed. No product code changed, no automated product suite rerun is implied, and no replacement download was needed. Clean-machine and remaining full-workflow acceptance are still pending.
+
+The detailed comparison pass on 2026-10-19 imported a synthetic CSV with a 2×2 numeric table, scalar, single-column vector, text transition, repeated diagnostic entries and incomplete table. Unknown direction preserved raw differences and disabled saving until a file-pair reference was selected. Choosing before-minus-after reversed numeric signs in the displayed after-minus-before summary; choosing after-minus-before retained them. The numeric table kept three changed cells out of four, including an unchanged zero. Text transitions retained their notation, and diagnostic/incomplete blocks remained uninterpreted. Operating coordinates stayed unavailable.
+
+Saving an interpreted report without direction evidence was rejected. Three native reports—unknown direction, before-minus-after and after-minus-before—matched complete independently assembled expected JSON objects, including raw rows/values, source text fingerprint, pair reference, hypothetical arithmetic explanation, summary and disabled-application flags. The two explained directions were separate synthetic scenarios, not verification of real calibration values. A names-only export was rejected with saving disabled, the previous comparison removed, direction reset to unknown and explanation cleared; the pair reference remained explicitly operator supplied. Reimporting the detailed CSV restored its raw summaries and enabled saving. Seven observed UI checks, three output comparisons, unchanged synthetic inputs and unchanged candidate hashes passed. No product code or package changed, and no automated product suite rerun is implied.
+
+The sample-project pass on 2026-10-19 used the built-in six-parameter simulation. The first MAF curve value changed from 10 to 11 g/s, the first VE map cell from 40 to 42%, idle from 800 to 850 rpm, the demonstration selection from PRIMARY to ALTERNATE and the demonstration switch from false to true. The spark map stayed unchanged. These were synthetic acceptance inputs, not calibration recommendations.
+
+Restoring the selected switch left the other four edits intact; one Undo recovered the switch edit. Restoring all editable originals removed every change and disabled review export; one Undo recovered all five edits. Review export without a note was rejected without opening a save dialog. The validation message appeared in the status area above the editor, outside the bottom viewport; error visibility remains part of the pending usability review. Adding a note enabled the native review save.
+
+Both original backups matched the complete independent baseline and were byte-identical despite the intervening edits and restores. The edited project and reopened/resaved copy matched the complete expected project and were byte-identical. Reopening retained all five changes, cleared the review note and started with empty undo history. The complete review matched independent expectations for original fingerprint, unchanged axes/originals, five typed changes, coordinates, units, deltas, multipliers, note and project snapshot. Its dynamic timestamp fell within the recorded export action window. Thirteen observed UI checks, five complete JSON comparisons, two byte-equality checks, the timestamp check and unchanged candidate hashes passed: 22 checks total. No product code changed, no automated product suite rerun is implied, and no replacement package was built.
+
+## Native usability follow-up, 0.19.1
+
+On 2026-10-20, the 0.19.0 candidate reproduced a numeric-cell keyboard bug: after an edit, Tab committed the value but lost focus when the table was replaced. The next Tab returned to the same cell. Version 0.19.1 restores the position in the keyboard sequence after validation. It also adds persistent workbench navigation, a dismissible editor status area, clearer focus outlines and a keyboard-focusable horizontal table region.
+
+The packaged 0.19.1 preview imported the untouched six-parameter baseline through the keyboard and native file dialog. Numeric Tab committed the first MAF value from 10 to 12 and focused the second cell; Shift+Tab committed the second value from 25 to 26 and returned to the first. Entering zero was rejected, preserved 12 and advanced focus with the error visible above the table. Exporting a review without a note showed its validation message in the bottom save viewport.
+
+At the captured 695×845 window size, navigation, review and save controls remained reachable and readable. Activating Save and pressing Tab reached Save project copy; Enter opened the native dialog and saved a uniquely named synthetic project. Dismissing the message restored navigation order. Keyboard activation of Edit parameters focused its heading, and Tab from the VE parameter list reached the outlined table region, where Right scrolled the columns horizontally.
+
+The complete saved project matched the independently verified baseline with exactly the two intended MAF edits. All other parameters, fixed axes and originals were preserved; the source baseline hash remained unchanged. Nine observed UI checks and two file checks passed. Mouse input was used to position some regression checks; this is not a claim that every workflow was tested entirely without a mouse. The 0.19.0 historical results above do not automatically qualify this replacement executable.
+
+## Minimum-height and close-dialog follow-up, 0.19.2
+
+The 2026-10-20 follow-up reached the configured minimum window height, with captures at 695×545 for 0.19.1. Open and Save controls and the required-review-note message remained reachable. Canceling a native save produced no file at the chosen path. Retrying produced a complete project with the expected two MAF edits. Attempting to export the original backup over that disposable project opened an overwrite prompt; choosing No and canceling preserved both its bytes and modification time.
+
+The 0.19.1 close warning preserved data when Enter chose Keep editing, but the page's visible keyboard focus could remain inactive afterward. Version 0.19.2 lets the close cancellation finish while an asynchronous native warning is shown, then refocuses the page for Keep editing or Escape. Repeated close attempts share the pending prompt; only an explicit discard response permits one subsequent close. A failed dialog keeps the window open.
+
+Native verification of the final 0.19.2 implementation restored the focused search field after Enter chose Keep editing, and Tab continued to the parameter library with a visible outline. At captured 701×545 size, Escape from another close warning restored the selected project name; Tab then reached the search field. Save remained reachable from the shortcut and keyboard. The resulting native project exactly matched the original six-parameter baseline with only the intended synthetic name change. The earlier 0.19.1 cancellation/retry output also matched its complete expected project.
+
+This pass recorded seven observations on 0.19.1, four on the corrected 0.19.2 candidate, and five file checks. Windows Settings did not expose a targetable window, so OS display scaling was not changed or verified. This was not clean-machine acceptance, a real-file calibration test, a native destructive-discard test, or a rerun of all historical UI workflows. The complete automated desktop suite passed 105 tests; the five close-state tests cover the explicit-discard path without discarding customer data.
+
+## View size and reproducible package checks, 0.21.0
+
+Native checks on 2026-10-20 used an isolated packaged build with ASAR SHA-256
+`cc0f6b1e6f151c01d4cadd2d56855f9e77a47b7edb81c88aed772913c1963288`.
+The window initially showed 100%. Ctrl+Plus selected 125%; the View size selector
+applied 200%. At captured 690×545 minimum window size, Open project and Save
+shortcuts remained reachable, the sample button created a project, and Tab from
+the Save heading visibly focused Save project copy. Enter opened the native
+dialog. Its saved JSON matched the independently recorded six-parameter sample
+byte for byte: 2,158 bytes, SHA-256
+`7fadae73328fd77abec6d58917b1ec602a91fbbda3f1a87344e6d8be4f18c859`.
+The toolbar could be scrolled independently to read the save status. Ctrl+Minus
+selected 175%, Ctrl+0 returned to 100%, and Reset view separately returned from
+125% to 100%. These checks used synthetic data only.
+
+The standard package command now checks all 44 allowlisted application files,
+the displayed/manifest version and native binding placement, and rejects
+unexpected application paths or forbidden tune/test data. It runs the bundled
+Electron runtime in a temporary working directory with only the Windows system
+directory on PATH and no Node search/options variables. Loading the native serial
+binding, saving/reopening a complete edited project, preserving its original,
+and a four-frame software rehearsal all passed without enumerating or opening
+hardware. Seven archive-validation tests include six deliberate broken packages.
+The full suite passed 130 tests on local Node 24.13.1; the audit reported zero
+vulnerabilities. The Windows Node 22 workflow now retains the verification report,
+but remote CI was not run in this pass.
+
+Final packaging after these documentation updates must match the tested
+application code byte for byte; documentation changes may change the ASAR hash.
+Record that final hash and source commit in the generated verification report.
+App view size is distinct from Windows display scaling. No clean machine,
+OS scaling, real tune editing, physical CAN test or comprehensive workflow rerun
+is claimed. The public distribution gates below remain open.
+
 ## Next milestone: candidate acceptance on Windows
 
 Use one identified candidate build and synthetic fixtures. Record its commit, displayed version, archive SHA-256, Windows version, tester, date and each result. Do not overwrite another version's evidence. Keep files in a dedicated local test folder.
 
 - [ ] Extract and launch the candidate on a clean supported Windows x64 environment without Node installed. Record OS/build and any launch/security failure; do not bypass warnings.
-- [ ] Create a sample project, export original, edit, undo, reset, save and reopen. Confirm original data is preserved and review-note requirements work.
-- [ ] Import synthetic original/final HPT evidence, save/reopen the case and verify a changed source is rejected. Header acceptance alone must not claim a valid controller calibration.
-- [ ] Save/reopen a synthetic learning case. Change a tune fingerprint and verify obsolete log associations clear; readiness remains blocked.
-- [ ] Import synthetic detailed comparison evidence. Verify unknown direction, required direction evidence, names-only rejection and saved report contents.
-- [ ] Import a synthetic CSV containing numeric, missing and text values. Review duplicate role candidates, evidence requirements and unsupported roles. Confirm the saved full-log report exactly preserves documented choices and notes.
-- [ ] Reopen that full-log review with matching, renamed and altered CSV contents. Verify altered contents are rejected without losing current choices.
-- [ ] Apply a narrow range, equal-time bounds, empty window and full-recording reset. Switch channels; verify counts, missing intervals and bounds. Reject reversed/out-of-recording bounds.
-- [ ] Save/reopen a noted segment and compare JSON. Verify channel/range changes clear the note, unsupported reports fail and failures preserve the current view.
-- [ ] Cancel a native save dialog, retry with a new filename, and verify the successful output on disk. Exercise overwrite cancellation using disposable synthetic files only. Confirm closing with unsaved work defaults to keeping the app open.
-- [ ] Check keyboard-only import/edit/save navigation, focus visibility, minimum window size and Windows display scaling. Record any clipped or unreachable controls.
+- [x] Create a sample project, export original, edit, undo, reset, save and reopen. Confirm original data is preserved and review-note requirements work. Passed 2026-10-19 on candidate `1ade437`; five editable shapes, selected/full restores and both undo paths checked. Original backups were byte-identical; edited and reopened/resaved projects were byte-identical; all five native output files matched complete independent expectations.
+- [x] Import synthetic original/final HPT evidence, save/reopen the case and verify a changed source is rejected. Header acceptance alone must not claim a valid controller calibration. Passed 2026-10-18 on candidate `1ade437`; both sources required re-verification and both native saves were byte-identical.
+- [x] Save/reopen a synthetic learning case. Change a tune fingerprint and verify obsolete log associations clear; readiness remains blocked. Passed 2026-10-18 on candidate `1ade437`; two original-tune associations cleared while the final-tune association remained, and all three native outputs matched independently assembled expected records.
+- [x] Import synthetic detailed comparison evidence. Verify unknown direction, required direction evidence, names-only rejection and saved report contents. Passed 2026-10-19 on candidate `1ade437`; both numeric directions and valid reimport were checked, and all three native reports matched complete independent expected objects.
+- [x] Import a synthetic CSV containing numeric, missing and text values. Review duplicate role candidates, evidence requirements and unsupported roles. Confirm the saved full-log report exactly preserves documented choices and notes. Passed 2026-10-16 on candidate `1ade437`.
+- [x] Reopen that full-log review with matching, renamed and altered CSV contents. Verify altered contents are rejected without losing current choices. Passed 2026-10-16 on candidate `1ade437`; the altered-source test preserved an intentional unselected mapping and current note.
+- [x] Apply a narrow range, equal-time bounds, empty window and full-recording reset. Switch channels; verify counts, missing intervals and bounds. Reject reversed/out-of-recording bounds. Passed 2026-10-16 on candidate `1ade437` with missing-only and duplicate-time cases included.
+- [x] Save/reopen a noted segment and compare JSON. Verify channel/range changes clear the note, unsupported reports fail and failures preserve the current view. Passed 2026-10-16 on candidate `1ade437`; native reports before reopening, after reopening and after both rejected imports were byte-identical and matched independent expected JSON.
+- [x] Cancel a native save dialog, retry with a new filename, and verify the successful output on disk. Exercise overwrite cancellation using disposable synthetic files only. Confirm closing with unsaved work defaults to keeping the app open. Passed on 0.19.1 with file/mtime comparisons; 0.19.2 additionally verified the corrected keep-editing focus and subsequent save. These scoped results do not imply a complete UI rerun of 0.19.2.
+- [ ] Check keyboard-only import/edit/save navigation, focus visibility, minimum window size and Windows display scaling. Partial passes on 2026-10-20: scoped keyboard import, numeric edits, save activation, horizontal table scrolling and minimum-height navigation passed at the documented sizes; 0.19.2 corrected focus after the close warning. Windows display scaling remains unverified.
 - [ ] Rerun desktop tests, dependency audit, main CI and Windows packaging for the candidate commit. Inspect the package for unexpected customer/source data and verify packaged source/version.
 
 Mark steps only after execution; retain expected/actual results. Deliberately delayed asynchronous race checks should continue in automated/browser tests, where timing can be controlled reliably.

@@ -1,19 +1,27 @@
 {
   "name": "dd84-calibration-studio",
-  "version": "0.10.1",
+  "version": "0.21.0",
   "private": true,
-  "description": "DD84 local calibration project editor — simulation preview",
+  "description": "DD84 local calibration project editor - simulation preview",
   "author": "Down Dirty 84 LLC",
   "license": "UNLICENSED",
   "type": "module",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test.mjs filePair.test.mjs learning.test.mjs differences.test.mjs logs.test.mjs measurements.test.mjs timeline.test.mjs segment.test.mjs",
-    "package": "electron-packager . DD84-Calibration-Studio --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist --ignore=test.mjs"
+    "test": "node --test test.mjs project.test.mjs tableEdit.test.mjs realDraft.test.mjs realAirflow.test.mjs realCompare.test.mjs filePair.test.mjs learning.test.mjs differences.test.mjs logs.test.mjs measurements.test.mjs timeline.test.mjs segment.test.mjs board.test.mjs loopback.test.mjs bench.test.mjs closeGuard.test.mjs saveFile.test.mjs scripts/verify-package.test.mjs",
+    "package": "node scripts/package.mjs",
+    "pretest": "node prepare-link.mjs",
+    "prestart": "node prepare-link.mjs",
+    "prepackage": "node prepare-link.mjs",
+    "verify:package": "node scripts/verify-package.mjs"
   },
   "devDependencies": {
-    "electron": "44.4.5",
-    "@electron/packager": "20.3.0"
+    "@electron/asar": "4.3.0",
+    "@electron/packager": "20.3.0",
+    "electron": "44.4.5"
+  },
+  "dependencies": {
+    "serialport": "^13.0.0"
   }
 }

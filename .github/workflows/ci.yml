@@ -104,6 +104,13 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/flash_guard.c products/dd84-link/firmware/src/can_capture.c products/dd84-link/firmware/host_can_capture_test.c -o /tmp/dd84-capture
           /tmp/dd84-capture
 
+      - name: DD84 receive adapter
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Iproducts/dd84-link/firmware/include products/dd84-link/firmware/src/app.c products/dd84-link/firmware/src/can_capture.c products/dd84-link/firmware/src/wire.c products/dd84-link/firmware/src/receive_adapter.c products/dd84-link/firmware/host_receive_adapter_test.c -o /tmp/dd84-receive
+          /tmp/dd84-receive
+          cc -std=c11 -Wall -Wextra -Werror products/dd84-link/firmware/bench/console_test.c -o /tmp/dd84-console
+          /tmp/dd84-console
+
       # Blocking: anything that runs in the production server.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high

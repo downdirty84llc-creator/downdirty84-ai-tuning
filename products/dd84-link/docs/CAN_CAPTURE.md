@@ -3,6 +3,10 @@
 Status: host-tested queue and validation, not a board driver or physical capture.
 The API is declared in `firmware/include/dd84_can_capture.h`.
 
+The foreground receive/transport adapter is now host-tested; see
+[RECEIVE_ADAPTER.md](RECEIVE_ADAPTER.md) for mode-readback gates, bounded polling,
+partial-write handling, timestamp semantics and the remaining physical test plan.
+
 ## Receive path
 
 The future board driver must verify receive-only mode, gather fresh health results,

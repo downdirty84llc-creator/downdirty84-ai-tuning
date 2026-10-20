@@ -4,7 +4,7 @@
 
 Build independently authored DD84 software for the business's calibration workflow: vehicle/build records, original preservation, table import/editing/comparison, log analysis, human review, signed delivery and eventually validated controller-specific read/write/recovery. This is a functional product goal, not a conversion or rebranding of another vendor's software.
 
-The current desktop preview is original application code built on licensed open-source dependencies. Its HPT support only fingerprints files and records cases. It has not implemented another vendor's file parser, table definitions, licensing protocol, device driver or tuning engine. The inspected installed editor provided identity observations; that inspection is not a clean-room certification or a grant of reuse rights.
+The current desktop preview is original application code built on licensed open-source dependencies. Its native HPT support fingerprints files and records cases. Separate complete readable exports can populate editable local DD84 drafts with provenance; this is not native HPT editing. It has not implemented another vendor's file parser, table definitions, licensing protocol, device driver or tuning engine. The inspected installed editor provided identity observations; that inspection is not a clean-room certification or a grant of reuse rights.
 
 ## Source and ownership boundaries
 
@@ -36,7 +36,7 @@ The U.S. Copyright Office distinguishes protected program expression from ideas,
 4. **Controller adapters.** Add hardware/OS-specific definitions from documented permitted sources, with checksum and round-trip fixtures. Advertise support only after that adapter passes its tests. Track read, edit, export and write capabilities separately.
 5. **End-to-end hardware release.** Validate backup, recovery after interruption, identity binding and pre-write checks on a bench for each controller family before enabling physical writes. Then validate a signed Windows installer and update process.
 
-Current status: steps 1–5 are future milestones; preview 0.2 supplies the local case/fingerprint foundation and simulation editor. It does not provide universal controller support or real HPT calibration editing.
+Current status: preview 0.19 includes editable real exported-value drafts, same-source table merging, source fingerprint rechecks and full original preservation. Real draft comparisons now retain exact coordinates, source snapshots and missing/incompatible coverage. Captured Sierra MAF/spark/cooling and VE zone boundary tables are supported; VE coefficients and Holley candidate matrices remain read-only. Named categorical axes and source-bound controller identity evidence are preserved without enabling native definitions. Defined numeric curves/maps now support previewed range adjustments with atomic validation and one-step undo. Simulation editing and readable log/comparison inspection remain available. Step 1 has a working exported-value interchange, but exact controller/OS definitions, native HPT/Holley decoders, native output and steps 3–5 remain incomplete. See [Real parameter drafts](REAL_PARAMETER_DRAFTS.md) for precise coverage.
 
 ## Measured-learning milestone
 

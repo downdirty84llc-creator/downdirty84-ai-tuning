@@ -1,3 +1,4 @@
+import {saveJson} from './saveFileUI.mjs';
 import {fingerprint,makeCase,parseCase,matchFile} from './filePair.mjs';
 const $=id=>document.getElementById(id);
 let original=null,final=null,saved=null,dirty=false;
@@ -30,8 +31,7 @@ $('pair-clear').onclick=()=>{if(dirty&&!confirm('Clear the unsaved file-pair cas
 for(const name of ['pair-vehicle','pair-build'])$(name).addEventListener('input',()=>{requests.case++;dirty=true;});
 $('pair-save').onclick=()=>{try{
   const c=makeCase($('pair-vehicle').value,$('pair-build').value,original,final);
-  const url=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='DD84-file-pair.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
-  status('Save requested. This record contains notes and fingerprints only—not HPT backups, decoded tables or approval. Confirm the file was saved before closing.');
+  saveJson(c,'DD84-file-pair.json',status);
 }catch(e){status(e.message);}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 render();

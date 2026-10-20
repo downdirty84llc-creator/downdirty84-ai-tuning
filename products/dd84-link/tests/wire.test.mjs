@@ -32,6 +32,14 @@ test('CRC reference and independent frozen golden vector',()=>{
   assert.equal(first.toString('hex'),golden);
   assert.equal(decodeRecord(Buffer.from(golden,'hex')).timestampUs,'9007199254740993');
 });
+
+test('plain typed arrays and nonzero-offset views decode without Node Buffer methods',()=>{
+  const padded=new Uint8Array(120);padded.set(first,5);
+  const view=padded.subarray(5,117);
+  assert.deepEqual(decodeRecord(view),decodeRecord(first));
+  assert.deepEqual(new WireParser(session).feed(view),[decodeRecord(first)]);
+  assert.throws(()=>decodeRecord(new Array(112)),/header/);
+});
 test('every split, joined records and disconnect retain sequence evidence',()=>{
   for(let split=1;split<112;split++) {
     const p=new WireParser(session);

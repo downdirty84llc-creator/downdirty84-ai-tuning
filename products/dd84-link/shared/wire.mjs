@@ -1,7 +1,8 @@
 // Local capture codec. CRC detects corruption; it does not authenticate a device.
 export const WIRE_SIZE = 112;
 export const FD_LENGTHS = [0,1,2,3,4,5,6,7,8,12,16,20,24,32,48,64];
-const magic = Buffer.from('D84W');
+const magic = [0x44,0x38,0x34,0x57];
+const hasMagic = bytes => magic.every((value,index) => bytes[index] === value);
 export function crc32(bytes) {
   let crc = 0xffffffff;
   for (const byte of bytes) {
@@ -11,26 +12,28 @@ export function crc32(bytes) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 export function decodeRecord(b) {
-  if (b.length !== WIRE_SIZE || !b.subarray(0,4).equals(magic) ||
-      b[4] !== 1 || b.readUInt16LE(6) !== WIRE_SIZE || ![1,2].includes(b[5]))
+  if (!(b instanceof Uint8Array) || b.length !== WIRE_SIZE) throw new Error('header');
+  const view = new DataView(b.buffer,b.byteOffset,b.byteLength);
+  if (!hasMagic(b) || b[4] !== 1 || view.getUint16(6,true) !== WIRE_SIZE || ![1,2].includes(b[5]))
     throw new Error('header');
-  if (crc32(b.subarray(0,108)) !== b.readUInt32LE(108)) throw new Error('crc');
-  const session = b.readBigUInt64LE(8).toString();
+  if (crc32(b.subarray(0,108)) !== view.getUint32(108,true)) throw new Error('crc');
+  const session = view.getBigUint64(8,true).toString();
   if (session === '0') throw new Error('session');
   const result = {type: b[5] === 1 ? 'frame' : 'status', session,
-    sequence: b.readUInt32LE(16), timestampUs: b.readBigUInt64LE(20).toString()};
+    sequence: view.getUint32(16,true), timestampUs: view.getBigUint64(20,true).toString()};
   let padding;
   if (b[5] === 1) {
-    const id = b.readUInt32LE(28), channel = b[32], flags = b[33], dlc = b[34], length = b[35];
+    const id = view.getUint32(28,true), channel = b[32], flags = b[33], dlc = b[34], length = b[35];
     const extended = !!(flags&1), fd = !!(flags&2), brs = !!(flags&4);
     if (flags > 7 || channel > 1 || id > (extended ? 0x1fffffff : 0x7ff) ||
         dlc > 15 || (!fd && (brs || dlc > 8)) || FD_LENGTHS[dlc] !== length)
       throw new Error('frame');
-    Object.assign(result,{id,channel,extended,fd,brs,dlc,length,data:b.subarray(36,36+length).toString('hex')});
+    Object.assign(result,{id,channel,extended,fd,brs,dlc,length,
+      data:Array.from(b.subarray(36,36+length),byte=>byte.toString(16).padStart(2,'0')).join('')});
     padding = 36 + length;
   } else {
     const names = ['accepted','drained','droppedFull','rejectedInvalid','rejectedNotReady','rejectedTimestamp','queued','highWater'];
-    const values = names.map((_,i) => b.readBigUInt64LE(28+i*8));
+    const values = names.map((_,i) => view.getBigUint64(28+i*8,true));
     if (values[0] !== values[1]+values[6] || values[6] > values[7] || values[7] > 256n)
       throw new Error('status');
     result.counters = Object.fromEntries(names.map((name,i) => [name,values[i].toString()]));
@@ -44,7 +47,7 @@ export function decodeRecord(b) {
 // Explicit session binding prevents reconnects from silently mixing captures.
 // At most 112 retained bytes. Each feed is bounded to 4096 bytes.
 export class WireParser {
-  #buffer = Buffer.alloc(WIRE_SIZE); #used = 0; #session; #next = 0;
+  #buffer = new Uint8Array(WIRE_SIZE); #used = 0; #session; #next = 0;
   #lastTimestamp = 0n;
   constructor(session) {
     const value = BigInt(session);
@@ -62,7 +65,7 @@ export class WireParser {
     let discardedBytes = 0;
     for (const byte of chunk) {
       this.#buffer[this.#used++] = byte;
-      while (this.#used >= 4 && !this.#buffer.subarray(0,4).equals(magic)) {
+      while (this.#used >= 4 && !hasMagic(this.#buffer)) {
         this.#buffer.copyWithin(0,1,this.#used); this.#used--;
         discardedBytes++;
       }
