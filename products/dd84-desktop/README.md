@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.19.1
+# DD84 Calibration Studio — Windows preview 0.19.2
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -9,6 +9,8 @@ Extract the entire `DD84-Calibration-Studio-win32-x64` folder and run `DD84-Cali
 Use the workflow below that matches your task. Each panel stores a separate kind of record; saving one panel does not save the others. Retain source HPT, HPL and CSV files separately. Evidence reports contain fingerprints and notes, not backups of those source files.
 
 Save actions open a Windows dialog. Finish the dialog and verify the resulting file before closing. The renderer cannot detect save cancellation, so the unsaved-work warning is conservative. If you change inputs while an export is being prepared, that export may be canceled; finish your edits and save again.
+
+When closing with unsaved work, **Keep editing** is the default and Escape also keeps the window open. Keyboard focus returns to the active field so you can continue editing. Only **Discard and close** allows the pending changes to be discarded.
 
 ## Move around the workbench
 

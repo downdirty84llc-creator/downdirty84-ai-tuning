@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.19.1**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.19.2**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,8 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite and dependency audit, 0.19.2 | 105 tests passed; no reported vulnerabilities | Adds close-dialog state tests for keep, duplicate requests, one-use explicit discard, failure and destroyed windows; native focus checked separately |
+| Native close-dialog focus, 0.19.2 | Enter and Escape retain edits and restore visible focus; subsequent Tab and native save passed | Synthetic sample on the development PC at captured 1189×845 and 701×545 sizes; complete saved project checked against the expected sample and changed name. System display scaling and clean-machine acceptance remain pending |
 | Desktop automated suite and dependency audit, 0.19.1 | 100 tests passed; no reported vulnerabilities | Existing data/model/parser/board-mock suite; native keyboard behavior checked separately below |
 | Native navigation and numeric keyboard editing, 0.19.1 | 9 observed UI checks and 2 saved-file checks passed | Packaged preview on the existing development PC, synthetic data only; captures at 1189×845 and 695×845. Minimum-height layout, Windows display scaling and clean-machine acceptance remain pending |
 | Desktop automated suite, 0.19.0 | 100 tests passed | Atomic curve/map range operations, stale/forged previews, signed/zero values, full 4,096-cell table, fixed axes, originals and read-only protection |
@@ -107,6 +109,16 @@ At the captured 695×845 window size, navigation, review and save controls remai
 
 The complete saved project matched the independently verified baseline with exactly the two intended MAF edits. All other parameters, fixed axes and originals were preserved; the source baseline hash remained unchanged. Nine observed UI checks and two file checks passed. Mouse input was used to position some regression checks; this is not a claim that every workflow was tested entirely without a mouse. The 0.19.0 historical results above do not automatically qualify this replacement executable.
 
+## Minimum-height and close-dialog follow-up, 0.19.2
+
+The 2026-10-20 follow-up reached the configured minimum window height, with captures at 695×545 for 0.19.1. Open and Save controls and the required-review-note message remained reachable. Canceling a native save produced no file at the chosen path. Retrying produced a complete project with the expected two MAF edits. Attempting to export the original backup over that disposable project opened an overwrite prompt; choosing No and canceling preserved both its bytes and modification time.
+
+The 0.19.1 close warning preserved data when Enter chose Keep editing, but the page's visible keyboard focus could remain inactive afterward. Version 0.19.2 lets the close cancellation finish while an asynchronous native warning is shown, then refocuses the page for Keep editing or Escape. Repeated close attempts share the pending prompt; only an explicit discard response permits one subsequent close. A failed dialog keeps the window open.
+
+Native verification of the final 0.19.2 implementation restored the focused search field after Enter chose Keep editing, and Tab continued to the parameter library with a visible outline. At captured 701×545 size, Escape from another close warning restored the selected project name; Tab then reached the search field. Save remained reachable from the shortcut and keyboard. The resulting native project exactly matched the original six-parameter baseline with only the intended synthetic name change. The earlier 0.19.1 cancellation/retry output also matched its complete expected project.
+
+This pass recorded seven observations on 0.19.1, four on the corrected 0.19.2 candidate, and five file checks. Windows Settings did not expose a targetable window, so OS display scaling was not changed or verified. This was not clean-machine acceptance, a real-file calibration test, a native destructive-discard test, or a rerun of all historical UI workflows. The complete automated desktop suite passed 105 tests; the five close-state tests cover the explicit-discard path without discarding customer data.
+
 ## Next milestone: candidate acceptance on Windows
 
 Use one identified candidate build and synthetic fixtures. Record its commit, displayed version, archive SHA-256, Windows version, tester, date and each result. Do not overwrite another version's evidence. Keep files in a dedicated local test folder.
@@ -120,8 +132,8 @@ Use one identified candidate build and synthetic fixtures. Record its commit, di
 - [x] Reopen that full-log review with matching, renamed and altered CSV contents. Verify altered contents are rejected without losing current choices. Passed 2026-10-16 on candidate `1ade437`; the altered-source test preserved an intentional unselected mapping and current note.
 - [x] Apply a narrow range, equal-time bounds, empty window and full-recording reset. Switch channels; verify counts, missing intervals and bounds. Reject reversed/out-of-recording bounds. Passed 2026-10-16 on candidate `1ade437` with missing-only and duplicate-time cases included.
 - [x] Save/reopen a noted segment and compare JSON. Verify channel/range changes clear the note, unsupported reports fail and failures preserve the current view. Passed 2026-10-16 on candidate `1ade437`; native reports before reopening, after reopening and after both rejected imports were byte-identical and matched independent expected JSON.
-- [ ] Cancel a native save dialog, retry with a new filename, and verify the successful output on disk. Exercise overwrite cancellation using disposable synthetic files only. Confirm closing with unsaved work defaults to keeping the app open.
-- [ ] Check keyboard-only import/edit/save navigation, focus visibility, minimum window size and Windows display scaling. Partial 0.19.1 pass on 2026-10-20: scoped keyboard import, numeric edits, save activation, focus and horizontal table scrolling passed at the documented sizes. Minimum height and Windows display scaling remain unverified.
+- [x] Cancel a native save dialog, retry with a new filename, and verify the successful output on disk. Exercise overwrite cancellation using disposable synthetic files only. Confirm closing with unsaved work defaults to keeping the app open. Passed on 0.19.1 with file/mtime comparisons; 0.19.2 additionally verified the corrected keep-editing focus and subsequent save. These scoped results do not imply a complete UI rerun of 0.19.2.
+- [ ] Check keyboard-only import/edit/save navigation, focus visibility, minimum window size and Windows display scaling. Partial passes on 2026-10-20: scoped keyboard import, numeric edits, save activation, horizontal table scrolling and minimum-height navigation passed at the documented sizes; 0.19.2 corrected focus after the close warning. Windows display scaling remains unverified.
 - [ ] Rerun desktop tests, dependency audit, main CI and Windows packaging for the candidate commit. Inspect the package for unexpected customer/source data and verify packaged source/version.
 
 Mark steps only after execution; retain expected/actual results. Deliberately delayed asynchronous race checks should continue in automated/browser tests, where timing can be controlled reliably.
