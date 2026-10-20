@@ -1,3 +1,4 @@
+import {saveJson} from './saveFileUI.mjs';
 const section = document.createElement('section');
 section.id = 'board-workspace';
 section.innerHTML = '<h2>DD84 test board</h2><p>USB bench connection · No vehicle access</p><button id="board-refresh">Find board</button> <select id="board-port" aria-label="DD84 serial port"></select> <button id="board-probe" disabled>Test DD84 board</button><p id="board-result" role="status">Connect the FRDM-A-S32K344 by USB.</p>';
@@ -55,7 +56,5 @@ loop.onclick = async () => {
 };
 save.onclick = () => {
   if(!report)return;
-  const url=URL.createObjectURL(new Blob([JSON.stringify({format:'DD84_LOOPBACK_REPORT_V1',...report},null,2)],{type:'application/json'}));
-  const a=document.createElement('a');a.href=url;a.download='DD84-internal-loopback-test.json';a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  saveJson({format:'DD84_LOOPBACK_REPORT_V1',...report},'DD84-internal-loopback-test.json',text=>result.textContent=text);
 };

@@ -4,7 +4,7 @@ import {EventEmitter} from 'node:events';
 import {installCloseGuard} from './closeGuard.cjs';
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
-function fixture() {
+function fixture(options) {
   const contents = new EventEmitter();
   let focused = 0, closed = 0, destroyed = false;
   contents.focus = () => { focused++; };
@@ -18,7 +18,7 @@ function fixture() {
     calls.push(options);
     return new Promise((resolve, reject) => pending.push({resolve, reject}));
   }};
-  installCloseGuard(win, dialog);
+  installCloseGuard(win, dialog, options);
   return {
     calls, pending,
     get focused() { return focused; },
@@ -104,4 +104,19 @@ test('destroyed windows are not prompted, refocused or closed again', async () =
   await flush();
   assert.equal(g.closed, 0);
   assert.equal(g.focused, 0);
+});
+
+test('a save starting during the close prompt invalidates discard approval', async () => {
+  let saving = false;
+  const f = fixture({isSaving: () => saving});
+  f.request();
+  await flush();
+  saving = true;
+  f.pending[0].resolve({response: 1});
+  await flush();
+  assert.equal(f.closed, 0);
+  saving = false;
+  assert.equal(f.request().allowed, false);
+  await flush();
+  assert.equal(f.calls.length, 2);
 });

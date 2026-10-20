@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.19.2**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.20.0**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,7 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Confirmed JSON saving, 0.20.0 | 123 desktop tests passed; no reported dependency vulnerabilities; 7 native observations and 3 complete saved-file comparisons passed | Automated fault injection covers disk-full/locked files, write/flush/verification/rename failures, changed destinations, save concurrency and close races. Native sample, backup and log saves checked on the development PC; remaining export panels share the bridge but were not all exercised natively in this release |
 | Desktop automated suite and dependency audit, 0.19.2 | 105 tests passed; no reported vulnerabilities | Adds close-dialog state tests for keep, duplicate requests, one-use explicit discard, failure and destroyed windows; native focus checked separately |
 | Native close-dialog focus, 0.19.2 | Enter and Escape retain edits and restore visible focus; subsequent Tab and native save passed | Synthetic sample on the development PC at captured 1189×845 and 701×545 sizes; complete saved project checked against the expected sample and changed name. System display scaling and clean-machine acceptance remain pending |
 | Desktop automated suite and dependency audit, 0.19.1 | 100 tests passed; no reported vulnerabilities | Existing data/model/parser/board-mock suite; native keyboard behavior checked separately below |
@@ -63,6 +64,34 @@ This record distinguishes tests of the current source from historical native che
 | Native Windows 0.3 | Sample editing, undo and save smoke checks passed | Simulation editor only |
 
 The 0.10.1 implementation head had successful main CI and Windows packaging checks before this documentation revision. Future commits must use their own check results; this statement does not pre-approve a later build.
+
+## Confirmed-save acceptance, 0.20.0
+
+All JSON exports now use one bounded, caller-checked native save bridge. Tests
+verify that failures preserve destination bytes and modification time, partial
+temporary files are cleaned on handled failures, concurrent saves and normal
+closing are blocked during a pending write, and a save starting during a close
+prompt invalidates the pending discard approval. Renderer tests preserve the
+selected snapshot while later edits occur and never report a canceled, failed or
+browser-only download as a completed save.
+
+Native checks on 2026-10-20 used the packaged preview and synthetic data on the
+existing Windows development PC. Escape canceled a named save without creating
+it; retry saved a complete six-parameter project. A `.hpt` destination was
+rejected with a visible failure and no file. Declining replacement preserved the
+existing JSON and its modification time. Selecting a new name then saved the
+original backup. Project and backup matched the complete independently recorded
+sample baseline byte for byte. A full-log export matched the complete previously
+verified synthetic report with the deliberately unselected channel roles. Both
+panel and pinned messages reported the confirmed save, and Enter in the
+subsequent close warning kept the window open.
+
+The 123 tests ran locally on Node 24.13.1; remote Node 22 CI was not rerun.
+Disk-full/locked-file and pending-write close races were automated tests, not
+native Windows reproductions. Native replacement acceptance, the remaining
+export panels, Windows scaling, clean-machine launch and comprehensive candidate
+acceptance remain pending. No hardware or customer tuning files were used.
+These protections are not autosave, crash recovery or a power-loss guarantee.
 
 ## Native 0.19 candidate record
 

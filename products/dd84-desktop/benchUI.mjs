@@ -1,4 +1,5 @@
 import {makeBenchPlan,readBenchPlan,benchSession,MAX_CAPTURE_BYTES,MAX_PLAN_BYTES} from './bench.mjs';
+import {saveJson as saveRecord} from './saveFileUI.mjs';
 
 const section=document.createElement('section');
 section.id='bench-workspace';section.setAttribute('aria-labelledby','bench-title');
@@ -48,10 +49,7 @@ function showPlan(){
 }
 function status(text){$('status').textContent=text;}
 function saveJson(value,name){
-  const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)+'\n'],{type:'application/json'}));
-  const a=document.createElement('a');a.href=url;a.download=name;a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
-  status('Save requested. Complete the save dialog and check the file before closing.');
+  return saveRecord(value,name,status,{trailingNewline:true});
 }
 $('new').onclick=()=>{
   invalidate();plan=null;

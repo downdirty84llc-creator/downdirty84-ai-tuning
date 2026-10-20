@@ -2,6 +2,7 @@ const {app,BrowserWindow,session,dialog,ipcMain}=require('electron');
 const board=require('./board.cjs');
 const path=require('node:path');
 const {installCloseGuard}=require('./closeGuard.cjs');
+const {installFileSaving}=require('./saveFile.cjs');
 app.whenReady().then(()=>{
   session.defaultSession.setPermissionRequestHandler((_wc,_permission,reply)=>reply(false));
   session.defaultSession.setPermissionCheckHandler(()=>false);
@@ -19,8 +20,9 @@ app.whenReady().then(()=>{
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',event=>event.preventDefault());
   win.webContents.on('will-attach-webview',event=>event.preventDefault());
-  session.defaultSession.on('will-download',(_event,item)=>{item.setSaveDialogOptions({title:'Save DD84 calibration file',defaultPath:path.join(app.getPath('documents'),item.getFilename())});});
-  installCloseGuard(win,dialog);
+  const saving=installFileSaving({win,ipcMain,dialog,documents:app.getPath('documents')});
+  session.defaultSession.on('will-download',(_event,item)=>item.cancel());
+  installCloseGuard(win,dialog,{isSaving:saving.isBusy});
   win.removeMenu();win.loadFile(path.join(__dirname,'index.html'));
 });
 app.on('window-all-closed',()=>app.quit());

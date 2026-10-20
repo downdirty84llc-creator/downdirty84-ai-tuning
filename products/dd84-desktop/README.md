@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.19.2
+# DD84 Calibration Studio — Windows preview 0.20.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -8,7 +8,11 @@ Extract the entire `DD84-Calibration-Studio-win32-x64` folder and run `DD84-Cali
 
 Use the workflow below that matches your task. Each panel stores a separate kind of record; saving one panel does not save the others. Retain source HPT, HPL and CSV files separately. Evidence reports contain fingerprints and notes, not backups of those source files.
 
-Save actions open a Windows dialog. Finish the dialog and verify the resulting file before closing. The renderer cannot detect save cancellation, so the unsaved-work warning is conservative. If you change inputs while an export is being prepared, that export may be canceled; finish your edits and save again.
+Save actions open a Windows dialog, then show **Saved**, **Save canceled** or **Save failed** in the pinned status area. A successful save flushes and checks the complete JSON contents before replacing the destination. Cancellation writes nothing; a write or verification failure leaves an existing destination intact. A changed destination detected during preparation is rejected. The bridge accepts bounded DD84 JSON records only and refuses native tune extensions. Choose a different name to keep an older JSON copy.
+
+Only one save can run at a time, and normal closing is blocked while its dialog or disk write is pending. Wait for the result, then close again. Saving captures a copy of that panel at the time of the request; later edits and other panels need separate saves. Panel unsaved-work warnings remain conservative, including after a successful save. If inputs change while a report is being prepared, its existing validation may cancel that export; finish your edits and save again.
+
+These safeguards are not crash recovery, autosave or a power-loss guarantee. A force-quit or disconnected drive can leave a temporary file; keep your source files and backups. Browser development previews retain an explicitly unconfirmed download fallback.
 
 When closing with unsaved work, **Keep editing** is the default and Escape also keeps the window open. Keyboard focus returns to the active field so you can continue editing. Only **Discard and close** allows the pending changes to be discarded.
 
@@ -113,7 +117,7 @@ See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the current validation reco
 
 Use Node 22 for parity with CI. In this directory run `npm ci`, `npm test` and `npm start`. `npm run package` creates the Windows x64 portable folder under `dist/`. The [Windows workflow](../../.github/workflows/desktop.yml) installs dependencies, runs tests and the dependency audit, packages the app and retains its preview artifact for 14 days. Web/backend checks run separately.
 
-The renderer has no Node integration, remote content, network access or granted device permissions. A narrow preload bridge supports the three USB bench operations described below. The offline CAN workspace uses a local module worker with no hardware API. Context isolation and sandboxing remain enabled; navigation, webviews and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+The renderer has no Node integration, remote content, network access or granted device permissions. Narrow preload bridges support the three USB bench operations described below and saving a bounded DD84 JSON snapshot through a native file chooser. The renderer cannot choose a destination path or read arbitrary local files through the save bridge. The main process verifies the calling frame, limits saves to 32 MiB, stages a new sibling file, flushes and checks its bytes, and renames it into place. It never truncates or deletes the destination as a fallback. The offline CAN workspace uses a local module worker with no hardware API. Context isolation and sandboxing remain enabled; navigation, webviews, generic downloads and new windows are denied. See [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
 
 `pretest`, `prestart` and `prepackage` stage the canonical Link wire decoder and
 bench comparator into the ignored `link-shared/` directory. The package includes

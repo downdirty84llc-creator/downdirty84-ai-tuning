@@ -1,3 +1,4 @@
+import {saveJson} from './saveFileUI.mjs';
 import {MAX_DIFFERENCE_BYTES,parseDifferences,summarizeDifferences,differenceReport} from './differences.mjs';
 import {parseCase} from './filePair.mjs';
 const $=id=>document.getElementById(id);
@@ -14,6 +15,6 @@ $('diff-open').onchange=async e=>{const file=e.target.files[0];e.target.value=''
 $('diff-pair').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;const id=++pairRequest;pair=null;render();try{if(file.size>16384)throw Error('File-pair reference exceeds 16 KB.');const c=parseCase(await file.text());if(id!==pairRequest)return;pair=c;dirty=true;render();status('File-pair reference loaded. Verify this is the pair used to create the CSV.');}catch(error){if(id===pairRequest)status(error.message);}};
 $('diff-direction').onchange=()=>{dirty=true;render();};
 $('diff-evidence').oninput=()=>{dirty=true;};
-$('diff-save').onclick=async()=>{try{const r=await differenceReport(raw,name,pair,$('diff-direction').value,$('diff-evidence').value);const url=URL.createObjectURL(new Blob([JSON.stringify(r,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='DD84-comparison-evidence.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);status('Save requested for a read-only evidence report. No tables were edited or approved. Confirm the download before closing.');}catch(error){status(error.message);}};
+$('diff-save').onclick=async()=>{try{const r=await differenceReport(raw,name,pair,$('diff-direction').value,$('diff-evidence').value);await saveJson(r,'DD84-comparison-evidence.json',status);}catch(error){status(error.message);}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 render();

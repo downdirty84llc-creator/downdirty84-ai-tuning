@@ -1,3 +1,4 @@
+import {saveJson} from './saveFileUI.mjs';
 import {fingerprintEvidence,makeLearningCase,parseLearningCase,learningReadiness} from './learning.mjs';
 const $=id=>document.getElementById(id);
 let files=[],dirty=false,generation=0;
@@ -24,7 +25,7 @@ $('learning-file').onchange=async e=>{
   }catch(error){if(request===generation)status(error.message);}
 };
 $('learning-check').onclick=()=>{try{const r=learningReadiness(input());$('learning-readiness').textContent=[...r.missing,...r.areas.map(a=>`${a.area}: ${a.needs}`),r.next].join('\n\n');status('Learning remains blocked pending readable, validated measurements.');}catch(e){status(e.message);}};
-$('learning-save').onclick=()=>{try{const c=makeLearningCase(input());const url=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='DD84-learning-case.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);status('Save requested. This saves references and owner notes, not source files or verified measurements. Confirm the download before closing.');}catch(e){status(e.message);}};
+$('learning-save').onclick=()=>{try{saveJson(makeLearningCase(input()),'DD84-learning-case.json',status);}catch(e){status(e.message);}};
 $('learning-open').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file||dirty&&!confirm('Replace this unsaved learning case?'))return;const request=++generation;try{if(file.size>32768)throw Error('Learning case exceeds 32 KB.');const c=parseLearningCase(await file.text());if(request!==generation)return;files=c.files;$('learning-vehicle').value=c.vehicle;$('learning-displacement').value=c.displacementLiters??'';$('learning-cam').value=c.camNotes;$('learning-build').value=c.buildNotes;dirty=false;render();status('Reference record opened. Source files have not been reselected or verified in this session; associations are owner statements.');}catch(error){if(request===generation)status(error.message);}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 render();

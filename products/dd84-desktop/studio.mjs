@@ -4,6 +4,7 @@ import {compareReal,reportRealComparison} from './realCompare.mjs';
 import {attachControllerIdentity} from './realAirflow.mjs';
 import {previewTableEdit,applyTableEdit} from './tableEdit.mjs';
 import {retainTableTabOrder,showMessage as message,setupNavigation} from './navigation.mjs';
+import {saveJson} from './saveFileUI.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
 let comparisonProject=null,comparisonResult=null,comparisonSelected='';
@@ -174,8 +175,7 @@ $('undo').onclick=()=>{if(history.length){request++;project=history.pop();dirty=
 $('reset').onclick=()=>{if(confirm('Restore all editable parameters from their originals?'))mutate(restore(project));};
 $('reset-selected').onclick=()=>{if(confirm('Restore this parameter from its original?'))mutate(restore(project,selected));};
 function download(value,suffix){
-  const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=element('a');a.href=url;a.download=`DD84-${suffix}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
-  message('Save dialog opened. Confirm the file was saved before closing; cancellation cannot be detected.');
+  return saveJson(value,`DD84-${suffix}.json`);
 }
 $('save').onclick=()=>download(validate(project),isReal(project)?'real-calibration-draft':'project');
 $('backup').onclick=()=>download(backup(project),isReal(project)?'exported-original-values':'original');

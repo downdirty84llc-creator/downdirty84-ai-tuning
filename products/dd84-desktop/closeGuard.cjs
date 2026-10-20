@@ -1,4 +1,4 @@
-function installCloseGuard(win, dialog) {
+function installCloseGuard(win, dialog, {isSaving = () => false} = {}) {
   let prompting = false;
   let discardApproved = false;
   const restoreFocus = () => {
@@ -26,7 +26,7 @@ function installCloseGuard(win, dialog) {
     }).then(({response}) => {
       prompting = false;
       if (win.isDestroyed()) return;
-      if (response === 1) {
+      if (response === 1 && !isSaving()) {
         discardApproved = true;
         win.close();
       } else {
