@@ -25,3 +25,22 @@
 #range-editor select,#range-editor input{display:block;width:100%;max-width:100%;font:inherit;background:#0f1c26;color:#fff;padding:9px;border:1px solid #7b91a2;border-radius:5px}
 #range-preview-values{max-height:260px;overflow:auto;overflow-wrap:anywhere}
 #parameter-table td.range-cell{box-shadow:inset 0 0 0 2px #7ad5ff}
+
+html{scroll-padding-top:var(--tools-height,100px)}
+header{flex-wrap:wrap;gap:12px}
+main{padding:clamp(12px,3vw,25px)}
+fieldset{min-width:0}
+input,select,textarea{max-width:100%}
+pre{overflow-wrap:anywhere}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #7ad5ff;outline-offset:2px}
+#workspace-tools{position:sticky;top:0;z-index:10;background:#17232e;border-bottom:1px solid #526a7c;padding:8px max(12px,calc((100% - 1000px)/2));box-shadow:0 3px 8px #0005}
+#workspace-tools nav,#project-navigation{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+#workspace-tools button{margin:0;padding:8px 12px;font-size:14px}
+#workspace-tools nav button{background:#c6dae9}
+#message-row{display:flex;align-items:flex-start;gap:12px}
+#message{flex:1;min-width:0;max-height:25vh;overflow:auto;overflow-wrap:anywhere;margin:8px 0 0}
+#message:empty{display:none}
+#message-dismiss{flex:none;margin-top:8px!important}
+h2[tabindex]{scroll-margin-top:12px}
+.scroll:focus-visible{outline-offset:-3px}
+@media(max-width:760px){section{padding:16px}.file{max-width:100%;box-sizing:border-box}header{padding:16px}th,td{padding:10px}.range-controls label{min-width:min(180px,100%)}}

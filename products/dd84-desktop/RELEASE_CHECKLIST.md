@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.19.0**. Updated: **2026-10-19**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.19.1**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,8 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Desktop automated suite and dependency audit, 0.19.1 | 100 tests passed; no reported vulnerabilities | Existing data/model/parser/board-mock suite; native keyboard behavior checked separately below |
+| Native navigation and numeric keyboard editing, 0.19.1 | 9 observed UI checks and 2 saved-file checks passed | Packaged preview on the existing development PC, synthetic data only; captures at 1189×845 and 695×845. Minimum-height layout, Windows display scaling and clean-machine acceptance remain pending |
 | Desktop automated suite, 0.19.0 | 100 tests passed | Atomic curve/map range operations, stale/forged previews, signed/zero values, full 4,096-cell table, fixed axes, originals and read-only protection |
 | Browser workflow, 0.19.0 | Curve percent, map add/set, preview invalidation, whole-range rejection, one-step undo, labeled real-draft ranges and simulation save/reopen passed | Synthetic fixtures; both saved project types exactly match independently assembled expected values; fresh-origin stylesheet verified |
 | Desktop dependency audit, 0.19.0 | No reported vulnerabilities | Audit result at check time |
@@ -95,6 +97,16 @@ Restoring the selected switch left the other four edits intact; one Undo recover
 
 Both original backups matched the complete independent baseline and were byte-identical despite the intervening edits and restores. The edited project and reopened/resaved copy matched the complete expected project and were byte-identical. Reopening retained all five changes, cleared the review note and started with empty undo history. The complete review matched independent expectations for original fingerprint, unchanged axes/originals, five typed changes, coordinates, units, deltas, multipliers, note and project snapshot. Its dynamic timestamp fell within the recorded export action window. Thirteen observed UI checks, five complete JSON comparisons, two byte-equality checks, the timestamp check and unchanged candidate hashes passed: 22 checks total. No product code changed, no automated product suite rerun is implied, and no replacement package was built.
 
+## Native usability follow-up, 0.19.1
+
+On 2026-10-20, the 0.19.0 candidate reproduced a numeric-cell keyboard bug: after an edit, Tab committed the value but lost focus when the table was replaced. The next Tab returned to the same cell. Version 0.19.1 restores the position in the keyboard sequence after validation. It also adds persistent workbench navigation, a dismissible editor status area, clearer focus outlines and a keyboard-focusable horizontal table region.
+
+The packaged 0.19.1 preview imported the untouched six-parameter baseline through the keyboard and native file dialog. Numeric Tab committed the first MAF value from 10 to 12 and focused the second cell; Shift+Tab committed the second value from 25 to 26 and returned to the first. Entering zero was rejected, preserved 12 and advanced focus with the error visible above the table. Exporting a review without a note showed its validation message in the bottom save viewport.
+
+At the captured 695×845 window size, navigation, review and save controls remained reachable and readable. Activating Save and pressing Tab reached Save project copy; Enter opened the native dialog and saved a uniquely named synthetic project. Dismissing the message restored navigation order. Keyboard activation of Edit parameters focused its heading, and Tab from the VE parameter list reached the outlined table region, where Right scrolled the columns horizontally.
+
+The complete saved project matched the independently verified baseline with exactly the two intended MAF edits. All other parameters, fixed axes and originals were preserved; the source baseline hash remained unchanged. Nine observed UI checks and two file checks passed. Mouse input was used to position some regression checks; this is not a claim that every workflow was tested entirely without a mouse. The 0.19.0 historical results above do not automatically qualify this replacement executable.
+
 ## Next milestone: candidate acceptance on Windows
 
 Use one identified candidate build and synthetic fixtures. Record its commit, displayed version, archive SHA-256, Windows version, tester, date and each result. Do not overwrite another version's evidence. Keep files in a dedicated local test folder.
@@ -109,7 +121,7 @@ Use one identified candidate build and synthetic fixtures. Record its commit, di
 - [x] Apply a narrow range, equal-time bounds, empty window and full-recording reset. Switch channels; verify counts, missing intervals and bounds. Reject reversed/out-of-recording bounds. Passed 2026-10-16 on candidate `1ade437` with missing-only and duplicate-time cases included.
 - [x] Save/reopen a noted segment and compare JSON. Verify channel/range changes clear the note, unsupported reports fail and failures preserve the current view. Passed 2026-10-16 on candidate `1ade437`; native reports before reopening, after reopening and after both rejected imports were byte-identical and matched independent expected JSON.
 - [ ] Cancel a native save dialog, retry with a new filename, and verify the successful output on disk. Exercise overwrite cancellation using disposable synthetic files only. Confirm closing with unsaved work defaults to keeping the app open.
-- [ ] Check keyboard-only import/edit/save navigation, focus visibility, minimum window size and Windows display scaling. Record any clipped or unreachable controls.
+- [ ] Check keyboard-only import/edit/save navigation, focus visibility, minimum window size and Windows display scaling. Partial 0.19.1 pass on 2026-10-20: scoped keyboard import, numeric edits, save activation, focus and horizontal table scrolling passed at the documented sizes. Minimum height and Windows display scaling remain unverified.
 - [ ] Rerun desktop tests, dependency audit, main CI and Windows packaging for the candidate commit. Inspect the package for unexpected customer/source data and verify packaged source/version.
 
 Mark steps only after execution; retain expected/actual results. Deliberately delayed asynchronous race checks should continue in automated/browser tests, where timing can be controlled reliably.

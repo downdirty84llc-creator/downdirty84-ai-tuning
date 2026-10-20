@@ -3,12 +3,13 @@ import {importRealExport,mergeRealDrafts,verifyTuneSource} from './realImport.mj
 import {compareReal,reportRealComparison} from './realCompare.mjs';
 import {attachControllerIdentity} from './realAirflow.mjs';
 import {previewTableEdit,applyTableEdit} from './tableEdit.mjs';
+import {retainTableTabOrder,showMessage as message,setupNavigation} from './navigation.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
 let comparisonProject=null,comparisonResult=null,comparisonSelected='';
 let rangePreview=null;
 const definition=path=>projectDefinition(project,path);
-const message=text=>$('message').textContent=text;
+setupNavigation();
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
 function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
 function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;$('real-compare-note').value='';render();}
@@ -35,7 +36,7 @@ function inputFor(p,index,d){
       mutate(edit(project,p.path,index,value));message('Working value updated; original preserved.');
       if(focused)$('parameter-table').querySelectorAll('input,select')[index]?.focus();
     }catch(e){message(e.message);input.value=String(p.values[index]);}
-  });return input;
+  });retainTableTabOrder(input,index);return input;
 }
 function renderParameter(){
   clearRangePreview();$('range-editor').hidden=true;
@@ -126,7 +127,7 @@ function renderLibrary(){
   renderParameter();
 }
 function render(){
-  $('workspace').hidden=!project;if(!project)return;
+  $('workspace').hidden=!project;$('project-navigation').hidden=!project;if(!project)return;
   $('name').value=project.name;$('identity').textContent=`${project.controller} · ${project.definitionSet} · ${dirty?'Unsaved edits':'Project loaded'}`;
   $('editor-mode').textContent=isReal(project)?'Real exported values — local draft only. The source tune is not modified; native tune export and vehicle writing are unavailable. Displayed precision may differ from native stored precision.':'Synthetic simulation examples; no vehicle data.';
   $('real-source-details').hidden=!isReal(project);
