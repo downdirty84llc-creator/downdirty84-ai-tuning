@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.23.0**. Updated: **2026-10-21**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.24.0**. Updated: **2026-10-21**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,8 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Operating-context review, 0.24.0 | 163 desktop tests passed; dependency audit reported no vulnerabilities. Covers inclusive counts, overlapping/disjoint/point ranges, range gaps, missing selections, unit mismatches, empty windows, duplicate timestamps, strict numeric parsing, 100,000-row bounds and V1 comparison migration | Synthetic fixtures only. Independent range overlap does not establish simultaneous coverage, matched conditions, validated sensors or improvement. Native UI and clean-machine acceptance remain pending |
+| Browser operating-context review, 0.24.0 | Source gating, renamed-source recheck, V1 upgrade, four context statuses, stale result/note clearing and forged-context recomputation passed; both complete saved reports matched the expected V2 report byte for byte; no console errors observed | Synthetic data on the development PC; no native UI or clean-machine acceptance claim |
 | Independent log-window comparison, 0.23.0 | 150 desktop tests passed; dependency audit reported no vulnerabilities. Covers exact case/source binding, two inclusive windows, empty/missing/nonnumeric readings, duplicate timestamps, unit mismatch, stage order, asynchronous snapshots and source-recomputed reopening | Synthetic fixtures only. Windows remain independent and are not matched for operating conditions. Native UI and clean-machine acceptance for this release remain pending |
 | Browser log-window comparison, 0.23.0 | Source-check gate, unit-mismatch rejection, inclusive-window counts, empty/missing-only windows, note/result invalidation, mismatched-case rejection, source-recomputed reopening and byte-identical resave passed; no console errors observed | Synthetic CSVs on the development PC. Full saved report matched the expected object; this is not native Windows or clean-machine acceptance |
 | Learning-case CSV evidence, 0.22.0 | 140 desktop tests passed; dependency audit reported no vulnerabilities. Covers exact tune association, duplicate-stage rejection, after-final identity, invalidated references, V1 upgrade, V2 save validation, source rechecks and rejected forged session receipts | Synthetic fixtures only. CSV hashes do not authenticate a tune association, native HPL export origin, sensors or performance; learning remains disabled. Interactive clean-machine and native-dialog acceptance for this candidate are incomplete |

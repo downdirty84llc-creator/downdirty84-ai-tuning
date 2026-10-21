@@ -112,3 +112,14 @@ test('supports earlier-to-before-final comparison without inventing a final outc
   const r=await compareLearningWindows(next,[...receipts,earlier],{...options(),beforeRole:'EARLIER_LOG',afterRole:'BEFORE_FINAL_LOG',afterRange:{start:0,end:2}});
   assert.equal(r.before.timeline.max,900);assert.equal(r.after.timeline.max,1000);assert.equal(r.learningReady,false);
 });
+test('V2 comparison recomputes context from checked sources and upgrades legacy V1 reports',async()=>{
+  const {c,receipts}=await fixture(afterCsv.replace('s,rpm,kPa','s,rpm,psi'));
+  const result=await compareLearningWindows(c,receipts,options());
+  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V2');
+  assert.equal(result.operatingContext.channels.find(c=>c.role==='MAP').status,'UNIT_MISMATCH');
+  const forged=structuredClone(result);forged.operatingContext={operatingConditionsMatched:true,channels:[]};
+  assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),result);
+  const {operatingContext,...legacy}=result;legacy.format='DD84_LEARNING_COMPARISON_V1';
+  assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),result);
+  assert.equal(result.operatingContext.operatingConditionsMatched,false);
+});

@@ -38,6 +38,38 @@ export function setupLearningComparison({getCase,getReceipts}) {
     }
     channels();ranges();
   }
+  function contextTable(context) {
+    const section=document.createElement('div'),heading=document.createElement('h4'),notice=document.createElement('p');
+    heading.textContent='Operating context';
+    notice.textContent='Range overlap is a review aid. RPM, pressure and temperatures are inspected independently; matching operating conditions have not been established.';
+    const table=document.createElement('table');table.className='context-table';
+    const head=document.createElement('thead'),row=document.createElement('tr');
+    for(const text of ['Reviewed channel','Earlier window','Later window','Range review']){
+      const cell=document.createElement('th');cell.scope='col';cell.textContent=text;row.append(cell);
+    }
+    head.append(row);const body=document.createElement('tbody');
+    const labels={RPM:'Engine speed',MAP:'Manifold absolute pressure',INTAKE_TEMPERATURE:'Intake temperature',COOLANT_TEMPERATURE:'Coolant temperature'};
+    const summary=s=>s.status==='UNSELECTED'?'Not selected for review':
+      `${s.channel.name} [${s.channel.unit}]\n${s.numericCount?`${s.min} to ${s.max}`:'No numeric readings'}\n`+
+      `${s.numericCount} numeric · ${s.missingCount} missing · ${s.textCount} nonnumeric`+
+      (s.flags.includes('CONSTANT_RECORDED_VALUE')?'\nConstant recorded value':'');
+    const review=c=>{
+      const messages={MISSING_REVIEWED_CHANNEL:'Select this channel in both CSV reviews.',UNIT_MISMATCH:'Units differ; no overlap calculated.',
+        NO_NUMERIC_READINGS:'At least one window has no numeric readings.',NO_RANGE_OVERLAP:'No recorded range overlap.',
+        SINGLE_VALUE_OVERLAP:'Ranges touch at one value.',RANGE_OVERLAP:'Recorded ranges overlap.',
+        OVERLAP_WITHOUT_READINGS_ON_BOTH_SIDES:'Range bounds overlap, but at least one window has no readings inside.'};
+      return messages[c.status]+(c.sharedRange?`\n${c.sharedRange.min} to ${c.sharedRange.max} ${c.sharedRange.unit}\n`+
+        `Readings inside: earlier ${c.readingsInSharedRange.before}/${c.before.numericCount}; later ${c.readingsInSharedRange.after}/${c.after.numericCount}`:'');
+    };
+    for(const c of context.channels){
+      const row=document.createElement('tr'),label=document.createElement('th');label.scope='row';label.textContent=labels[c.role];row.append(label);
+      for(const text of [summary(c.before),summary(c.after),review(c)]){const cell=document.createElement('td');cell.textContent=text;row.append(cell);}
+      body.append(row);
+    }
+    table.append(head,body);
+    const limits=document.createElement('p');limits.textContent='Counts include repeated timestamps and do not measure time spent at a condition. No combined RPM/load coverage, unit conversion, sensor validation or performance gain is inferred.';
+    section.append(heading,notice,table,limits);return section;
+  }
   function render(result) {
     report=result;dirty=true;
     const table=document.createElement('table'),caption=document.createElement('caption');
@@ -60,7 +92,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
       for(const side of ['before','after']){const cell=document.createElement('td');cell.textContent=String(value(result[side]));row.append(cell);}
       body.append(row);
     }
-    table.append(caption,head,body);$('results').replaceChildren(table);$('save').disabled=false;
+    table.append(caption,head,body);$('results').replaceChildren(table,contextTable(result.operatingContext));$('save').disabled=false;
   }
   for(const side of ['before','after'])$(side).onchange=()=>{clear();channels();ranges();};
   $('channel').onchange=()=>clear();
