@@ -1,5 +1,6 @@
 import {logReport} from './logs.mjs';
 import {channelTimeline} from './timeline.mjs';
+import {compareOperatingContext} from './operatingContext.mjs';
 
 export const measurementRoles = ['EARLIER_LOG', 'BEFORE_FINAL_LOG', 'AFTER_FINAL_LOG'];
 const channelRoles = new Set(['RPM', 'MAP', 'COMMANDED_LAMBDA', 'MEASURED_LAMBDA',
@@ -56,6 +57,16 @@ export function measurementWindow(reference, candidates, channelRole, range) {
   if (!channel) throw Error('Select the same reviewed channel role in both CSVs first.');
   if (!range) throw Error('Choose an explicit time window for each recording.');
   return channelTimeline(receipts.get(candidate).raw, channel.channelId, range);
+}
+export function measurementContext(before, after, candidates, beforeRange, afterRange) {
+  const inputs=[before,after].map((reference,index)=>{
+    const key=JSON.stringify(measurementReference(reference));
+    const candidate=candidates.find(item=>receipts.get(item)?.key===key);
+    if(!candidate)throw Error('Recheck both source CSVs in this session before comparing.');
+    return {raw:receipts.get(candidate).raw,selections:candidate.report.channelSelection.entries,
+      range:index===0?beforeRange:afterRange};
+  });
+  return compareOperatingContext(...inputs);
 }
 export async function captureLearningMeasurement(input, role, note) {
   // logReport snapshots selections before hashing; primitives and timeline note are captured here.

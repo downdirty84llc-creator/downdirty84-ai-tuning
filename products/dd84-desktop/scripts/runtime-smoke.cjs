@@ -73,6 +73,10 @@ const {createHash} = require('node:crypto');
     assert.equal(compared.before.timeline.max, 900);
     assert.equal(compared.after.timeline.max, 1000);
     assert.equal(compared.learningReady, false);
+    assert.equal(compared.format, 'DD84_LEARNING_COMPARISON_V2');
+    assert.deepEqual(compared.operatingContext.channels[0].readingsInSharedRange, {before:2,after:1});
+    assert.equal(compared.operatingContext.channels[1].status, 'MISSING_REVIEWED_CHANNEL');
+    assert.equal(compared.operatingContext.operatingConditionsMatched, false);
     const comparisonBytes = validateRequest({filename:'comparison.json',text:JSON.stringify(compared)});
     await writeVerifiedCopy(comparisonFilename, comparisonBytes);
     assert.deepEqual(await fs.readFile(comparisonFilename), comparisonBytes);
@@ -82,7 +86,7 @@ const {createHash} = require('node:crypto');
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });

@@ -1,5 +1,5 @@
 import {makeLearningCase} from './learning.mjs';
-import {measurementRoles,measurementReference,measurementWindow} from './learningMeasurements.mjs';
+import {measurementRoles,measurementReference,measurementWindow,measurementContext} from './learningMeasurements.mjs';
 
 export const MAX_LEARNING_COMPARISON_BYTES = 1024 * 1024;
 const method = 'INDEPENDENT_CHANNEL_WINDOWS_V1';
@@ -31,10 +31,11 @@ export async function compareLearningWindows(input, receipts, options) {
   const selection = {beforeRole,afterRole,channelRole,
     beforeRange:{start:before.timeline.time.first,end:before.timeline.time.last},
     afterRange:{start:after.timeline.time.first,end:after.timeline.time.last}};
+  const operatingContext=measurementContext(before.reference,after.reference,receipts,selection.beforeRange,selection.afterRange);
   return {
-    format:'DD84_LEARNING_COMPARISON_V1',status:'EVIDENCE_ONLY_NOT_RELEASED',writeStrategy:'SIMULATION_ONLY',
+    format:'DD84_LEARNING_COMPARISON_V2',status:'EVIDENCE_ONLY_NOT_RELEASED',writeStrategy:'SIMULATION_ONLY',
     method,learningCase:{sha256:await fingerprint(c),hashScope},vehicle:c.vehicle,
-    selection,note:note.trim(),noteProvenance:'OPERATOR_SUPPLIED_NOT_VERIFIED',before,after,
+    selection,note:note.trim(),noteProvenance:'OPERATOR_SUPPLIED_NOT_VERIFIED',before,after,operatingContext,
     learningReady:false,automaticApplication:false,
     limitations:[
       'Each window is summarized independently in its own recording-offset seconds; both endpoints are included.',
@@ -51,7 +52,7 @@ export async function reopenLearningComparison(saved, input, receipts) {
   if (typeof saved !== 'string' || new TextEncoder().encode(saved).length > MAX_LEARNING_COMPARISON_BYTES)
     throw Error('Saved log-window comparison exceeds 1 MB.');
   const value = JSON.parse(saved);
-  if (value?.format !== 'DD84_LEARNING_COMPARISON_V1' || value.status !== 'EVIDENCE_ONLY_NOT_RELEASED' ||
+  if (!['DD84_LEARNING_COMPARISON_V1','DD84_LEARNING_COMPARISON_V2'].includes(value?.format) || value.status !== 'EVIDENCE_ONLY_NOT_RELEASED' ||
       value.writeStrategy !== 'SIMULATION_ONLY' || value.method !== method || value.learningReady !== false ||
       value.automaticApplication !== false || value.noteProvenance !== 'OPERATOR_SUPPLIED_NOT_VERIFIED' ||
       value.learningCase?.hashScope !== hashScope || typeof value.learningCase.sha256 !== 'string' ||
