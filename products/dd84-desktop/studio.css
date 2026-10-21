@@ -24,6 +24,13 @@
 .range-controls label{flex:1;min-width:180px}
 #range-editor select,#range-editor input{display:block;width:100%;max-width:100%;font:inherit;background:#0f1c26;color:#fff;padding:9px;border:1px solid #7b91a2;border-radius:5px}
 #range-preview-values{max-height:260px;overflow:auto;overflow-wrap:anywhere}
+#learning-comparison{margin:20px 0;padding:16px;border:1px solid #526a7c;border-radius:8px}
+#learning-comparison legend{font-weight:650;padding:0 8px}
+#learning-comparison select{display:block;font:inherit;padding:8px;background:#0f1c26;color:#fff;border:1px solid #7b91a2;border-radius:5px}
+#learning-comparison .range-controls input{display:block;width:100%}
+#learning-compare-results table{min-width:560px;table-layout:fixed}
+#learning-compare-results th,#learning-compare-results td{overflow-wrap:anywhere}
+#learning-compare-results caption{text-align:left;padding:12px 0;font-weight:650}
 #parameter-table td.range-cell{box-shadow:inset 0 0 0 2px #7ad5ff}
 
 html{scroll-padding-top:var(--tools-height,100px)}

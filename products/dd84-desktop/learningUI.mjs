@@ -4,11 +4,13 @@ import {fingerprintEvidence,makeLearningCase,parseLearningCase,learningReadiness
 import {captureLearningMeasurement,recheckLearningMeasurement,measurementCoverage} from './learningMeasurements.mjs';
 import {currentLogReviewInput} from './logsUI.mjs';
 import {MAX_LOG_BYTES} from './logs.mjs';
+import {setupLearningComparison} from './learningComparisonUI.mjs';
 const $=id=>document.getElementById(id);
 let files=[],measurements=[],receipts=[],dirty=false,generation=0;
 const status=value=>$('learning-status').textContent=value;
 const input=()=>({vehicle:$('learning-vehicle').value,displacementLiters:$('learning-displacement').value===''?null:Number($('learning-displacement').value),camNotes:$('learning-cam').value,buildNotes:$('learning-build').value,files,measurements});
-function adopt(c){files=c.files;measurements=c.measurements;}
+function adopt(c){files=c.files;measurements=c.measurements;receipts=receipts.filter(r=>measurements.some(m=>JSON.stringify(m)===JSON.stringify(r.reference)));}
+const comparison=setupLearningComparison({getCase:input,getReceipts:()=>receipts});
 function coverageText(m){
   const c=measurementCoverage(m,receipts);
   if(c.sourceStatus==='SOURCE_RECHECK_REQUIRED')return 'Source recheck required. Saved choices are references only; no measurement counts are trusted.';
@@ -45,9 +47,9 @@ function render(){
   $('learning-files').textContent=files.length?files.map(f=>`${f.role}: ${f.name}\nSHA-256 ${f.sha256}\nLogged calibration: ${f.tuneSha256??'unconfirmed / not applicable'}`).join('\n\n'):'No evidence attached.';
   const select=$('learning-tune');select.replaceChildren(new Option('Unconfirmed',''));
   for(const f of files.filter(f=>f.name.toLowerCase().endsWith('.hpt')))select.add(new Option(`${f.role}: ${f.name}`,f.sha256));
-  renderMeasurements();$('learning-readiness').textContent='Select “Check learning readiness” to refresh the evidence requirements.';
+  renderMeasurements();comparison.invalidate(true);$('learning-readiness').textContent='Select “Check learning readiness” to refresh the evidence requirements.';
 }
-for(const id of ['learning-vehicle','learning-displacement','learning-cam','learning-build'])$(id).oninput=()=>{dirty=true;generation++;$('learning-readiness').textContent='Details changed. Check learning readiness again.';};
+for(const id of ['learning-vehicle','learning-displacement','learning-cam','learning-build'])$(id).oninput=()=>{dirty=true;generation++;comparison.invalidate();$('learning-readiness').textContent='Details changed. Check learning readiness again.';};
 for(const id of ['learning-role','learning-tune'])$(id).onchange=()=>{generation++;};
 $('learning-measurement-role').onchange=()=>{generation++;$('learning-measurement-note').value='';};
 $('learning-measurement-note').oninput=()=>{generation++;dirty=true;};

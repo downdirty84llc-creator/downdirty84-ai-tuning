@@ -1,6 +1,6 @@
 {
   "name": "dd84-calibration-studio",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "description": "DD84 local calibration project editor - simulation preview",
   "author": "Down Dirty 84 LLC",
@@ -9,7 +9,7 @@
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test.mjs project.test.mjs tableEdit.test.mjs realDraft.test.mjs realAirflow.test.mjs realCompare.test.mjs filePair.test.mjs learning.test.mjs learningMeasurements.test.mjs differences.test.mjs logs.test.mjs measurements.test.mjs timeline.test.mjs segment.test.mjs board.test.mjs loopback.test.mjs bench.test.mjs closeGuard.test.mjs saveFile.test.mjs scripts/verify-package.test.mjs",
+    "test": "node --test test.mjs project.test.mjs tableEdit.test.mjs realDraft.test.mjs realAirflow.test.mjs realCompare.test.mjs filePair.test.mjs learning.test.mjs learningMeasurements.test.mjs learningComparison.test.mjs differences.test.mjs logs.test.mjs measurements.test.mjs timeline.test.mjs segment.test.mjs board.test.mjs loopback.test.mjs bench.test.mjs closeGuard.test.mjs saveFile.test.mjs scripts/verify-package.test.mjs",
     "package": "node scripts/package.mjs",
     "pretest": "node prepare-link.mjs",
     "prestart": "node prepare-link.mjs",
