@@ -1,9 +1,89 @@
-name: Windows calibration studio
+# Calibration Studio — the desktop app the owner actually drafts parameters in.
+#
+# Why this runs where it runs
+# ---------------------------
+# This workflow used to trigger on `pull_request` and `workflow_dispatch` only.
+# Nothing ran it on a merge, so the Studio's tests never saw a merge commit:
+# main's green tick covered the backend, the frontend and the firmware, and
+# said nothing whatsoever about the 163 tests in here. That is the same shape
+# of hole this repository keeps finding — a check that did not run reading as a
+# check that passed. #27 found the backend's audit gate omitting dev
+# dependencies entirely, so build-chain advisories were invisible on a job that
+# reported success; this is that again, one workflow out.
+#
+# It had already bitten. PR #28 merged after #29–#32, so the tree on main was a
+# combination no Studio run had ever executed. It passes when run by hand
+# afterwards — verified — but that was luck, not a gate.
+#
+# Two jobs, because the two things cost very different amounts:
+#
+#   tests    ubuntu, every push and PR. `npm test` is plain `node --test` over
+#            .mjs/.cjs modules; only main.cjs and preload.cjs require electron
+#            and neither is in the test list, so ELECTRON_SKIP_BINARY_DOWNLOAD
+#            avoids a ~100MB download the tests do not use. Verified: 163/163
+#            pass on Linux with the binary skipped. Running it here also buys
+#            cross-platform coverage the Windows-only job could not — this code
+#            splits paths on /[\\/]/ and writes files, so Linux catches
+#            separator and case-sensitivity assumptions that Windows hides.
+#
+#   windows  windows-latest, pull requests and manual runs only. Windows
+#            minutes bill at 2x and this repository has already had CI starve
+#            on exhausted Actions minutes. Packaging earns that cost when there
+#            is a reviewer and a downloadable artifact to review; on a merge it
+#            would produce an artifact nobody opens.
+#
+# The audit differs between them on purpose. `npm audit --audit-level=low`
+# stays on the Windows job, where a human is reading the PR and dev-dependency
+# churn is actionable. The push-side job uses scripts/audit-report.mjs instead
+# — report loudly, block only on `critical`. Gating main at `low` on electron's
+# dev tree would recreate precisely the flaw removed in #25, #26 and #27: a red
+# main for packages that never reach a customer, which teaches people that red
+# main is noise.
+name: Calibration studio
+
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  tests:
+    name: Calibration Studio — tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: products/dd84-desktop/package-lock.json
+
+      # The tests never launch Electron, so skip fetching its binary.
+      - name: Install
+        run: npm ci
+        working-directory: products/dd84-desktop
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Tests
+        run: npm test
+        working-directory: products/dd84-desktop
+
+      # Reported, not fatal unless critical. See the header, and the long
+      # reasoning in scripts/audit-report.mjs. Shared with the backend and
+      # frontend jobs so the three cannot drift apart.
+      - name: Report build-only advisories (fatal only if critical)
+        run: node scripts/audit-report.mjs products/dd84-desktop "calibration studio"
+
   windows:
+    name: Calibration Studio — Windows package
+    # Skipped on merges; see the header.
+    if: github.event_name != 'push'
     runs-on: windows-latest
     defaults:
       run:
