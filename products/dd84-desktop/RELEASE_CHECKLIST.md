@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.22.0**. Updated: **2026-10-20**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.23.0**. Updated: **2026-10-21**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,8 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Independent log-window comparison, 0.23.0 | 150 desktop tests passed; dependency audit reported no vulnerabilities. Covers exact case/source binding, two inclusive windows, empty/missing/nonnumeric readings, duplicate timestamps, unit mismatch, stage order, asynchronous snapshots and source-recomputed reopening | Synthetic fixtures only. Windows remain independent and are not matched for operating conditions. Native UI and clean-machine acceptance for this release remain pending |
+| Browser log-window comparison, 0.23.0 | Source-check gate, unit-mismatch rejection, inclusive-window counts, empty/missing-only windows, note/result invalidation, mismatched-case rejection, source-recomputed reopening and byte-identical resave passed; no console errors observed | Synthetic CSVs on the development PC. Full saved report matched the expected object; this is not native Windows or clean-machine acceptance |
 | Learning-case CSV evidence, 0.22.0 | 140 desktop tests passed; dependency audit reported no vulnerabilities. Covers exact tune association, duplicate-stage rejection, after-final identity, invalidated references, V1 upgrade, V2 save validation, source rechecks and rejected forged session receipts | Synthetic fixtures only. CSV hashes do not authenticate a tune association, native HPL export origin, sensors or performance; learning remains disabled. Interactive clean-machine and native-dialog acceptance for this candidate are incomplete |
 | Adjustable view and verified packaging, 0.21.0 | 130 desktop tests passed; no reported dependency vulnerabilities; native view-size/navigation/save checks and complete sample-file comparison passed | Packaged runtime also passed with system Node excluded. These are development-PC checks, not clean-machine or OS scaling acceptance; see the scoped record below |
 | Confirmed JSON saving, 0.20.0 | 123 desktop tests passed; no reported dependency vulnerabilities; 7 native observations and 3 complete saved-file comparisons passed | Automated fault injection covers disk-full/locked files, write/flush/verification/rename failures, changed destinations, save concurrency and close races. Native sample, backup and log saves checked on the development PC; remaining export panels share the bridge but were not all exercised natively in this release |

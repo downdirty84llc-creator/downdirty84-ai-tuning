@@ -23,6 +23,7 @@ const {createHash} = require('node:crypto');
   const {writeVerifiedCopy,validateRequest} = require(path.join(archive, 'saveFile.cjs'));
   const filename = path.join(process.cwd(), 'runtime-project.json');
   const caseFilename = path.join(process.cwd(), 'runtime-learning-case.json');
+  const comparisonFilename = path.join(process.cwd(), 'runtime-learning-comparison.json');
   try {
     const saved = await writeVerifiedCopy(filename, bytes);
     assert.deepEqual(await fs.readFile(filename), bytes);
@@ -58,14 +59,34 @@ const {createHash} = require('node:crypto');
     const rechecked = await measurements.recheckLearningMeasurement(reopenedCase.measurements[0], csv, 'renamed.csv');
     assert.equal(measurements.measurementCoverage(reopenedCase.measurements[0], [rechecked]).rows, 2);
     assert.equal(learning.learningReadiness(reopenedCase, [rechecked]).learningReady, false);
+    const comparison = await load('learningComparison.mjs');
+    const earlierCsv = csv.replace('1000', '900');
+    const earlier = await measurements.captureLearningMeasurement({
+      raw: earlierCsv, name: 'earlier.csv', tuneSha256: tuneHash, associationNote: 'Synthetic package check',
+      selections: [{role: 'RPM', channelId: '1', evidence: 'Synthetic RPM channel'}]
+    }, 'EARLIER_LOG', 'Synthetic earlier recording');
+    const comparisonCase = learning.attachLearningMeasurement(reopenedCase, earlier);
+    const compared = await comparison.compareLearningWindows(comparisonCase, [earlier,rechecked], {
+      beforeRole:'EARLIER_LOG',afterRole:'BEFORE_FINAL_LOG',channelRole:'RPM',
+      beforeRange:{start:0,end:1},afterRange:{start:0,end:1},note:'Synthetic independent windows'
+    });
+    assert.equal(compared.before.timeline.max, 900);
+    assert.equal(compared.after.timeline.max, 1000);
+    assert.equal(compared.learningReady, false);
+    const comparisonBytes = validateRequest({filename:'comparison.json',text:JSON.stringify(compared)});
+    await writeVerifiedCopy(comparisonFilename, comparisonBytes);
+    assert.deepEqual(await fs.readFile(comparisonFilename), comparisonBytes);
+    assert.deepEqual(await comparison.reopenLearningComparison(await fs.readFile(comparisonFilename,'utf8'), comparisonCase, [earlier,rechecked]), compared);
     console.log(JSON.stringify({
       version: manifest.version, electron: process.versions.electron,
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
-      savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true, hardwareAccessed: false
+      savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
+      learningComparisonSavedAndRecomputed: true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
     await fs.unlink(caseFilename).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    await fs.unlink(comparisonFilename).catch(error => { if (error.code !== 'ENOENT') throw error; });
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

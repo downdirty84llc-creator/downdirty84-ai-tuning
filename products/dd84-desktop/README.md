@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.22.0
+# DD84 Calibration Studio — Windows preview 0.23.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -90,6 +90,18 @@ New saves use `DD84_LEARNING_CASE_V2`, up to 256 KiB. Legacy V1 cases open and u
 
 CSV placement and calibration associations remain operator statements. Matching timeline roles do not verify that a CSV was exported from an attached HPL. Rechecking CSV bytes does not reverify a native tune, authenticate sensors, establish comparable runs or prove performance improvement. The learning panel remains blocked: no adaptive learning engine, automatic corrections or ECU writes are enabled. Cam/displacement notes provide context, not calculated tuning values. MAF, VE and timing still require validated measurements and controller-specific definitions.
 
+### Compare two reviewed log windows
+
+1. Attach or recheck two CSV stages in the same learning case. Choose **Earlier comparison stage** and **Later comparison stage** in timeline order. Earlier-to-before-final comparisons are allowed when no after-final recording exists; they do not assess the final tune.
+2. Choose a **Shared reviewed channel** selected in both CSVs. Channel IDs may differ, but exported units must match exactly. Units are not converted.
+3. Set each recording's own start/end offset seconds. Both endpoints are included. Enter a **Window comparison note** explaining the chosen windows and known differences in operating conditions.
+4. Choose **Compare log windows**. The table shows each source, channel, range, export-row counts, missing/nonnumeric counts, repeated timestamps and observed minimum/maximum. Empty and missing-only windows stay empty; adjacent readings are never borrowed.
+5. **Save log-window comparison** writes a separate report. Keep the learning case and both original CSVs. To reopen, open that same case, recheck both CSVs, then use **Reopen log-window comparison**. The whole case fingerprint must match, including its notes. Saved statistics and labels are discarded and recomputed from the checked sources.
+
+Changing case details, attachments, stage choices, channel or time windows clears the comparison and its review note. Changing the note clears the displayed result until compared again. A failed report reopen retains the current comparison. This report is not included in a learning-case save.
+
+These are independent window summaries, not synchronized or load-matched samples. Minima/maxima are not paired differences, correction factors or evidence of performance improvement. There is no sensor-delay correction, interpolation, inferred sampling rate, automatic tuning or ECU writing. Source text stays private in memory and is not copied into the report.
+
 ## Review exported tune differences
 
 Under **Imported comparison evidence**, select a detailed Differences CSV and a saved file-pair reference. Names-only exports are rejected. Leave numeric direction unknown until a setting has been checked in both source views; then choose the verified convention and record that check.
@@ -115,7 +127,8 @@ See [PARAMETER_PROJECT.md](PARAMETER_PROJECT.md) for the V2 format and the requi
 | `DD84_STUDIO_V2` | Simulation parameters, fixed axes, original and working values | Project JSON; V1 also accepted and upgraded |
 | `DD84_STUDIO_REVIEW_V2` | Multi-parameter differences, baseline fingerprint, note and embedded project | Review-only report; reopen the separately saved project |
 | `DD84_FILE_PAIR_V1` | Vehicle/build notes and two file identities | Case JSON and both matching HPT files |
-| `DD84_LEARNING_CASE_V1` | Tune/log timeline, build notes and stated associations | Case JSON; retain and separately verify source files |
+| `DD84_LEARNING_CASE_V2` | Tune/log timeline, build notes, CSV references and stated associations | Case JSON; V1 upgrades; retain and recheck source files |
+| `DD84_LEARNING_COMPARISON_V1` | Two independent channel windows, summaries, case fingerprint and note | Matching case and both rechecked CSVs; up to 1 MiB |
 | `DD84_DIFFERENCES_V1` | Comparison evidence, direction and source identity | Evidence report; keep comparison CSV and tune pair separately |
 | `DD84_LOG_INSPECTION_V1` | Full-recording summary, channel choices and notes | Review JSON and matching CSV |
 | `DD84_LOG_SEGMENT_V1` | One channel/range summary and note | Segment JSON and matching CSV |

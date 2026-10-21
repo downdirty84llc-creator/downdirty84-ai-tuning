@@ -1,4 +1,5 @@
 import {logReport} from './logs.mjs';
+import {channelTimeline} from './timeline.mjs';
 
 export const measurementRoles = ['EARLIER_LOG', 'BEFORE_FINAL_LOG', 'AFTER_FINAL_LOG'];
 const channelRoles = new Set(['RPM', 'MAP', 'COMMANDED_LAMBDA', 'MEASURED_LAMBDA',
@@ -36,15 +37,25 @@ function freeze(value) {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
   return value;
 }
-function receipt(reference, report) {
+function receipt(reference, report, raw) {
   const result = freeze({reference, report});
-  receipts.set(result, JSON.stringify(reference));
+  receipts.set(result, {key: JSON.stringify(reference), raw});
   return result;
 }
 // Only source-derived in-session receipts count as checked. Saved metadata cannot create one.
 export function checkedMeasurement(reference, candidates = []) {
   const key = JSON.stringify(measurementReference(reference));
-  return candidates.find(candidate => receipts.get(candidate) === key)?.report ?? null;
+  return candidates.find(candidate => receipts.get(candidate)?.key === key)?.report ?? null;
+}
+// Raw text stays private and in memory. Only a matching source receipt can summarize a window.
+export function measurementWindow(reference, candidates, channelRole, range) {
+  const key = JSON.stringify(measurementReference(reference));
+  const candidate = candidates.find(item => receipts.get(item)?.key === key);
+  if (!candidate) throw Error('Recheck both source CSVs in this session before comparing.');
+  const channel = candidate.report.channelSelection.entries.find(s => s.role === channelRole);
+  if (!channel) throw Error('Select the same reviewed channel role in both CSVs first.');
+  if (!range) throw Error('Choose an explicit time window for each recording.');
+  return channelTimeline(receipts.get(candidate).raw, channel.channelId, range);
 }
 export async function captureLearningMeasurement(input, role, note) {
   // logReport snapshots selections before hashing; primitives and timeline note are captured here.
@@ -55,7 +66,7 @@ export async function captureLearningMeasurement(input, role, note) {
   const report = await logReport(raw, name, tuneSha256, associationNote, selections);
   const reference = measurementReference({role, source: report.source, calibration: report.calibration,
     selections: report.channelSelection.entries, note: timelineNote});
-  return receipt(reference, report);
+  return receipt(reference, report, raw);
 }
 export async function recheckLearningMeasurement(value, raw, name) {
   const reference = measurementReference(value);
@@ -63,7 +74,7 @@ export async function recheckLearningMeasurement(value, raw, name) {
     reference.calibration.note, reference.selections);
   if (report.source.textSha256 !== reference.source.textSha256)
     throw Error('CSV contents do not match this learning reference. Existing evidence was retained.');
-  return receipt(reference, report);
+  return receipt(reference, report, raw);
 }
 export function measurementCoverage(reference, candidates = []) {
   const report = checkedMeasurement(reference, candidates);
