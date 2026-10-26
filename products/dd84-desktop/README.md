@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.24.0
+# DD84 Calibration Studio — Windows preview 0.25.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -110,7 +110,15 @@ Each side shows its observed range and numeric/missing/nonnumeric counts inside 
 
 These counts include repeated timestamps and are not dwell time or independent sample counts. Overlapping ranges do not prove simultaneous RPM/load/temperature coverage or comparable conditions: asynchronous channels, sensor accuracy, fuel, hardware and ambient conditions remain unverified. The review never marks conditions matched or enables learning.
 
-New comparison saves use `DD84_LEARNING_COMPARISON_V2`. Existing V1 reports reopen and upgrade only with their matching case and checked CSVs; context is recomputed from sources. Saved context and statistics are never trusted. Older Studio versions cannot reopen V2 comparison reports. The learning-case format remains V2 and does not embed this separate comparison.
+### Review a selected RPM / pressure band
+
+Preview 0.25 adds **Also review a shared RPM / pressure band**. Review RPM and MAP in both source CSVs, recheck the sources, choose the comparison stages and channel, then enable the band. Enter RPM and manifold **absolute** pressure minimum/maximum limits using the displayed exported units. The same inclusive limits apply to both time windows. Pressure is not gauge boost; no conversion is performed.
+
+After entering the comparison note, choose **Compare log windows**. A separate band table shows total window rows, rows excluded for missing/nonnumeric RPM or pressure, rows outside the band, included rows, repeated timestamps and numeric/missing/nonnumeric readings for the selected comparison channel. Its minimum/maximum use only included rows. The original whole-window and independent-context tables remain visible. Empty bands and missing target readings are explicit.
+
+RPM and pressure must both be finite and inside the band on the same CSV row. Channels may be asynchronous or repeat older values, so this filter does not establish simultaneous acquisition, steady state or matched conditions. Counts are not dwell time or independent samples; ranges do not demonstrate an improvement or suggest corrections. No values are filled or interpolated. Changing band limits or toggling the band clears the result and review note; changing stages or rechecking sources also resets the band.
+
+New comparison saves use `DD84_LEARNING_COMPARISON_V3`. Existing V1/V2 reports reopen and upgrade with no band selected, only with their matching case and checked CSVs. Context, band counts and channel statistics are recomputed from sources; saved statistics are never trusted. Older Studio versions cannot reopen V3 comparison reports. The learning-case format remains V2 and does not embed this separate comparison.
 
 ## Review exported tune differences
 
@@ -138,7 +146,7 @@ See [PARAMETER_PROJECT.md](PARAMETER_PROJECT.md) for the V2 format and the requi
 | `DD84_STUDIO_REVIEW_V2` | Multi-parameter differences, baseline fingerprint, note and embedded project | Review-only report; reopen the separately saved project |
 | `DD84_FILE_PAIR_V1` | Vehicle/build notes and two file identities | Case JSON and both matching HPT files |
 | `DD84_LEARNING_CASE_V2` | Tune/log timeline, build notes, CSV references and stated associations | Case JSON; V1 upgrades; retain and recheck source files |
-| `DD84_LEARNING_COMPARISON_V2` | Independent channel windows, operating-context review, case fingerprint and note | Matching case and both rechecked CSVs; V1 upgrades; up to 1 MiB |
+| `DD84_LEARNING_COMPARISON_V3` | Independent channel windows, operating-context review, optional RPM/pressure band, case fingerprint and note | Matching case and both rechecked CSVs; V1/V2 upgrade without a band; up to 1 MiB |
 | `DD84_DIFFERENCES_V1` | Comparison evidence, direction and source identity | Evidence report; keep comparison CSV and tune pair separately |
 | `DD84_LOG_INSPECTION_V1` | Full-recording summary, channel choices and notes | Review JSON and matching CSV |
 | `DD84_LOG_SEGMENT_V1` | One channel/range summary and note | Segment JSON and matching CSV |

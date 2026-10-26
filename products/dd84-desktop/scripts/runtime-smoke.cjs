@@ -40,11 +40,13 @@ const {createHash} = require('node:crypto');
     assert.equal(report.externalCanValidated, false);
     assert.equal(report.vehicleData, false);
     const learning = await load('learning.mjs'), measurements = await load('learningMeasurements.mjs');
-    const csv = 'HP Tuners CSV Log File\nVersion: 1.0\n[Channel Information]\n0,1\nOffset,Engine RPM\ns,rpm\n[Channel Data]\n0,0\n1,1000\n';
+    const csv = 'HP Tuners CSV Log File\nVersion: 1.0\n[Channel Information]\n0,1,2\nOffset,Engine RPM,Manifold Absolute Pressure\ns,rpm,kPa\n[Channel Data]\n0,0,80\n1,1000,100\n';
+    const selections=[{role:'RPM',channelId:'1',evidence:'Synthetic RPM channel'},
+      {role:'MAP',channelId:'2',evidence:'Synthetic pressure channel'}];
     const tuneHash = 'a'.repeat(64);
     const measured = await measurements.captureLearningMeasurement({
       raw: csv, name: 'synthetic.csv', tuneSha256: tuneHash, associationNote: 'Synthetic package check',
-      selections: [{role: 'RPM', channelId: '1', evidence: 'Synthetic RPM channel'}]
+      selections
     }, 'BEFORE_FINAL_LOG', 'Synthetic before-final recording');
     const learningCase = learning.attachLearningMeasurement({
       vehicle: 'Synthetic package check', displacementLiters: 5.3, camNotes: '', buildNotes: '',
@@ -63,20 +65,25 @@ const {createHash} = require('node:crypto');
     const earlierCsv = csv.replace('1000', '900');
     const earlier = await measurements.captureLearningMeasurement({
       raw: earlierCsv, name: 'earlier.csv', tuneSha256: tuneHash, associationNote: 'Synthetic package check',
-      selections: [{role: 'RPM', channelId: '1', evidence: 'Synthetic RPM channel'}]
+      selections
     }, 'EARLIER_LOG', 'Synthetic earlier recording');
     const comparisonCase = learning.attachLearningMeasurement(reopenedCase, earlier);
     const compared = await comparison.compareLearningWindows(comparisonCase, [earlier,rechecked], {
       beforeRole:'EARLIER_LOG',afterRole:'BEFORE_FINAL_LOG',channelRole:'RPM',
-      beforeRange:{start:0,end:1},afterRange:{start:0,end:1},note:'Synthetic independent windows'
+      beforeRange:{start:0,end:1},afterRange:{start:0,end:1},note:'Synthetic independent windows',
+      operatingBand:{rpm:{min:0,max:950,unit:'rpm'},map:{min:80,max:100,unit:'kPa'}}
     });
     assert.equal(compared.before.timeline.max, 900);
     assert.equal(compared.after.timeline.max, 1000);
     assert.equal(compared.learningReady, false);
-    assert.equal(compared.format, 'DD84_LEARNING_COMPARISON_V2');
+    assert.equal(compared.format, 'DD84_LEARNING_COMPARISON_V3');
     assert.deepEqual(compared.operatingContext.channels[0].readingsInSharedRange, {before:2,after:1});
-    assert.equal(compared.operatingContext.channels[1].status, 'MISSING_REVIEWED_CHANNEL');
+    assert.equal(compared.operatingContext.channels[1].status, 'RANGE_OVERLAP');
     assert.equal(compared.operatingContext.operatingConditionsMatched, false);
+    assert.equal(compared.operatingBand.before.includedRows,2);
+    assert.equal(compared.operatingBand.after.includedRows,1);
+    assert.equal(compared.operatingBand.after.target.max,0);
+    assert.equal(compared.operatingBand.operatingConditionsMatched,false);
     const comparisonBytes = validateRequest({filename:'comparison.json',text:JSON.stringify(compared)});
     await writeVerifiedCopy(comparisonFilename, comparisonBytes);
     assert.deepEqual(await fs.readFile(comparisonFilename), comparisonBytes);
@@ -86,7 +93,7 @@ const {createHash} = require('node:crypto');
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
