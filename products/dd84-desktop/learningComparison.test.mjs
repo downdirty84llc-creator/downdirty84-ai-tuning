@@ -115,7 +115,7 @@ test('supports earlier-to-before-final comparison without inventing a final outc
 test('comparison recomputes context from checked sources and upgrades legacy V1 reports',async()=>{
   const {c,receipts}=await fixture(afterCsv.replace('s,rpm,kPa','s,rpm,psi'));
   const result=await compareLearningWindows(c,receipts,options());
-  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V3');
+  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V4');
   assert.equal(result.operatingContext.channels.find(c=>c.role==='MAP').status,'UNIT_MISMATCH');
   const forged=structuredClone(result);forged.operatingContext={operatingConditionsMatched:true,channels:[]};
   assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),result);
@@ -152,4 +152,46 @@ test('operating band snapshots nested choices before hashing and never mutates c
   selection.rpm.min=0;selection.map.unit='psi';
   const r=await pending;assert.equal(r.selection.operatingBand.rpm.min,1000);assert.equal(r.operatingBand.selection.map.unit,'kPa');
   assert.deepEqual(c,original);assert.deepEqual(receipts,before);
+});
+
+test('run setup is tied to exact comparison sources and is not inherited from global case notes',async()=>{
+  const {c,receipts}=await fixture(),r=await compareLearningWindows(c,receipts,options());
+  assert.equal(c.displacementLiters,5.3);assert.equal(r.selection.runSetup.before.displacementLiters,null);
+  assert.deepEqual(r.runSetup.counts,{missing:7,sameReported:0,differentReported:0});
+  for(const side of ['before','after'])assert.deepEqual(r.runSetup.sourceBindings[side],{
+    stage:r[side].reference.role,csvSha256:r[side].reference.source.textSha256,tuneSha256:r[side].reference.calibration.sha256});
+});
+test('V4 report preserves run notes, recomputes forged review/bindings and still requires checked sources',async()=>{
+  const {c,receipts}=await fixture();
+  const runSetup={before:{displacementLiters:5.3,fuel:'Synthetic gasoline',evidenceNote:'Synthetic earlier build record'},
+    after:{displacementLiters:6,fuel:'Synthetic E85',evidenceNote:'Synthetic later build record'}};
+  const r=await compareLearningWindows(c,receipts,{...options(),runSetup});
+  assert.deepEqual(r.runSetup.counts,{missing:5,sameReported:0,differentReported:2});
+  assert.deepEqual(JSON.parse(validateRequest({filename:'setup.json',text:JSON.stringify(r)})),r);
+  const forged=structuredClone(r);forged.runSetup={operatingConditionsMatched:true,counts:{missing:0},sourceBindings:{before:{csvSha256:'f'.repeat(64)}}};
+  assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),r);
+  await assert.rejects(reopenLearningComparison(JSON.stringify(r),c,[]),/Recheck both/);
+  const incomplete=structuredClone(r);delete incomplete.selection.runSetup.after.sensorChecks;
+  await assert.rejects(reopenLearningComparison(JSON.stringify(incomplete),c,receipts),/incomplete/);
+  const missing=structuredClone(r);delete missing.selection.runSetup;
+  await assert.rejects(reopenLearningComparison(JSON.stringify(missing),c,receipts),/saved run setup/);
+});
+test('V1/V2/V3 comparisons upgrade with unknown run setup, preserving only supported prior band choices',async()=>{
+  const {c,receipts}=await fixture(),operatingBand={rpm:{min:1000,max:1300,unit:'rpm'},map:{min:90,max:100,unit:'kPa'}};
+  const r=await compareLearningWindows(c,receipts,{...options(),operatingBand,runSetup:{before:{fuel:'Synthetic fuel',evidenceNote:'Synthetic source'},after:null}});
+  for(const format of ['DD84_LEARNING_COMPARISON_V1','DD84_LEARNING_COMPARISON_V2','DD84_LEARNING_COMPARISON_V3']){
+    const legacy=structuredClone(r);legacy.format=format;
+    const expected=await compareLearningWindows(c,receipts,{...options(),operatingBand:format.endsWith('V3')?operatingBand:null});
+    assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),expected);
+    delete legacy.selection.runSetup;delete legacy.runSetup;
+    assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),expected);
+  }
+});
+test('run setup and source bindings are snapshotted before asynchronous hashing',async()=>{
+  const {c,receipts}=await fixture(),runSetup={before:{fuel:'Synthetic fuel',evidenceNote:'Synthetic source'},after:null};
+  const pending=compareLearningWindows(c,receipts,{...options(),runSetup});
+  runSetup.before.fuel='Changed';runSetup.before.evidenceNote='Changed';c.measurements[0].source.textSha256='f'.repeat(64);
+  const r=await pending;assert.equal(r.selection.runSetup.before.fuel,'Synthetic fuel');
+  assert.equal(r.runSetup.evidenceNotes.before,'Synthetic source');
+  assert.equal(r.runSetup.sourceBindings.before.csvSha256,receipts[0].reference.source.textSha256);
 });

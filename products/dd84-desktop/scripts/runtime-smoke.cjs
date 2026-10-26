@@ -71,12 +71,13 @@ const {createHash} = require('node:crypto');
     const compared = await comparison.compareLearningWindows(comparisonCase, [earlier,rechecked], {
       beforeRole:'EARLIER_LOG',afterRole:'BEFORE_FINAL_LOG',channelRole:'RPM',
       beforeRange:{start:0,end:1},afterRange:{start:0,end:1},note:'Synthetic independent windows',
-      operatingBand:{rpm:{min:0,max:950,unit:'rpm'},map:{min:80,max:100,unit:'kPa'}}
+      operatingBand:{rpm:{min:0,max:950,unit:'rpm'},map:{min:80,max:100,unit:'kPa'}},
+      runSetup:{before:{displacementLiters:5.3,evidenceNote:'Synthetic earlier build'},after:{displacementLiters:6,evidenceNote:'Synthetic later build'}}
     });
     assert.equal(compared.before.timeline.max, 900);
     assert.equal(compared.after.timeline.max, 1000);
     assert.equal(compared.learningReady, false);
-    assert.equal(compared.format, 'DD84_LEARNING_COMPARISON_V3');
+    assert.equal(compared.format, 'DD84_LEARNING_COMPARISON_V4');
     assert.deepEqual(compared.operatingContext.channels[0].readingsInSharedRange, {before:2,after:1});
     assert.equal(compared.operatingContext.channels[1].status, 'RANGE_OVERLAP');
     assert.equal(compared.operatingContext.operatingConditionsMatched, false);
@@ -84,6 +85,9 @@ const {createHash} = require('node:crypto');
     assert.equal(compared.operatingBand.after.includedRows,1);
     assert.equal(compared.operatingBand.after.target.max,0);
     assert.equal(compared.operatingBand.operatingConditionsMatched,false);
+    assert.deepEqual(compared.runSetup.counts,{missing:6,sameReported:0,differentReported:1});
+    assert.equal(compared.runSetup.operatingConditionsMatched,false);
+    assert.equal(compared.runSetup.sourceBindings.before.csvSha256,earlier.reference.source.textSha256);
     const comparisonBytes = validateRequest({filename:'comparison.json',text:JSON.stringify(compared)});
     await writeVerifiedCopy(comparisonFilename, comparisonBytes);
     assert.deepEqual(await fs.readFile(comparisonFilename), comparisonBytes);
@@ -93,7 +97,7 @@ const {createHash} = require('node:crypto');
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
