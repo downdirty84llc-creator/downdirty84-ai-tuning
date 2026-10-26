@@ -12,7 +12,8 @@
     "test:link-capture": "node scripts/test-link-capture.mjs",
     "test:capture-review": "node scripts/test-capture-review.mjs",
     "preview": "vite preview",
-    "test:audit-report": "node --test scripts/audit-report.test.mjs"
+    "test:audit-report": "node --test scripts/audit-report.test.mjs",
+    "test:workspaces": "node scripts/test-workspaces.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -24,6 +25,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "playwright": "^1.62.1",
     "typescript": "^5.6.3",
     "vite": "^7.3.7"
   }

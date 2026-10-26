@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.27.0
+# DD84 Calibration Studio — Windows preview 0.28.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -18,7 +18,13 @@ When closing with unsaved work, **Keep editing** is the default and Escape also 
 
 ## Move around the workbench
 
-The navigation bar stays visible as you scroll. Choose **Open project**, **Recorded logs**, **Learning case**, **Edit parameters**, **Review changes** or **Save** to move directly to that section. Project actions appear after a project is open. Activating a shortcut focuses the section heading; Tab continues into its controls.
+The green DD84 navigation stays visible as you scroll. Start at **Home**, then choose **Calibration projects**, **Recorded logs**, **Tune comparisons**, **Learning evidence**, **Troubleshooting**, **Device bench** or **Help & file guide**. Each workspace keeps its current files and edits while hidden. Project shortcuts for opening, editing, reviewing and saving appear when a project is open. Activating a shortcut focuses its heading; Tab continues into its controls.
+
+## Troubleshooting and shop handoffs
+
+Choose a symptom or workflow, describe the vehicle and event, then record each check's status and evidence. Ten guides cover logging, wideband/fueling, pressure, idle, knock, trigger/sync, boost, file access, revision comparison and customer/shop handoffs. The source list distinguishes manufacturer guidance from community reports. These are evidence prompts, not automatic diagnoses or tune targets.
+
+Save the case as `DD84_TROUBLESHOOTING_CASE_V1` JSON. Reopen it here or in the web Troubleshoot page. Imported assessments are recalculated from the trusted catalog. Unsupported input leaves the current case intact; replacing unsaved work requires an inline choice. Even a complete case needs human review. Keep original tune/log files separately. The worksheet does not upload files or enable learning/vehicle writes.
 
 In the Windows app, **View size** enlarges the interface from 100% to 200%.
 Use **Reset view** or Ctrl+0 to return to 100%; Ctrl+Plus and Ctrl+Minus move

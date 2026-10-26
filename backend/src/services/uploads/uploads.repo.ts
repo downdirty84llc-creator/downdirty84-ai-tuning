@@ -55,7 +55,7 @@ export async function getUploadsByIds(userId: string, uploadIds: string[]): Prom
 
 export async function attachUploadsToJob(userId: string, jobId: string, uploadIds: string[]): Promise<void> {
   await query(
-    `UPDATE uploads SET job_id=$1 WHERE user_id=$2 AND id = ANY($3::uuid[])`,
+    `UPDATE uploads SET job_id=$1 WHERE user_id=$2 AND id = ANY($3::uuid[]) AND (job_id IS NULL OR job_id=$1)`,
     [jobId, userId, uploadIds]
   );
 }

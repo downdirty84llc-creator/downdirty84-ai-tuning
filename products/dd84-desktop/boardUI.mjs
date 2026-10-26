@@ -2,7 +2,7 @@ import {saveJson} from './saveFileUI.mjs';
 const section = document.createElement('section');
 section.id = 'board-workspace';
 section.innerHTML = '<h2>DD84 test board</h2><p>USB bench connection · No vehicle access</p><button id="board-refresh">Find board</button> <select id="board-port" aria-label="DD84 serial port"></select> <button id="board-probe" disabled>Test DD84 board</button><p id="board-result" role="status">Connect the FRDM-A-S32K344 by USB.</p>';
-document.querySelector('main').prepend(section);
+document.getElementById('device-panels').append(section);
 const refresh = section.querySelector('#board-refresh'), probe = section.querySelector('#board-probe');
 const ports = section.querySelector('#board-port'), result = section.querySelector('#board-result');
 const loop = document.createElement('button'), save = document.createElement('button');

@@ -30,7 +30,7 @@ section.innerHTML=`<h2 id="bench-title">CAN test workspace</h2>
     <p>Keep the original capture and test pattern. The report contains fingerprints and a limited preview, not a backup of the capture.</p>
   </div>`;
 const boardSection=document.querySelector('#board-workspace');
-if(boardSection)boardSection.after(section);else document.querySelector('main').prepend(section);
+if(boardSection)boardSection.after(section);else document.getElementById('device-panels').append(section);
 const $=id=>section.querySelector('#bench-'+id);
 let plan=null,report=null,worker=null,revision=0,busy=false;
 function controls(){

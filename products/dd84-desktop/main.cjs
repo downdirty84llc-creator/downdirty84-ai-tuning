@@ -6,7 +6,7 @@ const {installFileSaving}=require('./saveFile.cjs');
 app.whenReady().then(()=>{
   session.defaultSession.setPermissionRequestHandler((_wc,_permission,reply)=>reply(false));
   session.defaultSession.setPermissionCheckHandler(()=>false);
-  const win=new BrowserWindow({width:1200,height:850,minWidth:700,minHeight:550,backgroundColor:'#101820',webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,preload:path.join(__dirname,'preload.cjs')}});
+  const win=new BrowserWindow({width:1280,height:900,minWidth:700,minHeight:550,backgroundColor:'#090d0b',icon:path.join(__dirname,'assets','dd84.ico'),webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,preload:path.join(__dirname,'preload.cjs')}});
   let boardBusy=false;
   const boardRequest=async(event,mode,port)=>{
     if(event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame)throw Error('Invalid caller.');

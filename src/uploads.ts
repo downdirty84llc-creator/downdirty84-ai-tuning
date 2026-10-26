@@ -1,5 +1,7 @@
 import { apiFetch } from "./client";
 
+export type JobUpload = { id: string; filename: string; kind: string; size_bytes: number | null; created_at: string };
+
 export async function uploadFile(opts: { file: File; jobId: string; kind?: string }) {
   const form = new FormData();
   form.append("file", opts.file);
@@ -14,5 +16,5 @@ export async function uploadFile(opts: { file: File; jobId: string; kind?: strin
 
 export async function listJobUploads(jobId: string) {
   const res = await apiFetch(`/api/v1/uploads/jobs/${jobId}`);
-  return res.json() as Promise<{ uploads: any[] }>;
+  return res.json() as Promise<{ uploads: JobUpload[] }>;
 }

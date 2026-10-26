@@ -136,6 +136,14 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Install browser for workspace regressions
+        run: npx playwright install --with-deps chromium
+
+      - name: Branded workspaces, troubleshooting and customer workflow
+        run: |
+          node products/dd84-desktop/prepare-link.mjs
+          npm run test:workspaces
+
       - name: Connection screen state and reports
         run: npm run test:link-capture
 

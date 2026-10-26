@@ -5,6 +5,7 @@ import {attachControllerIdentity} from './realAirflow.mjs';
 import {previewTableEdit,applyTableEdit} from './tableEdit.mjs';
 import {retainTableTabOrder,showMessage as message,setupNavigation} from './navigation.mjs';
 import {saveJson} from './saveFileUI.mjs';
+import {openWorkspace} from './workspaces.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
 let comparisonProject=null,comparisonResult=null,comparisonSelected='';
@@ -12,7 +13,7 @@ let rangePreview=null;
 const definition=path=>projectDefinition(project,path);
 setupNavigation();
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
-function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();}
+function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();openWorkspace('projects','edit-title');}
 function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;$('real-compare-note').value='';render();}
 function axisValue(p,d,axis,index){return d.axes[axis].labels?.[index]??String(p.axes[axis][index]);}
 function location(p,index){const d=definition(p.path)??p.definition;return Object.values(coordinates(p,index)).map((v,i)=>d?.axes[i].labels?.[p.axes[i].indexOf(v)]??`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}

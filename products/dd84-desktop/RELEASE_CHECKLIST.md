@@ -1,6 +1,8 @@
 # Windows preview release acceptance
 
-Current implementation: **0.27.0**. Updated: **2026-10-26**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.28.0**. Updated: **2026-10-26**. Status: **development preview; comprehensive release acceptance incomplete**.
+
+0.28.0 adds the owner's existing logo and green branding, separate workspaces, a guided home/file guide and a shared web/desktop troubleshooting case workflow. Source validation: 207 desktop tests and 12 local browser workflow groups passed with synthetic fixtures, including full saved-object comparisons, rejected imports, retained edits across navigation, responsive layouts, failed request recovery and stale-job-response isolation. Dependency audit found no desktop vulnerabilities. Windows packaging and native acceptance are recorded separately for the exact built candidate; earlier native checks do not automatically certify 0.28.0. Native HPT/Holley writing, HPL decoding, autonomous learning and vehicle flashing remain unavailable.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 

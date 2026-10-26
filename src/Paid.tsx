@@ -16,7 +16,6 @@ export default function Paid() {
   return (
     <div className="container">
       <div className="nav">
-        <div className="brand">Down Dirty 84</div>
         <button className="secondary" onClick={() => (window.location.href = "/login")}>
           Sign in
         </button>

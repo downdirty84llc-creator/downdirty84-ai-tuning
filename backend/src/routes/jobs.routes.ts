@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/session.js";
-import { v4 as uuid } from "uuid";
+import { v4 as uuid, validate as validUuid } from "uuid";
 import { createJob, listJobs, getJob, updateJobStatus } from "../services/jobs/jobs.repo.js";
 
 import { createRun, updateRun, findRunForJob } from "../services/analyze/run_store.js";
@@ -69,6 +69,14 @@ jobsRouter.get("/:jobId", requireAuth, wrap(async (req, res) => {
   return res.json({ job });
 }));
 
+jobsRouter.get("/:jobId/latest-run", requireAuth, wrap(async (req, res) => {
+  const {jobId} = req.params;
+  if (!validUuid(jobId)) return badRequest(res, "Invalid job ID.");
+  if (!await getJob(req.user!.id, jobId)) return notFound(res, "Job not found.");
+  const run = await findRunForJob(jobId, req.user!.id, null);
+  return res.json({run:run ? {runId:run.runId,status:run.status,progress:run.progress,errors:run.errors,finishedAt:run.finishedAt} : null});
+}));
+
 
 
 /**
@@ -82,9 +90,13 @@ jobsRouter.post("/:jobId/analyze", requireAuth, wrap(async (req, res) => {
   const userId = req.user!.id;
   const { logUploadIds } = req.body ?? {};
 
-  if (!Array.isArray(logUploadIds) || logUploadIds.length === 0) {
-    return badRequest(res, "No logUploadIds provided.", { field: "logUploadIds" });
+  if (!validUuid(jobId) || !Array.isArray(logUploadIds) || !logUploadIds.length || logUploadIds.length > 100 || !logUploadIds.every(id=>typeof id === 'string' && validUuid(id))) {
+    return badRequest(res, "A valid job and 1–100 log upload IDs are required.", { field: "logUploadIds" });
   }
+  if (!await getJob(userId, jobId)) return notFound(res, "Job not found.");
+  const ids = [...new Set<string>(logUploadIds)];
+  const uploads = await getUploadsByIds(userId, ids);
+  if (uploads.length !== ids.length || uploads.some(row=>row.job_id !== jobId)) return badRequest(res, "Every selected upload must belong to this job.");
 
   // createRun only inserts when the job belongs to this user, so a null here
   // means "not yours or not there" — reported the same way either way.

@@ -37,7 +37,6 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 
 const dir = process.argv[2];
 const label = process.argv[3] ?? dir;
@@ -47,10 +46,11 @@ if (!dir) {
   process.exit(2);
 }
 
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-
 function runNpm(args) {
-  return spawnSync(npm, args, { cwd: dir, encoding: "utf8", shell: false });
+  // Batch files cannot be spawned without a shell on Windows. Invoke npm's JS
+  // entry with Node instead, retaining argument boundaries and paths with spaces.
+  const cli = process.env.npm_execpath || (process.platform === 'win32' ? path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js') : null);
+  return cli ? spawnSync(process.execPath, [cli,...args], {cwd:dir,encoding:'utf8',shell:false}) : spawnSync('npm',args,{cwd:dir,encoding:'utf8',shell:false});
 }
 
 /**

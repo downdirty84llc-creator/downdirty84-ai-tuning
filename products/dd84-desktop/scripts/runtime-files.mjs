@@ -1,5 +1,7 @@
 // Explicit application allowlist: unknown local files never enter a release.
 export const runtimeFiles = [
+  'assets/dd84-logo.png', 'assets/dd84.ico', 'workspaces.mjs',
+  'troubleshooting.mjs', 'troubleshootingUI.mjs', 'troubleshootingDesktop.mjs', 'troubleshooting.css',
   'INDEPENDENT_SYSTEM.md', 'PARAMETER_PROJECT.md', 'README.md',
   'REAL_PARAMETER_DRAFTS.md', 'RELEASE_CHECKLIST.md',
   'bench.mjs', 'benchUI.mjs', 'benchWorker.mjs', 'board.cjs', 'boardUI.mjs',
