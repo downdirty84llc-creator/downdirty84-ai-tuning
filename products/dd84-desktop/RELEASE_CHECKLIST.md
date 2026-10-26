@@ -195,6 +195,49 @@ App view size is distinct from Windows display scaling. No clean machine,
 OS scaling, real tune editing, physical CAN test or comprehensive workflow rerun
 is claimed. The public distribution gates below remain open.
 
+## Native sensor-check acceptance, 0.27.0
+
+The scoped native pass on 2026-10-26 used the existing portable candidate built
+from `216f4a80857d809870a9d232980977e6350ccb08`, on Windows 11 Home
+10.0.26300 (build 26300), with Codex operating the Windows UI. The displayed
+version was 0.27.0. Its ZIP SHA-256 remained
+`99ca8f7d586e4beec73ab04997a0b48204afb9532dac2d206a1e2c12e9b6cdbe`;
+its packaged ASAR SHA-256 remained
+`d025b27452ad75007dd624d509ff64ecd505a39399ebc68e838fab94f8901443`.
+
+Reopening the synthetic learning case marked saved CSV references as requiring
+recheck. Attempting to reopen its V5 comparison before rechecking was rejected,
+with comparison saving disabled. Selecting both matching CSVs through the native
+file dialogs recomputed their readings. The restored comparison retained its
+MAF channel, source/tune associations, time windows, operating band and run setup.
+The complete earlier reported pass remained unvalidated; the partial later
+reported failure displayed its five missing details.
+
+Editing the earlier device description cleared the comparison and review note,
+and disabled saving. Native keyboard entry changed the check date from October
+26 to October 25. A fresh note and comparison rebuild retained both edits. Tab
+navigation from Compare reached the result region, setup disclosure and Save.
+Canceling the native save wrote no file; retrying saved the complete expected
+record. Reopening it restored the edited description and date. Imports that
+retargeted the record to another channel or claimed verified provenance were
+rejected without losing the current comparison or note.
+
+The initial native save and the reopened/resaved record after both rejections
+matched complete expected JSON objects and were byte-identical: 23,111 bytes,
+SHA-256 `062502abf7d08e196853065f9cf38d930c222a2b998e4278807cf7616a32c78f`.
+Switching from MAF to MAP then cleared both sets of sensor-check fields and
+outcomes, the comparison and its note, and disabled saving. The prior saved
+report remained on disk.
+
+Evidence is retained locally in `outputs/studio-027-native`, outside the
+repository. No product code or package changed, and no local automated suite
+rerun is implied by this acceptance pass. This machine has development tools
+installed. Clean-machine launch, Windows scaling, native legacy-report migration,
+all outcome/date-picker interactions and comprehensive workflow acceptance remain
+pending. No customer data, board access, sensor validation, learning update or
+vehicle writing was involved. These results qualify only the identified binary
+and observed paths; the public distribution gates remain open.
+
 ## Next milestone: candidate acceptance on Windows
 
 Use one identified candidate build and synthetic fixtures. Record its commit, displayed version, archive SHA-256, Windows version, tester, date and each result. Do not overwrite another version's evidence. Keep files in a dedicated local test folder.
