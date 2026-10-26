@@ -76,6 +76,21 @@ check("upload accepted (multipart works)", up.status, 200);
 const uploadId = up.json?.uploadId;
 uploadId ? ok(`upload stored (${uploadId})`) : bad("upload stored", JSON.stringify(up.json));
 
+// Upload ownership and exact job association must be checked before storage or a run.
+const foreignJob = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidAdmin}','LOG_REVIEW','GM') RETURNING id;`);
+const otherOwnedJob = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidOwner}','LOG_REVIEW','GM') RETURNING id;`);
+check('cannot upload into another customer job', (await upload(OWNER, foreignJob, 'foreign.csv', cleanCsv)).status, 404);
+check('cannot list another customer job uploads', (await req('GET', `/api/v1/uploads/jobs/${foreignJob}`, {token:OWNER})).status, 404);
+check('cannot attach to another customer job', (await req('POST', `/api/v1/uploads/jobs/${foreignJob}/attach`, {token:OWNER,body:{uploadIds:[uploadId]}})).status, 404);
+check('cannot silently move an existing file to another job', (await req('POST', `/api/v1/uploads/jobs/${otherOwnedJob}/attach`, {token:OWNER,body:{uploadIds:[uploadId]}})).status, 400);
+check('analysis rejects an upload from another job', (await req('POST', `/api/v1/jobs/${otherOwnedJob}/analyze`, {token:OWNER,body:{logUploadIds:[uploadId]}})).status, 400);
+check('analysis rejects a partial list with a missing upload', (await req('POST', `/api/v1/jobs/${jobId}/analyze`, {token:OWNER,body:{logUploadIds:[uploadId,crypto.randomUUID()]}})).status, 400);
+check('malformed upload identifiers are rejected', (await req('POST', `/api/v1/jobs/${jobId}/analyze`, {token:OWNER,body:{logUploadIds:['not-a-uuid']}})).status, 400);
+check('rejected analyses create no runs', psql('SELECT count(*) FROM runs;'), 0);
+check('rejected upload created no database record', psql('SELECT count(*) FROM uploads;'), 1);
+check('latest-run is owner scoped', (await req('GET', `/api/v1/jobs/${foreignJob}/latest-run`, {token:OWNER})).status, 404);
+check('empty job has no latest run', (await req('GET', `/api/v1/jobs/${jobId}/latest-run`, {token:OWNER})).json?.run, null);
+
 const started = await req("POST", `/api/v1/jobs/${jobId}/analyze`, { token: OWNER, body: { logUploadIds: [uploadId] } });
 check("analyze accepted", started.status, 202);
 const run = await poll(started.json.runId, OWNER);
