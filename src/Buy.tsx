@@ -119,7 +119,6 @@ export default function Buy() {
   return (
     <div className="container">
       <div className="nav">
-        <div className="brand">Down Dirty 84</div>
         <button className="secondary" onClick={() => (window.location.href = "/login")}>
           Sign in
         </button>
@@ -128,7 +127,7 @@ export default function Buy() {
       <div className="card" style={{ marginBottom: 14 }}>
         <h2 style={{ marginTop: 0 }}>Book a tune or a log review</h2>
         <p className="small">
-          Pay, upload your datalog, and get a reviewed change list back. Every calibration change
+          Request a service, share your vehicle details and upload the matching datalog. Every calibration change
           is checked by a person before it reaches you.
         </p>
         {catalog && !catalog.pricesLive && (

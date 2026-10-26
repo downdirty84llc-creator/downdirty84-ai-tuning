@@ -18,6 +18,9 @@ assert(!existsSync(path.join(out, 'package-verification.json')), 'Verification r
 const folders = await packager({
   dir: root, name: 'DD84-Calibration-Studio', platform: 'win32', arch: 'x64',
   out, overwrite: false, asar: {unpack: '**/*.node'}, prune: true,
+  icon: path.join(root, 'assets', 'dd84.ico'),
+  appCopyright: 'Down Dirty 84 LLC',
+  win32metadata: {CompanyName: 'Down Dirty 84 LLC', FileDescription: 'DD84 Calibration Studio', ProductName: 'DD84 Calibration Studio'},
   ignore: name => !includePath(name)
 });
 assert.equal(folders.length, 1);

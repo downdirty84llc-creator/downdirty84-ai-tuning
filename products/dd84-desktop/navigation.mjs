@@ -1,3 +1,4 @@
+import {openWorkspace,setupWorkspaces} from './workspaces.mjs';
 const $ = id => document.getElementById(id);
 const focusable = root => [...root.querySelectorAll('a[href],button,input,select,textarea,summary,[tabindex]')]
   .filter(node => node.tabIndex >= 0 && !node.disabled && node.getClientRects().length);
@@ -24,9 +25,12 @@ export function showMessage(text) {
 }
 
 export function setupNavigation() {
+  setupWorkspaces();
   for (const button of document.querySelectorAll('[data-workspace-target]')) {
     button.addEventListener('click', () => {
       const target = $(button.dataset.workspaceTarget);
+      const page = target?.closest('[data-workspace]');
+      if (page) openWorkspace(page.dataset.workspace, target.id, false);
       if (!target || !target.getClientRects().length) return;
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: 'start' });
@@ -39,7 +43,12 @@ export function setupNavigation() {
   // Keep keyboard-focused controls and section headings below the sticky tools,
   // including when text wraps at a smaller window size or higher display scale.
   const tools = $('workspace-tools');
-  new ResizeObserver(() => {
-    document.documentElement.style.setProperty('--tools-height', `${tools.getBoundingClientRect().height + 12}px`);
-  }).observe(tools);
+  const feedback = $('message-row');
+  const observer = new ResizeObserver(() => {
+    const height = window.innerWidth > 920 ? 0 : tools.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--tools-height', `${height + 12}px`);
+    document.documentElement.style.setProperty('--scroll-offset', `${height + feedback.getBoundingClientRect().height + 36}px`);
+  });
+  observer.observe(tools);
+  observer.observe(feedback);
 }

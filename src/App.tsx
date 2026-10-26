@@ -1,5 +1,6 @@
 import DD84Link from "./DD84Link";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import Login from "./Login";
 import AuthCallback from "./AuthCallback";
 import Dashboard from "./Dashboard";
@@ -9,14 +10,31 @@ import DiffSetView from "./DiffSetView";
 import Buy from "./Buy";
 import Paid from "./Paid";
 import BusinessContact from "./BusinessContact";
+import BrandHeader from "./BrandHeader";
+import Help from "./Help";
+import Troubleshoot from "./Troubleshoot";
 
 export default function App() {
+  const location = useLocation();
+  useEffect(()=>{
+    const frame=requestAnimationFrame(()=>{
+      window.scrollTo(0,0);
+      const heading=[...document.querySelectorAll<HTMLElement>('#app-content h1, #app-content h2')].find(node=>node.getClientRects().length);
+      if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});document.title=`${heading.textContent} · Down Dirty 84`;}
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[location.pathname]);
   return (
     <>
+    <BrandHeader />
+    <main id="app-content" tabIndex={-1}>
+    <Troubleshoot />
     <Routes>
+      <Route path="/troubleshoot" element={null} />
       {/* The front door of a business is its shop, not its login form. */}
       <Route path="/" element={<Navigate to="/buy" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/help" element={<Help />} />
       {/* Public: a customer buys before they have an account. The webhook
           creates it from the email Stripe collected. */}
       <Route path="/buy" element={<Buy />} />
@@ -33,6 +51,7 @@ export default function App() {
       <Route path="/diffsets/:diffSetId" element={<DiffSetView />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </main>
     <BusinessContact />
     </>
   );

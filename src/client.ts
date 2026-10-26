@@ -27,7 +27,7 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     } catch {
       /* non-JSON error body */
     }
-    throw Object.assign(new Error(`HTTP ${res.status}${detail}`), { details: errorBody });
+    throw Object.assign(new Error(`HTTP ${res.status}${detail}`), { status: res.status, details: errorBody });
   }
   return res;
 }

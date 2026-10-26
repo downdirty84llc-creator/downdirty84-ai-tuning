@@ -83,7 +83,6 @@ export default function DiffSetView() {
   return (
     <div className="container">
       <div className="nav">
-        <div className="brand">Down Dirty 84</div>
         <button className="secondary" onClick={() => (window.location.href = "/dashboard")}>
           Dashboard
         </button>
