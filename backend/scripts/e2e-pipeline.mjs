@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import { makeSyntheticLog } from "../dist/services/analyze/log/synthetic.js";
+import {testTroubleshooting} from './e2e-troubleshooting.mjs';
 
 // Config via env so this can point at any running instance.
 const API = process.env.E2E_API || "http://127.0.0.1:8080";
@@ -90,6 +91,8 @@ check('rejected analyses create no runs', psql('SELECT count(*) FROM runs;'), 0)
 check('rejected upload created no database record', psql('SELECT count(*) FROM uploads;'), 1);
 check('latest-run is owner scoped', (await req('GET', `/api/v1/jobs/${foreignJob}/latest-run`, {token:OWNER})).status, 404);
 check('empty job has no latest run', (await req('GET', `/api/v1/jobs/${jobId}/latest-run`, {token:OWNER})).json?.run, null);
+
+await testTroubleshooting({req,psql,check,jobId,foreignJob,otherOwnedJob,OWNER,ADMIN});
 
 const started = await req("POST", `/api/v1/jobs/${jobId}/analyze`, { token: OWNER, body: { logUploadIds: [uploadId] } });
 check("analyze accepted", started.status, 202);

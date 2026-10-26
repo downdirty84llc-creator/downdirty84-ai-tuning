@@ -1,5 +1,8 @@
 import { query } from "../../db.js";
 
+// Customer responses must not inherit future shop-only columns via SELECT *.
+const customerColumns='id,user_id,service_type,platform,engine_family,vehicle,ecu,notes,fuel,induction,status,created_at';
+
 export type JobRow = {
   id: string;
   user_id: string;
@@ -22,7 +25,7 @@ export async function createJob(input: Omit<JobRow, "id" | "created_at" | "statu
     `
     INSERT INTO jobs (user_id, service_type, platform, engine_family, vehicle, ecu, notes, fuel, induction, status)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    RETURNING *
+    RETURNING ${customerColumns}
     `,
     [
       input.user_id,
@@ -44,11 +47,11 @@ export async function createJob(input: Omit<JobRow, "id" | "created_at" | "statu
 }
 
 export async function listJobs(userId: string): Promise<JobRow[]> {
-  return query<JobRow>(`SELECT * FROM jobs WHERE user_id=$1 ORDER BY created_at DESC`, [userId]);
+  return query<JobRow>(`SELECT ${customerColumns} FROM jobs WHERE user_id=$1 ORDER BY created_at DESC`, [userId]);
 }
 
 export async function getJob(userId: string, jobId: string): Promise<JobRow | null> {
-  const r = await query<JobRow>(`SELECT * FROM jobs WHERE user_id=$1 AND id=$2 LIMIT 1`, [userId, jobId]);
+  const r = await query<JobRow>(`SELECT ${customerColumns} FROM jobs WHERE user_id=$1 AND id=$2 LIMIT 1`, [userId, jobId]);
   return r[0] || null;
 }
 

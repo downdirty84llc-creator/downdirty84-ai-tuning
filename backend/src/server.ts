@@ -21,6 +21,7 @@ import { jobsRouter } from "./routes/jobs.routes.js";
 import { runsRouter } from "./routes/runs.routes.js";
 import { diffsetsRouter } from "./routes/diffsets.routes.js";
 import { exportsRouter } from "./routes/exports.routes.js";
+import { troubleshootingRouter } from "./routes/troubleshooting.routes.js";
 
 const app = express();
 const allowedOrigins = [
@@ -95,6 +96,7 @@ app.use("/api/v1/me", meRouter);
 app.use("/api/v1/uploads", uploadsRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/jobs", jobsRouter);
+app.use("/api/v1", troubleshootingRouter);
 app.use("/api/v1/runs", runsRouter);
 // Mounted after express.json, unlike the webhook, which needs the raw body
 // for signature verification.

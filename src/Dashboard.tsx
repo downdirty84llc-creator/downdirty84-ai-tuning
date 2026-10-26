@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import AnalysisStatus from "./AnalysisStatus";
+import JobCases from "./JobCases";
 import { apiGet, apiFetch } from "./client";
 import { createJob, listJobs, analyzeJob, Job } from "./jobs";
 import { uploadFile, listJobUploads, JobUpload } from "./uploads";
@@ -260,6 +261,7 @@ export default function Dashboard() {
                 <span className="small">Uploads selected for analysis: {pendingUploadIds.length}</span>
               </div>
               <AnalysisStatus key={activeJob.id} jobId={activeJob.id} refresh={analysisRefresh}/>
+              <JobCases key={`cases-${activeJob.id}`} jobId={activeJob.id} vehicle={activeJob.vehicle||activeJob.platform}/>
             </div>
           )}
         </div>

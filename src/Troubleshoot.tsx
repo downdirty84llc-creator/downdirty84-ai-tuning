@@ -1,5 +1,6 @@
 import {useEffect, useRef} from 'react';
 import {useLocation} from 'react-router-dom';
+import {Link} from 'react-router-dom';
 import {mountTroubleshooting} from '../products/dd84-desktop/troubleshootingUI.mjs';
 import '../products/dd84-desktop/troubleshooting.css';
 
@@ -12,5 +13,5 @@ export default function Troubleshoot() {
     setTimeout(()=>URL.revokeObjectURL(url),60000);
     return {status:'unconfirmed'};
   }}),[]);
-  return <div className="container" hidden={location.pathname!=='/troubleshoot'} ref={root}/>;
+  return <div hidden={location.pathname!=='/troubleshoot'}><div className="container"><p>To share a case with DD84, save its JSON and <Link to="/dashboard">attach it to the matching job</Link>. This editor stays local until you choose to share a saved snapshot.</p></div><div className="container" ref={root}/></div>;
 }
