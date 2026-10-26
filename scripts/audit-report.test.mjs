@@ -3,7 +3,7 @@
  * Tests for scripts/audit-report.mjs.
  *
  * The script is driven entirely by what `npm audit` does, so the only way to
- * test it honestly is to control npm. Each case puts a stub `npm` on PATH and
+ * test it honestly is to control npm. Each case supplies a stub npm JS entry and
  * runs the real script against it.
  *
  * This exists because untested CI shell has caused three separate problems in
@@ -32,30 +32,20 @@ function runWith({ auditText, auditExit, jsonText, failToRun = false }) {
   const bin = path.join(tmp, "bin");
   fs.mkdirSync(bin);
 
-  const stub = failToRun
-    ? `#!/bin/sh\nexit 127\n`
-    : [
-        "#!/bin/sh",
-        'for a in "$@"; do if [ "$a" = "--json" ]; then',
-        `  cat <<'JSONEOF'`,
-        jsonText ?? "",
-        "JSONEOF",
-        "  exit 1",
-        "fi; done",
-        `cat <<'TXTEOF'`,
-        auditText ?? "",
-        "TXTEOF",
-        `exit ${auditExit ?? 0}`
-      ].join("\n");
-
-  fs.writeFileSync(path.join(bin, "npm"), stub, { mode: 0o755 });
+  const stub = `const fixture=${JSON.stringify({auditText,auditExit,jsonText,failToRun})};
+    if(fixture.failToRun)process.exit(127);
+    const json=process.argv.includes('--json');
+    process.stdout.write((json?fixture.jsonText:fixture.auditText)??'');
+    process.exit(json?1:fixture.auditExit??0);`;
+  const cli=path.join(bin,'npm-stub.cjs');
+  fs.writeFileSync(cli, stub);
 
   const summary = path.join(tmp, "summary.md");
   const res = spawnSync(process.execPath, [script, tmp, "testsuite"], {
     encoding: "utf8",
     env: {
       ...process.env,
-      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+      npm_execpath: cli,
       GITHUB_STEP_SUMMARY: summary
     }
   });
