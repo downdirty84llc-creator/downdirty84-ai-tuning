@@ -9,7 +9,9 @@ import {chromium} from 'playwright';
 import {runtimeFiles} from '../products/dd84-desktop/scripts/runtime-files.mjs';
 import {sample} from '../products/dd84-desktop/project.mjs';
 import {blankCase,caseReport,parseCase} from '../products/dd84-desktop/troubleshooting.mjs';
+import {testJobCases} from './test-job-cases.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
+assert.equal((await fs.readFile(path.join(root,'backend/shared/troubleshooting.mjs'),'utf8')).replaceAll('\r\n','\n'),(await fs.readFile(path.join(root,'products/dd84-desktop/troubleshooting.mjs'),'utf8')).replaceAll('\r\n','\n'),'Backend and desktop/web troubleshooting catalogs differ');
 const output=process.env.DD84_TEST_OUTPUT || await fs.mkdtemp(path.join(os.tmpdir(),'dd84-workspaces-'));
 await fs.mkdir(output,{recursive:true});
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.png':'image/png','.ico':'image/x-icon','.json':'application/json'};
@@ -61,6 +63,7 @@ try{
     else if(p==='/api/v1/uploads'){uploadPosts++;await new Promise(r=>setTimeout(r,150));status=500;body={message:'Synthetic upload failure'};}
     else if(p.endsWith('/analyze')){analyzed.push(req.postDataJSON());await new Promise(r=>setTimeout(r,150));run=true;status=202;body={runId:'synthetic-run',status:'QUEUED'};}
     else if(p.endsWith('/latest-run'))body={run:run?{runId:'synthetic-run',status:'SUCCEEDED',progress:{pct:100,stage:'DONE'},errors:[]}:null};
+    else if(p.endsWith('/troubleshooting-cases'))body={cases:[],nextBefore:null};
     else if(p==='/api/v1/auth/start'){loginPosts++;await new Promise(r=>setTimeout(r,150));body={ok:true};}
     else {status=404;body={message:'Unmocked route'};}
     await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
@@ -75,10 +78,11 @@ try{
   await web.screenshot({path:path.join(output,'web-troubleshoot.png'),fullPage:true});await web.setViewportSize({width:390,height:844});await noOverflow(web);await web.getByRole('link',{name:'Help',exact:true}).click();await web.getByRole('heading',{name:'Choose your next step.',exact:true}).waitFor();await web.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await noOverflow(web);await web.screenshot({path:path.join(output,'web-help-mobile.png'),fullPage:true});assert.deepEqual(webErrors,[]);ok('branded web routes and narrow mobile layout');
 
   const stale=await browser.newPage();let releaseOld;const oldResponse=new Promise(resolve=>{releaseOld=resolve;});
-  await stale.route('**/api/v1/**',async route=>{const p=new URL(route.request().url()).pathname;let json={};if(p.endsWith('/me'))json={id:'synthetic-user',email:'fixture@example.test'};else if(p==='/api/v1/jobs')json={jobs:[job(jobA),job(jobB)]};else if(p===`/api/v1/uploads/jobs/${jobA}`){await oldResponse;json={uploads:[{id:'stale-A',filename:'stale-A.csv',size_bytes:10}]};}else if(p===`/api/v1/uploads/jobs/${jobB}`)json={uploads:[{id:'current-B',filename:'current-B.csv',size_bytes:10}]};else if(p.endsWith('/latest-run'))json={run:{runId:'synthetic-failure',status:'FAILED',progress:{pct:100,stage:'FAILED'},errors:[{code:'SYNTHETIC',message:'Synthetic unsupported log'}]}};await route.fulfill({json});});
+  await stale.route('**/api/v1/**',async route=>{const p=new URL(route.request().url()).pathname;let json={};if(p.endsWith('/me'))json={id:'synthetic-user',email:'fixture@example.test'};else if(p==='/api/v1/jobs')json={jobs:[job(jobA),job(jobB)]};else if(p===`/api/v1/uploads/jobs/${jobA}`){await oldResponse;json={uploads:[{id:'stale-A',filename:'stale-A.csv',size_bytes:10}]};}else if(p===`/api/v1/uploads/jobs/${jobB}`)json={uploads:[{id:'current-B',filename:'current-B.csv',size_bytes:10}]};else if(p.endsWith('/troubleshooting-cases'))json={cases:[],nextBefore:null};else if(p.endsWith('/latest-run'))json={run:{runId:'synthetic-failure',status:'FAILED',progress:{pct:100,stage:'FAILED'},errors:[{code:'SYNTHETIC',message:'Synthetic unsupported log'}]}};await route.fulfill({json});});
   await stale.goto(origin+'/dashboard');await stale.getByRole('button',{name:/Synthetic vehicle B/}).click();await stale.getByLabel('current-B.csv',{exact:false}).waitFor();releaseOld();await stale.evaluate(()=>new Promise(r=>setTimeout(r,150)));assert.equal(await stale.getByLabel('stale-A.csv',{exact:false}).count(),0);await text(stale.getByRole('region',{name:'Analysis status'}),/Synthetic unsupported log/);ok('late upload response cannot cross jobs and failed analysis remains visible after reopening');
   const signedOut=await browser.newPage();await signedOut.route('**/api/v1/**',route=>route.fulfill({status:401,json:{message:'Sign in required'}}));await signedOut.goto(origin+'/dashboard');await signedOut.getByRole('link',{name:'Sign in →',exact:true}).waitFor();assert.equal(await signedOut.getByRole('button',{name:'Create job',exact:true}).count(),0);ok('expired session offers sign-in rather than unusable job controls');
   // A new page avoids discarding the deliberately unsaved troubleshooting case.
   const login=await browser.newPage();await login.route('**/api/v1/auth/start',async route=>{loginPosts++;await new Promise(r=>setTimeout(r,150));await route.fulfill({json:{ok:true}});});await login.goto(origin+'/login');await login.getByLabel('Email address').fill('fixture@example.test');await login.getByLabel('Email address').press('Enter');await text(login.getByRole('status'),/Link sent/);assert.equal(loginPosts,1);ok('keyboard sign-in form submits and reports completion');
+  await testJobCases({browser,origin,output,ok});
   await fs.writeFile(path.join(output,'result.json'),JSON.stringify({passed,desktopErrors:errors,webErrors,syntheticOnly:true},null,2));console.log(JSON.stringify({passed,output}));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

@@ -1,5 +1,7 @@
 # Down Dirty 84 — AI Tuning
 
+Customers can now explicitly attach saved troubleshooting cases to their jobs, and the shop can review immutable snapshots alongside internal notes. See the [case-sharing workflow and verification](docs/JOB-TROUBLESHOOTING.md). Windows Studio 0.28 case files are compatible.
+
 > **Status: production-ready.** The full pipeline runs — payment creates a job,
 > the customer uploads a log, it is parsed, validated, checked against safety
 > and drivability rules, and MAF suggestions are computed from wideband data.
