@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.25.0**. Updated: **2026-10-26**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.26.0**. Updated: **2026-10-26**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,8 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Per-run setup review, 0.26.0 | 187 desktop tests passed; desktop dependency audit reported zero vulnerabilities. Covers unknown/mixed/identical setup, strict types and bounds, required source notes, source bindings, snapshots, incomplete/promoted-record rejection, recomputation and V1–V3 migration | Operator notes are unverified. Equality does not establish matched conditions, accurate sensors or learning readiness |
+| Browser setup review, 0.26.0 | Source gate, source-note requirement, mixed field statuses, literal markup display, V3 migration with retained band, invalid-record preservation, forged-result recomputation and stage/source/range/edit invalidation passed. Two complete saved V4 reports matched the expected fixture byte for byte; no console errors observed | Synthetic fixtures on the development PC. Native GUI, clean-machine and comprehensive acceptance remain pending |
 | Recorded-row band review, 0.25.0 | 175 desktop tests passed. Covers inclusive same-row filtering, exact exclusion accounting, missing/nonnumeric target values, sparse overlapping ranges, duplicate timestamps, point/empty windows, strict parsing, unit/selection checks, 100,000-row limits, source-recomputed reopening, nested snapshots and V1/V2 migration | Synthetic data only. CSV rows do not establish simultaneous acquisition, steady state, matched conditions or improvement. Native UI and clean-machine acceptance remain pending |
 | Browser band review, 0.25.0 | Source-check gate, renamed CSV recheck, V2 upgrade without a band, expected row counts/ranges, band and stage invalidation, rejected-unit preservation, reversed/empty bands and forged-result recomputation passed. Both downloaded reports matched the complete expected V3 fixture byte for byte; no console errors observed | Synthetic fixtures on the development PC. No native GUI, clean-machine or physical vehicle acceptance is claimed |
 | Dependency maintenance, 0.25.0 | Updated Electron to 44.9.3 and transitive packaging dependency undici to 7.30.1; dependency audit reported zero vulnerabilities after the update | Audit result at check time; packaged runtime validation is a separate check |

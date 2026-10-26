@@ -8,6 +8,7 @@ export const runtimeFiles = [
   'learningComparison.mjs', 'learningComparisonUI.mjs',
   'operatingContext.mjs',
   'operatingBand.mjs',
+  'runSetup.mjs', 'runSetupUI.mjs',
   'link-shared/wire.mjs', 'link-shared/bench-acceptance.mjs',
   'logs.mjs', 'logsUI.mjs', 'main.cjs', 'measurements.mjs', 'model.mjs',
   'navigation.mjs', 'package.json', 'parameters.mjs', 'preload.cjs', 'project.mjs',
