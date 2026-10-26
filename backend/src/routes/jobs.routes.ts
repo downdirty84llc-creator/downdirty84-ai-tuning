@@ -64,6 +64,7 @@ jobsRouter.get("/", requireAuth, wrap(async (req, res) => {
  */
 jobsRouter.get("/:jobId", requireAuth, wrap(async (req, res) => {
   const userId = req.user!.id;
+  if(!validUuid(req.params.jobId))return badRequest(res,'Invalid job ID.');
   const job = await getJob(userId, req.params.jobId);
   if (!job) return notFound(res, "Job not found.");
   return res.json({ job });

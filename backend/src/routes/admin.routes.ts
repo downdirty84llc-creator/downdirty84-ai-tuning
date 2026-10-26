@@ -5,6 +5,7 @@ import { adminListJobs, adminGetJob, adminUpdateJob } from "../services/admin/ad
 import { listUploadsForJob } from "../services/uploads/uploads.repo.js";
 import { getReviewQueue, getQueueCounts } from "../services/admin/review_queue.js";
 import { notFound, badRequest, wrap } from "../util/http.js";
+import {validate as validUuid} from 'uuid';
 
 export const adminRouter = Router();
 
@@ -14,6 +15,7 @@ adminRouter.get("/jobs", requireAuth, requireAdmin, wrap(async (_req, res) => {
 }));
 
 adminRouter.get("/jobs/:jobId", requireAuth, requireAdmin, wrap(async (req, res) => {
+  if(!validUuid(req.params.jobId))return badRequest(res,'Invalid job ID.');
   const job = await adminGetJob(req.params.jobId);
   if (!job) return notFound(res, "Job not found.");
   const uploads = await listUploadsForJob(job.user_id, job.id);
@@ -21,12 +23,16 @@ adminRouter.get("/jobs/:jobId", requireAuth, requireAdmin, wrap(async (req, res)
 }));
 
 adminRouter.patch("/jobs/:jobId", requireAuth, requireAdmin, wrap(async (req, res) => {
+  if(!validUuid(req.params.jobId))return badRequest(res,'Invalid job ID.');
   const patch = req.body || {};
-  const status = patch.status ? String(patch.status) : undefined;
-  const internal_notes = patch.internal_notes !== undefined ? String(patch.internal_notes) : undefined;
+  const status = patch.status;
+  const internal_notes = patch.internal_notes;
+  if(status!==undefined&&!['NEW','FILES_RECEIVED','ANALYZING','IN_PROGRESS','DELIVERED','COMPLETE'].includes(status))return badRequest(res,'Invalid job status.');
+  if(internal_notes!==undefined&&(typeof internal_notes!=='string'||internal_notes.length>8000))return badRequest(res,'Internal notes must be text, up to 8,000 characters.');
 
   if (!status && internal_notes === undefined) return badRequest(res, "Nothing to update.");
-  await adminUpdateJob(req.params.jobId, { status, internal_notes: internal_notes ?? null });
+  const job=await adminUpdateJob(req.params.jobId, { status, internal_notes });
+  if(!job)return notFound(res,'Job not found.');
   return res.json({ ok: true });
 }));
 
