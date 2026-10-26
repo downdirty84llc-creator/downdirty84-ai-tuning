@@ -2,11 +2,15 @@ import {checkedMeasurement,measurementRoles} from './learningMeasurements.mjs';
 import {compareLearningWindows,reopenLearningComparison,MAX_LEARNING_COMPARISON_BYTES} from './learningComparison.mjs';
 import {saveJson} from './saveFileUI.mjs';
 import {setupRunSetup,runSetupTable} from './runSetupUI.mjs';
+import {setupSensorChecks,sensorChecksTable} from './sensorChecksUI.mjs';
 
 export function setupLearningComparison({getCase,getReceipts}) {
   const $ = suffix => document.getElementById('learning-compare-'+suffix);
-  let revision=0,report=null,dirty=false,setupDirty=false;
+  let revision=0,report=null,dirty=false,setupDirty=false,sensorDirty=false;
   const setup=setupRunSetup($('run-setup'),()=>{clear();setupDirty=true;});
+  const sensors=setupSensorChecks($('sensor-checks'),()=>{clear();sensorDirty=true;});
+  sensors.context({});
+  const resetSensors=()=>{sensors.set(null);sensorDirty=false;refreshSensorContext();};
   const resetSetup=()=>{setup.set(null);setupDirty=false;};
   const status = text => $('status').textContent=text;
   const stages = () => getCase().measurements;
@@ -28,6 +32,13 @@ export function setupLearningComparison({getCase,getReceipts}) {
     $('channel').replaceChildren(new Option('Choose a shared reviewed channel',''));
     for(const s of before?.selections??[])if(after?.selections.some(a=>a.role===s.role))
       $('channel').add(new Option(title(s.role),s.role));
+  }
+  function refreshSensorContext() {
+    sensors.context(Object.fromEntries(['before','after'].map(side=>{
+      const ref=stages().find(m=>m.role===$(side).value),checked=ref&&checkedMeasurement(ref,getReceipts());
+      const channel=checked?.channelSelection.entries.find(s=>s.role===$('channel').value);
+      return [side,channel?`${ref.source.name} · ${channel.name} [${channel.unit}] · ID ${channel.channelId}`:null];
+    })));
   }
   function bandUnit() {
     const units=['before','after'].map(side=>{
@@ -52,7 +63,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
       for(const ref of refs)$(side).add(new Option(title(ref.role),ref.role));
       $(side).value=refs.some(m=>m.role===previous)?previous:'';
     }
-    channels();ranges();bandControls();resetSetup();
+    channels();ranges();bandControls();resetSetup();resetSensors();
   }
   function contextTable(context) {
     const section=document.createElement('div'),heading=document.createElement('h4'),notice=document.createElement('p');
@@ -109,7 +120,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
       body.append(row);
     }
     table.append(caption,head,body);
-    $('results').replaceChildren(table,runSetupTable(result.runSetup),...(result.operatingBand?[bandTable(result.operatingBand)]:[]),contextTable(result.operatingContext));$('save').disabled=false;
+    $('results').replaceChildren(table,runSetupTable(result.runSetup),sensorChecksTable(result.sensorChecks,result.before,result.after),...(result.operatingBand?[bandTable(result.operatingBand)]:[]),contextTable(result.operatingContext));$('save').disabled=false;
   }
   function bandTable(band) {
     const section=document.createElement('div'),heading=document.createElement('h4'),notice=document.createElement('p');
@@ -136,8 +147,8 @@ export function setupLearningComparison({getCase,getReceipts}) {
     limits.textContent='CSV channels can be asynchronous or repeat older values. Same-row filtering does not establish simultaneous sensor readings, steady state, matched conditions or improvement. Counts are not time spent in the band; readings are never filled.';
     section.append(heading,notice,status,table,limits);return section;
   }
-  for(const side of ['before','after'])$(side).onchange=()=>{clear();channels();ranges();bandControls();resetSetup();};
-  $('channel').onchange=()=>clear();
+  for(const side of ['before','after'])$(side).onchange=()=>{clear();channels();ranges();bandControls();resetSetup();resetSensors();};
+  $('channel').onchange=()=>{clear();resetSensors();};
   $('band-enable').onchange=()=>{clear();$('band-fields').disabled=!$('band-enable').checked;};
   for(const key of ['rpm','map'])for(const bound of ['min','max'])$(key+'-'+bound).oninput=()=>clear();
   for(const id of ['before-start','before-end','after-start','after-end'])$(id).oninput=()=>clear();
@@ -148,7 +159,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
     try {
       const result=await compareLearningWindows(getCase(),getReceipts(),{
         beforeRole:$('before').value,afterRole:$('after').value,channelRole:$('channel').value,
-        beforeRange:range('before'),afterRange:range('after'),note:$('note').value,runSetup:setup.get(),
+        beforeRange:range('before'),afterRange:range('after'),note:$('note').value,runSetup:setup.get(),sensorChecks:sensors.get(),
         operatingBand:$('band-enable').checked?{
           rpm:{min:$('rpm-min').valueAsNumber,max:$('rpm-max').valueAsNumber,unit:'rpm'},
           map:{min:$('map-min').valueAsNumber,max:$('map-max').valueAsNumber,unit:bandUnit()}
@@ -161,7 +172,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
   $('save').onclick=async()=>{
     if(!report)return;const snapshot=report;
     const saved=await saveJson(snapshot,'DD84-log-window-comparison.json',status);
-    if(saved.status==='saved'&&snapshot===report){dirty=false;setupDirty=false;}
+    if(saved.status==='saved'&&snapshot===report){dirty=false;setupDirty=false;sensorDirty=false;}
   };
   $('open').onchange=async e=>{
     const file=e.target.files[0];e.target.value='';if(!file)return;
@@ -174,6 +185,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
       channels();ranges();$('channel').value=result.selection.channelRole;
       bandControls(result.selection.operatingBand);
       setup.set(result.selection.runSetup);setupDirty=false;
+      sensors.set(result.selection.sensorChecks);sensorDirty=false;refreshSensorContext();
       for(const side of ['before','after']){
         $(side+'-start').value=result.selection[side+'Range'].start;$(side+'-end').value=result.selection[side+'Range'].end;
       }
@@ -181,6 +193,6 @@ export function setupLearningComparison({getCase,getReceipts}) {
       status('Comparison reopened for the matching case and checked CSVs. All summaries were recomputed from the sources.');
     }catch(error){if(request===revision)status(error.message+' Current comparison retained.');}
   };
-  window.addEventListener('beforeunload',e=>{if(dirty||setupDirty){e.preventDefault();e.returnValue='';}});
+  window.addEventListener('beforeunload',e=>{if(dirty||setupDirty||sensorDirty){e.preventDefault();e.returnValue='';}});
   return {invalidate};
 }

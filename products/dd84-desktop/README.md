@@ -1,4 +1,4 @@
-# DD84 Calibration Studio — Windows preview 0.26.0
+# DD84 Calibration Studio — Windows preview 0.27.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
@@ -118,7 +118,7 @@ After entering the comparison note, choose **Compare log windows**. A separate b
 
 RPM and pressure must both be finite and inside the band on the same CSV row. Channels may be asynchronous or repeat older values, so this filter does not establish simultaneous acquisition, steady state or matched conditions. Counts are not dwell time or independent samples; ranges do not demonstrate an improvement or suggest corrections. No values are filled or interpolated. Changing band limits or toggling the band clears the result and review note; changing stages or rechecking sources also resets the band.
 
-New comparison saves use `DD84_LEARNING_COMPARISON_V4`. Existing V1/V2 reports reopen and upgrade with no band selected; V3 retains its band. All older formats upgrade with unknown run setup. Reopening requires the matching case and checked CSVs. Context, band counts, setup comparisons and channel statistics are recomputed; saved derived results are never trusted. Older Studio versions cannot reopen V4 comparison reports. The learning-case format remains V2 and does not embed this separate comparison.
+New comparison saves use `DD84_LEARNING_COMPARISON_V5`. Existing V1/V2 reports upgrade with no band; V3/V4 retain their band. V4 retains run setup, while V1–V3 leave it unknown. All older formats upgrade without structured channel-check records. Reopening requires the matching case and checked CSVs. Context, band counts, setup/check reviews and channel statistics are recomputed; saved derived results are never trusted. Older Studio versions cannot reopen V5 comparison reports. The learning-case format remains V2 and does not embed this separate comparison.
 
 ### Record each run's setup and sensor notes
 
@@ -127,6 +127,14 @@ Preview 0.26 adds **Earlier run setup** and **Later run setup** under **Run setu
 After comparing, **Run setup review** shows missing details, different reported values and identical reported values. Text equality only ignores outer whitespace; different wording is not interpreted as a hardware change, and identical wording is not verified compatibility. Sensor notes remain operator statements, not authenticated check results. The report binds each setup to the selected stage, CSV fingerprint and associated tune fingerprint without claiming those notes were decoded from either source.
 
 Setup notes are saved only in the separate comparison report. Editing a setup detail clears the result and window note. Changing the stage or rechecking/replacing a source also clears both setup records to prevent notes moving to another recording. Channel, time-window and band changes retain setup notes but clear the result and window note. Reopening a valid V4 report restores its complete notes and recomputes the review; incomplete records or unsupported verification claims are rejected while retaining the current view. No setup entry or equality enables learning or automatic application.
+
+### Document a selected channel's sensor check
+
+Preview 0.27 adds **Earlier channel check** and **Later channel check** under **Selected-channel check records**. Choose checked CSV stages and a shared reviewed channel first. The form identifies each CSV, channel name, ID and exported unit. Record the device/location, check date, method/conditions, reference instrument or record, expected reading/acceptance limits, observed reading with units, and evidence source. Select the reported outcome separately. Dates use `YYYY-MM-DD`; impossible dates are rejected. Leave unknown details blank and retain supporting records separately.
+
+Partial records can be saved. **Selected-channel check evidence** lists missing details and distinguishes no record, incomplete documentation, reported failure, reported inconclusive and a complete reported pass. A failure stays visible even with missing fields. A complete record or reported pass does not validate a sensor: the app does not authenticate the reference, check the arithmetic or units, establish the age/applicability of a check, or infer acceptance limits. General run-setup notes are not used to fill this record.
+
+Comparison V5 binds each check to the exact stage, CSV and tune fingerprints, selected channel role/ID and exported unit. Reopening rejects incomplete record structures, unsupported verification claims and changed bindings; failed reopening preserves the current report. The displayed review is recomputed from the saved operator statements. Changes to a check clear the result and comparison note; changing the selected channel, stage or CSV source clears both check records. Changing time windows or the optional band retains records for the same channel but clears the result. Records cover only that selected channel and are saved only in this comparison report. Sensor validation, learning and automatic application remain disabled.
 
 ## Review exported tune differences
 
@@ -154,7 +162,7 @@ See [PARAMETER_PROJECT.md](PARAMETER_PROJECT.md) for the V2 format and the requi
 | `DD84_STUDIO_REVIEW_V2` | Multi-parameter differences, baseline fingerprint, note and embedded project | Review-only report; reopen the separately saved project |
 | `DD84_FILE_PAIR_V1` | Vehicle/build notes and two file identities | Case JSON and both matching HPT files |
 | `DD84_LEARNING_CASE_V2` | Tune/log timeline, build notes, CSV references and stated associations | Case JSON; V1 upgrades; retain and recheck source files |
-| `DD84_LEARNING_COMPARISON_V4` | Independent channel windows, context, optional RPM/pressure band, per-run setup/source notes, case fingerprint and note | Matching case and both rechecked CSVs; V1–V3 upgrade with unknown setup; V1/V2 without a band; up to 1 MiB |
+| `DD84_LEARNING_COMPARISON_V5` | Independent channel windows, context, optional band, per-run setup and selected-channel check records, case fingerprint and note | Matching case and both rechecked CSVs; V1–V4 upgrade without check records; V1–V3 without setup; V1/V2 without a band; up to 1 MiB |
 | `DD84_DIFFERENCES_V1` | Comparison evidence, direction and source identity | Evidence report; keep comparison CSV and tune pair separately |
 | `DD84_LOG_INSPECTION_V1` | Full-recording summary, channel choices and notes | Review JSON and matching CSV |
 | `DD84_LOG_SEGMENT_V1` | One channel/range summary and note | Segment JSON and matching CSV |

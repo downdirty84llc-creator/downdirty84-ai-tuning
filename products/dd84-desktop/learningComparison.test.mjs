@@ -115,7 +115,7 @@ test('supports earlier-to-before-final comparison without inventing a final outc
 test('comparison recomputes context from checked sources and upgrades legacy V1 reports',async()=>{
   const {c,receipts}=await fixture(afterCsv.replace('s,rpm,kPa','s,rpm,psi'));
   const result=await compareLearningWindows(c,receipts,options());
-  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V4');
+  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V5');
   assert.equal(result.operatingContext.channels.find(c=>c.role==='MAP').status,'UNIT_MISMATCH');
   const forged=structuredClone(result);forged.operatingContext={operatingConditionsMatched:true,channels:[]};
   assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),result);
@@ -194,4 +194,49 @@ test('run setup and source bindings are snapshotted before asynchronous hashing'
   const r=await pending;assert.equal(r.selection.runSetup.before.fuel,'Synthetic fuel');
   assert.equal(r.runSetup.evidenceNotes.before,'Synthetic source');
   assert.equal(r.runSetup.sourceBindings.before.csvSha256,receipts[0].reference.source.textSha256);
+});
+
+test('V5 sensor records bind differing channel IDs to their exact source and recompute reported failures',async()=>{
+  const {c,receipts}=await fixture(afterCsv.replace('0,1,2','0,7,2'),[{...selections[0],channelId:'7'},selections[1]]);
+  const r=await compareLearningWindows(c,receipts,{...options(),sensorChecks:{before:{outcome:'FAIL_REPORTED',observed:'Synthetic fault'},after:null}});
+  assert.equal(r.format,'DD84_LEARNING_COMPARISON_V5');
+  assert.equal(r.selection.sensorChecks.before.binding.channelId,'1');assert.equal(r.selection.sensorChecks.after.binding.channelId,'7');
+  assert.equal(r.selection.sensorChecks.before.binding.channelRole,'RPM');assert.equal(r.selection.sensorChecks.before.binding.unit,'rpm');
+  assert.equal(r.selection.sensorChecks.before.binding.csvSha256,c.measurements[0].source.textSha256);
+  assert.equal(r.selection.sensorChecks.after.binding.tuneSha256,b);
+  assert.equal(r.sensorChecks.before.status,'REPORTED_FAILURE');assert.equal(r.sensorChecks.after.status,'NOT_RECORDED');
+  assert.deepEqual(JSON.parse(validateRequest({filename:'sensor-checks.json',text:JSON.stringify(r)})),r);
+  const forged=structuredClone(r);forged.sensorChecks={sensorValidated:true,before:{status:'VALIDATED'}};
+  assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),r);
+  await assert.rejects(reopenLearningComparison(JSON.stringify(r),c,[]),/Recheck both/);
+});
+test('V5 rejects missing, truncated, promoted and retargeted sensor-check records',async()=>{
+  const {c,receipts}=await fixture(),r=await compareLearningWindows(c,receipts,options());
+  const missing=structuredClone(r);delete missing.selection.sensorChecks;
+  await assert.rejects(reopenLearningComparison(JSON.stringify(missing),c,receipts),/saved sensor-check/);
+  const truncated=structuredClone(r);delete truncated.selection.sensorChecks.after.observed;
+  await assert.rejects(reopenLearningComparison(JSON.stringify(truncated),c,receipts),/incomplete/);
+  const promoted=structuredClone(r);promoted.selection.sensorChecks.before.provenance='VERIFIED';
+  await assert.rejects(reopenLearningComparison(JSON.stringify(promoted),c,receipts),/unsupported verification/);
+  const retargeted=structuredClone(r);retargeted.selection.channelRole='MAP';
+  await assert.rejects(reopenLearningComparison(JSON.stringify(retargeted),c,receipts),/does not match/);
+});
+test('V1 through V4 migration leaves sensor checks unknown and preserves only supported setup/band inputs',async()=>{
+  const {c,receipts}=await fixture(),operatingBand={rpm:{min:1000,max:1300,unit:'rpm'},map:{min:90,max:100,unit:'kPa'}},
+    runSetup={before:{fuel:'Synthetic fuel',evidenceNote:'Synthetic source'},after:null};
+  const r=await compareLearningWindows(c,receipts,{...options(),operatingBand,runSetup,sensorChecks:{before:{outcome:'PASS_REPORTED'},after:null}});
+  for(const version of [1,2,3,4]){
+    const legacy=structuredClone(r);legacy.format='DD84_LEARNING_COMPARISON_V'+version;
+    const expected=await compareLearningWindows(c,receipts,{...options(),operatingBand:version>=3?operatingBand:null,runSetup:version>=4?runSetup:null});
+    assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),expected);
+    delete legacy.selection.sensorChecks;delete legacy.sensorChecks;
+    assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),expected);
+  }
+});
+test('sensor records and bound channel identity are snapshotted before hashing',async()=>{
+  const {c,receipts}=await fixture(),sensorChecks={before:{device:'Synthetic instrument',outcome:'FAIL_REPORTED'},after:null};
+  const pending=compareLearningWindows(c,receipts,{...options(),sensorChecks});
+  sensorChecks.before.device='Changed';sensorChecks.before.outcome='PASS_REPORTED';c.measurements[0].selections[0].channelId='999';
+  const r=await pending;assert.equal(r.selection.sensorChecks.before.device,'Synthetic instrument');
+  assert.equal(r.selection.sensorChecks.before.binding.channelId,'1');assert.equal(r.sensorChecks.before.status,'REPORTED_FAILURE');
 });

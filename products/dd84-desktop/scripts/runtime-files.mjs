@@ -9,6 +9,7 @@ export const runtimeFiles = [
   'operatingContext.mjs',
   'operatingBand.mjs',
   'runSetup.mjs', 'runSetupUI.mjs',
+  'sensorChecks.mjs', 'sensorChecksUI.mjs',
   'link-shared/wire.mjs', 'link-shared/bench-acceptance.mjs',
   'logs.mjs', 'logsUI.mjs', 'main.cjs', 'measurements.mjs', 'model.mjs',
   'navigation.mjs', 'package.json', 'parameters.mjs', 'preload.cjs', 'project.mjs',

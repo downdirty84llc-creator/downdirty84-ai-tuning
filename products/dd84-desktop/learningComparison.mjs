@@ -2,6 +2,7 @@ import {makeLearningCase} from './learning.mjs';
 import {measurementRoles,measurementReference,measurementWindow,measurementContext,measurementBand} from './learningMeasurements.mjs';
 import {operatingBandSelection} from './operatingBand.mjs';
 import {runSetupSelection,savedRunSetupSelection,reviewRunSetup} from './runSetup.mjs';
+import {sensorCheckSelection,sensorCheckBindings,bindSensorChecks,savedSensorCheckSelection,reviewSensorChecks} from './sensorChecks.mjs';
 
 export const MAX_LEARNING_COMPARISON_BYTES = 1024 * 1024;
 const method = 'INDEPENDENT_CHANNEL_WINDOWS_V1';
@@ -33,7 +34,8 @@ export async function compareLearningWindows(input, receipts, options) {
   const selection = {beforeRole,afterRole,channelRole,
     beforeRange:{start:before.timeline.time.first,end:before.timeline.time.last},
     afterRange:{start:after.timeline.time.first,end:after.timeline.time.last},
-    operatingBand:operatingBandSelection(options.operatingBand),runSetup:runSetupSelection(options.runSetup)};
+    operatingBand:operatingBandSelection(options.operatingBand),runSetup:runSetupSelection(options.runSetup),
+    sensorChecks:bindSensorChecks(options.sensorChecks,sensorCheckBindings(before,after,channelRole))};
   const operatingContext=measurementContext(before.reference,after.reference,receipts,selection.beforeRange,selection.afterRange);
   const operatingBand=selection.operatingBand?measurementBand(before.reference,after.reference,receipts,
     selection.beforeRange,selection.afterRange,channelRole,selection.operatingBand):null;
@@ -41,9 +43,10 @@ export async function compareLearningWindows(input, receipts, options) {
     Object.entries({before,after}).map(([side,value])=>[side,{stage:value.reference.role,
       csvSha256:value.reference.source.textSha256,tuneSha256:value.reference.calibration.sha256}]))};
   return {
-    format:'DD84_LEARNING_COMPARISON_V4',status:'EVIDENCE_ONLY_NOT_RELEASED',writeStrategy:'SIMULATION_ONLY',
+    format:'DD84_LEARNING_COMPARISON_V5',status:'EVIDENCE_ONLY_NOT_RELEASED',writeStrategy:'SIMULATION_ONLY',
     method,learningCase:{sha256:await fingerprint(c),hashScope},vehicle:c.vehicle,
     selection,note:note.trim(),noteProvenance:'OPERATOR_SUPPLIED_NOT_VERIFIED',before,after,operatingContext,operatingBand,runSetup,
+    sensorChecks:reviewSensorChecks(selection.sensorChecks),
     learningReady:false,automaticApplication:false,
     limitations:[
       'Each window is summarized independently in its own recording-offset seconds; both endpoints are included.',
@@ -60,17 +63,21 @@ export async function reopenLearningComparison(saved, input, receipts) {
   if (typeof saved !== 'string' || new TextEncoder().encode(saved).length > MAX_LEARNING_COMPARISON_BYTES)
     throw Error('Saved log-window comparison exceeds 1 MB.');
   const value = JSON.parse(saved);
-  if (!['DD84_LEARNING_COMPARISON_V1','DD84_LEARNING_COMPARISON_V2','DD84_LEARNING_COMPARISON_V3','DD84_LEARNING_COMPARISON_V4'].includes(value?.format) || value.status !== 'EVIDENCE_ONLY_NOT_RELEASED' ||
+  if (!['DD84_LEARNING_COMPARISON_V1','DD84_LEARNING_COMPARISON_V2','DD84_LEARNING_COMPARISON_V3','DD84_LEARNING_COMPARISON_V4','DD84_LEARNING_COMPARISON_V5'].includes(value?.format) || value.status !== 'EVIDENCE_ONLY_NOT_RELEASED' ||
       value.writeStrategy !== 'SIMULATION_ONLY' || value.method !== method || value.learningReady !== false ||
       value.automaticApplication !== false || value.noteProvenance !== 'OPERATOR_SUPPLIED_NOT_VERIFIED' ||
       value.learningCase?.hashScope !== hashScope || typeof value.learningCase.sha256 !== 'string' ||
       !/^[a-f0-9]{64}$/.test(value.learningCase.sha256)) throw Error('Unsupported log-window comparison.');
-  const hasBand=['DD84_LEARNING_COMPARISON_V3','DD84_LEARNING_COMPARISON_V4'].includes(value.format);
+  const hasBand=['DD84_LEARNING_COMPARISON_V3','DD84_LEARNING_COMPARISON_V4','DD84_LEARNING_COMPARISON_V5'].includes(value.format);
+  const hasSetup=['DD84_LEARNING_COMPARISON_V4','DD84_LEARNING_COMPARISON_V5'].includes(value.format);
   if(hasBand&&(!value.selection||!Object.hasOwn(value.selection,'operatingBand')))
     throw Error('Saved comparison is missing its operating-band selection.');
   const result = await compareLearningWindows(input, receipts, {...value.selection,note:value.note,
     operatingBand:hasBand?value.selection.operatingBand:null,
-    runSetup:value.format==='DD84_LEARNING_COMPARISON_V4'?savedRunSetupSelection(value.selection?.runSetup):null});
+    runSetup:hasSetup?savedRunSetupSelection(value.selection?.runSetup):null,
+    sensorChecks:value.format==='DD84_LEARNING_COMPARISON_V5'?sensorCheckSelection(value.selection?.sensorChecks):null});
+  if(value.format==='DD84_LEARNING_COMPARISON_V5')savedSensorCheckSelection(value.selection?.sensorChecks,
+    sensorCheckBindings(result.before,result.after,result.selection.channelRole));
   if (value.learningCase.sha256 !== result.learningCase.sha256)
     throw Error('Open the matching learning case before restoring this comparison.');
   for (const side of ['before','after']) {
