@@ -1,6 +1,6 @@
 # Windows preview release acceptance
 
-Current implementation: **0.24.0**. Updated: **2026-10-21**. Status: **development preview; comprehensive release acceptance incomplete**.
+Current implementation: **0.25.0**. Updated: **2026-10-26**. Status: **development preview; comprehensive release acceptance incomplete**.
 
 This record distinguishes tests of the current source from historical native checks. A historical pass is not a claim that every workflow was retested in the latest executable. Customer files and machine-specific evidence paths stay outside the repository.
 
@@ -8,6 +8,9 @@ This record distinguishes tests of the current source from historical native che
 
 | Scope | Result | Boundary |
 |---|---|---|
+| Recorded-row band review, 0.25.0 | 175 desktop tests passed. Covers inclusive same-row filtering, exact exclusion accounting, missing/nonnumeric target values, sparse overlapping ranges, duplicate timestamps, point/empty windows, strict parsing, unit/selection checks, 100,000-row limits, source-recomputed reopening, nested snapshots and V1/V2 migration | Synthetic data only. CSV rows do not establish simultaneous acquisition, steady state, matched conditions or improvement. Native UI and clean-machine acceptance remain pending |
+| Browser band review, 0.25.0 | Source-check gate, renamed CSV recheck, V2 upgrade without a band, expected row counts/ranges, band and stage invalidation, rejected-unit preservation, reversed/empty bands and forged-result recomputation passed. Both downloaded reports matched the complete expected V3 fixture byte for byte; no console errors observed | Synthetic fixtures on the development PC. No native GUI, clean-machine or physical vehicle acceptance is claimed |
+| Dependency maintenance, 0.25.0 | Updated Electron to 44.9.3 and transitive packaging dependency undici to 7.30.1; dependency audit reported zero vulnerabilities after the update | Audit result at check time; packaged runtime validation is a separate check |
 | Operating-context review, 0.24.0 | 163 desktop tests passed; dependency audit reported no vulnerabilities. Covers inclusive counts, overlapping/disjoint/point ranges, range gaps, missing selections, unit mismatches, empty windows, duplicate timestamps, strict numeric parsing, 100,000-row bounds and V1 comparison migration | Synthetic fixtures only. Independent range overlap does not establish simultaneous coverage, matched conditions, validated sensors or improvement. Native UI and clean-machine acceptance remain pending |
 | Browser operating-context review, 0.24.0 | Source gating, renamed-source recheck, V1 upgrade, four context statuses, stale result/note clearing and forged-context recomputation passed; both complete saved reports matched the expected V2 report byte for byte; no console errors observed | Synthetic data on the development PC; no native UI or clean-machine acceptance claim |
 | Independent log-window comparison, 0.23.0 | 150 desktop tests passed; dependency audit reported no vulnerabilities. Covers exact case/source binding, two inclusive windows, empty/missing/nonnumeric readings, duplicate timestamps, unit mismatch, stage order, asynchronous snapshots and source-recomputed reopening | Synthetic fixtures only. Windows remain independent and are not matched for operating conditions. Native UI and clean-machine acceptance for this release remain pending |

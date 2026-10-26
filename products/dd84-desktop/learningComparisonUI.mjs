@@ -26,6 +26,19 @@ export function setupLearningComparison({getCase,getReceipts}) {
     for(const s of before?.selections??[])if(after?.selections.some(a=>a.role===s.role))
       $('channel').add(new Option(title(s.role),s.role));
   }
+  function bandUnit() {
+    const units=['before','after'].map(side=>{
+      const ref=stages().find(m=>m.role===$(side).value);
+      return ref&&checkedMeasurement(ref,getReceipts())?.channelSelection.entries.find(s=>s.role==='MAP')?.unit;
+    });
+    return units[0]&&units[0]===units[1]?units[0]:'';
+  }
+  function bandControls(value=null) {
+    $('band-enable').checked=Boolean(value);$('band-fields').disabled=!value;
+    for(const key of ['rpm','map'])for(const bound of ['min','max'])$(key+'-'+bound).value=value?.[key][bound]??'';
+    $('band-units').textContent=bandUnit()?`RPM in rpm; manifold absolute pressure in ${bandUnit()}. Pressure is absolute, not gauge boost.`:
+      'Recheck both CSVs and review RPM and MAP with matching units before using a band.';
+  }
   function invalidate(sources=false) {
     clear();
     if(!sources)return;
@@ -36,7 +49,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
       for(const ref of refs)$(side).add(new Option(title(ref.role),ref.role));
       $(side).value=refs.some(m=>m.role===previous)?previous:'';
     }
-    channels();ranges();
+    channels();ranges();bandControls();
   }
   function contextTable(context) {
     const section=document.createElement('div'),heading=document.createElement('h4'),notice=document.createElement('p');
@@ -92,10 +105,38 @@ export function setupLearningComparison({getCase,getReceipts}) {
       for(const side of ['before','after']){const cell=document.createElement('td');cell.textContent=String(value(result[side]));row.append(cell);}
       body.append(row);
     }
-    table.append(caption,head,body);$('results').replaceChildren(table,contextTable(result.operatingContext));$('save').disabled=false;
+    table.append(caption,head,body);
+    $('results').replaceChildren(table,...(result.operatingBand?[bandTable(result.operatingBand)]:[]),contextTable(result.operatingContext));$('save').disabled=false;
   }
-  for(const side of ['before','after'])$(side).onchange=()=>{clear();channels();ranges();};
+  function bandTable(band) {
+    const section=document.createElement('div'),heading=document.createElement('h4'),notice=document.createElement('p');
+    heading.textContent='Selected RPM / pressure band';
+    notice.textContent=`${band.selection.rpm.min} to ${band.selection.rpm.max} rpm; ${band.selection.map.min} to ${band.selection.map.max} ${band.selection.map.unit} absolute pressure. Both limits are inclusive. Both values must occur on the same exported row.`;
+    const status=document.createElement('p');
+    status.textContent={NO_ROWS_IN_EITHER_BAND:'Neither window has rows inside this band.',
+      NO_ROWS_IN_EARLIER_BAND:'The earlier window has no rows inside this band.',NO_ROWS_IN_LATER_BAND:'The later window has no rows inside this band.',
+      TARGET_READINGS_MISSING:'Both windows contain rows in the band, but at least one has no numeric readings for the selected channel.',
+      RECORDED_ROWS_IN_BOTH_BANDS:'Both windows contain recorded rows in the band. Conditions are still not matched.'}[band.status];
+    const table=document.createElement('table'),head=document.createElement('thead'),header=document.createElement('tr');
+    for(const text of ['Band evidence','Earlier window','Later window']){const cell=document.createElement('th');cell.scope='col';cell.textContent=text;header.append(cell);}
+    head.append(header);const body=document.createElement('tbody');
+    const fields=[['Export rows in time window',s=>s.rowCount],['Excluded: missing or nonnumeric RPM / pressure',s=>s.invalidContextRows],
+      ['Excluded: outside band',s=>s.outsideBandRows],['Rows inside band',s=>s.includedRows],['Repeated timestamps inside band',s=>s.duplicateIncludedTimes],
+      ['Selected channel',s=>`${s.target.channel.name} [${s.target.channel.unit}]`],['Numeric readings inside band',s=>s.target.numericCount],
+      ['Missing readings inside band',s=>s.target.missingCount],['Nonnumeric readings inside band',s=>s.target.textCount],
+      ['Observed minimum inside band',s=>s.target.min??'No numeric readings'],['Observed maximum inside band',s=>s.target.max??'No numeric readings']];
+    for(const [label,value] of fields){
+      const row=document.createElement('tr'),cell=document.createElement('th');cell.scope='row';cell.textContent=label;row.append(cell);
+      for(const side of ['before','after']){const cell=document.createElement('td');cell.textContent=String(value(band[side]));row.append(cell);}body.append(row);
+    }
+    table.append(head,body);const limits=document.createElement('p');
+    limits.textContent='CSV channels can be asynchronous or repeat older values. Same-row filtering does not establish simultaneous sensor readings, steady state, matched conditions or improvement. Counts are not time spent in the band; readings are never filled.';
+    section.append(heading,notice,status,table,limits);return section;
+  }
+  for(const side of ['before','after'])$(side).onchange=()=>{clear();channels();ranges();bandControls();};
   $('channel').onchange=()=>clear();
+  $('band-enable').onchange=()=>{clear();$('band-fields').disabled=!$('band-enable').checked;};
+  for(const key of ['rpm','map'])for(const bound of ['min','max'])$(key+'-'+bound).oninput=()=>clear();
   for(const id of ['before-start','before-end','after-start','after-end'])$(id).oninput=()=>clear();
   $('note').oninput=()=>{clear(false);dirty=Boolean($('note').value);};
   $('build').onclick=async()=>{
@@ -104,7 +145,11 @@ export function setupLearningComparison({getCase,getReceipts}) {
     try {
       const result=await compareLearningWindows(getCase(),getReceipts(),{
         beforeRole:$('before').value,afterRole:$('after').value,channelRole:$('channel').value,
-        beforeRange:range('before'),afterRange:range('after'),note:$('note').value
+        beforeRange:range('before'),afterRange:range('after'),note:$('note').value,
+        operatingBand:$('band-enable').checked?{
+          rpm:{min:$('rpm-min').valueAsNumber,max:$('rpm-max').valueAsNumber,unit:'rpm'},
+          map:{min:$('map-min').valueAsNumber,max:$('map-max').valueAsNumber,unit:bandUnit()}
+        }:null
       });
       if(request!==revision)return;render(result);
       status('Compared from checked CSV contents. Windows remain independent; this does not establish an improvement or enable tuning.');
@@ -124,6 +169,7 @@ export function setupLearningComparison({getCase,getReceipts}) {
       const result=await reopenLearningComparison(saved,getCase(),getReceipts());if(request!==revision)return;
       $('before').value=result.selection.beforeRole;$('after').value=result.selection.afterRole;
       channels();ranges();$('channel').value=result.selection.channelRole;
+      bandControls(result.selection.operatingBand);
       for(const side of ['before','after']){
         $(side+'-start').value=result.selection[side+'Range'].start;$(side+'-end').value=result.selection[side+'Range'].end;
       }

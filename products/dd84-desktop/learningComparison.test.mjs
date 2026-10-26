@@ -112,14 +112,44 @@ test('supports earlier-to-before-final comparison without inventing a final outc
   const r=await compareLearningWindows(next,[...receipts,earlier],{...options(),beforeRole:'EARLIER_LOG',afterRole:'BEFORE_FINAL_LOG',afterRange:{start:0,end:2}});
   assert.equal(r.before.timeline.max,900);assert.equal(r.after.timeline.max,1000);assert.equal(r.learningReady,false);
 });
-test('V2 comparison recomputes context from checked sources and upgrades legacy V1 reports',async()=>{
+test('comparison recomputes context from checked sources and upgrades legacy V1 reports',async()=>{
   const {c,receipts}=await fixture(afterCsv.replace('s,rpm,kPa','s,rpm,psi'));
   const result=await compareLearningWindows(c,receipts,options());
-  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V2');
+  assert.equal(result.format,'DD84_LEARNING_COMPARISON_V3');
   assert.equal(result.operatingContext.channels.find(c=>c.role==='MAP').status,'UNIT_MISMATCH');
   const forged=structuredClone(result);forged.operatingContext={operatingConditionsMatched:true,channels:[]};
   assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),result);
   const {operatingContext,...legacy}=result;legacy.format='DD84_LEARNING_COMPARISON_V1';
   assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),result);
   assert.equal(result.operatingContext.operatingConditionsMatched,false);
+});
+
+test('optional operating band is source-derived, saved, recomputed and cleared for legacy comparisons',async()=>{
+  const {c,receipts}=await fixture();
+  const band={rpm:{min:1000,max:1300,unit:'rpm'},map:{min:90,max:100,unit:'kPa'}};
+  const r=await compareLearningWindows(c,receipts,{...options(),operatingBand:band});
+  assert.equal(r.operatingBand.before.includedRows,1);assert.equal(r.operatingBand.after.includedRows,2);
+  assert.deepEqual(r.selection.operatingBand,band);
+  assert.deepEqual(JSON.parse(validateRequest({filename:'band.json',text:JSON.stringify(r)})),r);
+  const forged=structuredClone(r);forged.operatingBand={operatingConditionsMatched:true,before:{includedRows:999}};
+  assert.deepEqual(await reopenLearningComparison(JSON.stringify(forged),c,receipts),r);
+  const expected=await compareLearningWindows(c,receipts,options());
+  for(const format of ['DD84_LEARNING_COMPARISON_V1','DD84_LEARNING_COMPARISON_V2']){
+    assert.deepEqual(await reopenLearningComparison(JSON.stringify({...forged,format}),c,receipts),expected);
+    const legacy=structuredClone(r);legacy.format=format;delete legacy.selection.operatingBand;delete legacy.operatingBand;
+    assert.deepEqual(await reopenLearningComparison(JSON.stringify(legacy),c,receipts),expected);
+  }
+  const missing=structuredClone(r);delete missing.selection.operatingBand;
+  await assert.rejects(reopenLearningComparison(JSON.stringify(missing),c,receipts),/missing its operating-band/);
+  const mismatch=structuredClone(r);mismatch.selection.operatingBand.map.unit='psi';
+  await assert.rejects(reopenLearningComparison(JSON.stringify(mismatch),c,receipts),/identical exported/);
+  await assert.rejects(compareLearningWindows(c,structuredClone(receipts),{...options(),operatingBand:band}),/Recheck both/);
+});
+test('operating band snapshots nested choices before hashing and never mutates case or receipts',async()=>{
+  const {c,receipts}=await fixture(),original=structuredClone(c),before=structuredClone(receipts);
+  const selection={rpm:{min:1000,max:1300,unit:'rpm'},map:{min:90,max:100,unit:'kPa'}};
+  const pending=compareLearningWindows(c,receipts,{...options(),operatingBand:selection});
+  selection.rpm.min=0;selection.map.unit='psi';
+  const r=await pending;assert.equal(r.selection.operatingBand.rpm.min,1000);assert.equal(r.operatingBand.selection.map.unit,'kPa');
+  assert.deepEqual(c,original);assert.deepEqual(receipts,before);
 });
