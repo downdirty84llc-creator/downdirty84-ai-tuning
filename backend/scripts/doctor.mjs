@@ -346,7 +346,7 @@ async function checkStripe() {
         return record("Payments", "FAIL", describeVerdict(verdict),
           verdict.kind === "WRONG_ACCOUNT"
             ? `Point STRIPE_SECRET_KEY at ${EXPECTED_STRIPE_ACCOUNT}, or update the price IDs and EXPECTED_STRIPE_ACCOUNT in src/config/stripe_catalog.ts to the account you meant.`
-            : "Use a live key in production, or set NODE_ENV to something else.");
+            : "Verify the intended live account for an approved production activation. Use test credentials only in an isolated nonproduction environment.");
       }
     } catch {
       record("Payments", "WARN", "Could not check which account the key belongs to (run `npm run build` first).", "npm run build");
@@ -357,7 +357,7 @@ async function checkStripe() {
       // orders never become jobs. The key working is not enough.
       return record("Payments", "FAIL",
         `Key valid (${acct.business_profile?.name ?? acct.id}, ${mode}) but STRIPE_WEBHOOK_SECRET is missing.`,
-        "Add the endpoint POST /api/v1/stripe/webhook in Stripe, subscribe to checkout.session.completed, and copy its signing secret.");
+        "Inspect the existing POST /api/v1/stripe/webhook endpoint before creating one. The repaired handler needs checkout.session.completed, checkout.session.async_payment_succeeded and checkout.session.async_payment_failed. Save its matching signing secret through the approved secure handoff.");
     }
     record("Payments", live ? "OK" : "WARN",
       `${acct.business_profile?.name ?? acct.id} (${acct.id}), ${mode} mode, webhook secret set.`,

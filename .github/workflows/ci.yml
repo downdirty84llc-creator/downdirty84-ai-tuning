@@ -79,6 +79,12 @@ jobs:
           npm run test:e2e
         working-directory: backend
 
+      - name: Stripe settled-session fulfillment and concurrency
+        run: npm run test:stripe-fulfillment
+        working-directory: backend
+        env:
+          E2E_STRIPE_DISPOSABLE: '1'
+
       - name: DD84 LINK API integration
         run: npm run test:dd84-link
         working-directory: backend
