@@ -282,7 +282,8 @@ available for existing/manual work. A transient verification failure can retry
 on catalogue/checkout access after one minute, without polling Stripe on health
 checks. The buy page reports this separately from unavailable prices.
 
-See [the payment activation and profile-review handoff](docs/PORTAL-REPAIR-HANDOFF.md).
+See [the payment activation and profile-review handoff](docs/PORTAL-REPAIR-HANDOFF.md)
+and [Stripe settlement/isolated acceptance](docs/STRIPE-ACCEPTANCE.md).
 
 Starting a payment: `POST /api/v1/checkout` with `{ service, addons?, vehicle?,
 platform?, fuel?, induction? }`. **The client names a service, never a price** —
