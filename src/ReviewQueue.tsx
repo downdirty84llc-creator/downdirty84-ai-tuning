@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {Link} from 'react-router-dom';
 import { getQueue, releaseDiffSet, getDiffSet, QueueItem, QueueCounts } from "./queue";
+import NavigationGuard from './NavigationGuard';
 
 /** Matches PROFILE_LABELS in the backend. */
 const PROFILE_LABELS: Record<string, string> = {
@@ -9,20 +11,7 @@ const PROFILE_LABELS: Record<string, string> = {
   BOOSTED_E85: "Boosted E85"
 };
 
-/**
- * The owner's 10%.
- *
- * Everything else in this system runs without a person. This screen is the one
- * decision that cannot: a human accepts a calibration change before it reaches
- * a customer's engine. So the job here is not to present data — it is to make
- * that single decision takeable in seconds, with nothing important hidden
- * behind a click.
- *
- * Which is why the numbers that decide it (largest change, lowest confidence,
- * safety verdict) and every attention flag are on the card itself. The item
- * detail is available, but it is for the rare job that needs it, not the
- * normal one.
- */
+// Release remains an explicit owner decision, separate from reviewing job evidence.
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
@@ -38,13 +27,16 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
 function Card({
   item,
   onDecide,
-  busy
+  busy,
+  note,
+  onNote
 }: {
   item: QueueItem;
   onDecide: (decision: "RELEASE" | "REJECT", note: string) => void;
   busy: boolean;
+  note: string;
+  onNote: (value:string)=>void;
 }) {
-  const [note, setNote] = useState("");
   const [detail, setDetail] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
 
@@ -73,6 +65,7 @@ function Card({
             {item.customerEmail} · {item.platform} {item.serviceType} · waiting{" "}
             {item.waitingHours < 1 ? "<1" : item.waitingHours.toFixed(1)} h
           </p>
+          <p><Link to={`/admin?job=${encodeURIComponent(item.jobId)}`}>Review this job and case history</Link></p>
           {/* Which thresholds judged this. An unconfirmed profile, or none at
               all, changes how much weight the safety verdict carries — so it
               belongs next to the verdict, not buried in the detail. */}
@@ -140,10 +133,12 @@ function Card({
         <input
           style={{ flex: 1, minWidth: 200 }}
           placeholder="Note (recorded with the decision)"
+          aria-label={`Decision note for ${item.vehicle||item.jobId}`}
+          disabled={busy}
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={(e) => onNote(e.target.value)}
         />
-        <button disabled={busy} onClick={() => onDecide("RELEASE", note)}>
+        <button disabled={busy||blocked} onClick={() => onDecide("RELEASE", note)}>
           {busy ? "…" : "Release"}
         </button>
         <button className="secondary" disabled={busy} onClick={() => onDecide("REJECT", note)}>
@@ -180,35 +175,41 @@ export default function ReviewQueue() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notes,setNotes]=useState<Record<string,string>>({});
+  const dirty=Object.values(notes).some(note=>note!==''),operation=useRef(false),alive=useRef(true),requests=useRef(0);
 
   async function refresh() {
+    const request=++requests.current;setLoading(true);
     try {
       const r = await getQueue();
+      if(!alive.current||request!==requests.current)return;
       setCounts(r.counts);
       setItems(r.items);
       setError(null);
     } catch (e) {
-      setError(
-        `${(e as Error).message}. The queue is admin-only — the address you signed in with must be in ADMIN_EMAILS.`
-      );
+      if(alive.current&&request===requests.current)setError(`${(e as Error).message}. Sign in with your DD84 shop account or retry the queue.`);
     } finally {
-      setLoading(false);
+      if(alive.current&&request===requests.current)setLoading(false);
     }
   }
 
   useEffect(() => {
-    refresh();
+    alive.current=true;void refresh();return()=>{alive.current=false;requests.current++;};
   }, []);
 
   async function decide(item: QueueItem, decision: "RELEASE" | "REJECT", note: string) {
+    if(operation.current||(decision==='RELEASE'&&item.safety.blockers>0))return;
+    operation.current=true;
     setBusyId(item.diffSetId);
     setMsg(null);
     try {
       const r = await releaseDiffSet(item.diffSetId, decision, note);
+      if(!alive.current)return;
+      setNotes(previous=>{const next={...previous};delete next[item.diffSetId];return next;});
       if (decision === "REJECT") {
         setMsg(`Rejected — ${item.vehicle || item.customerEmail}. Nothing was sent to the customer.`);
       } else if (r.customerNotified) {
-        setMsg(`Released — ${item.customerEmail} has been emailed. Nothing further needed.`);
+        setMsg(`Released — ${item.customerEmail} has been emailed the change list.`);
       } else {
         // Never let a failed send read as a completed job.
         setMsg(
@@ -218,21 +219,20 @@ export default function ReviewQueue() {
       }
       await refresh();
     } catch (e) {
-      setMsg(`Failed: ${(e as Error).message}`);
+      if(alive.current)setMsg(`Failed: ${(e as Error).message}. Your decision note is still open.`);
     } finally {
-      setBusyId(null);
+      operation.current=false;if(alive.current)setBusyId(null);
     }
   }
 
   return (
     <div className="container">
+      <NavigationGuard dirty={dirty} busy={busyId!==null} description="Your decision notes have not been submitted. Keep editing or discard them before leaving. Leaving never releases or rejects a change list." onDiscard={()=>setNotes({})}/>
       <div className="nav">
-        <div className="brand">Down Dirty 84 — Review Queue</div>
+        <h1>Review queue</h1>
         <div className="row" style={{ gap: 8 }}>
-          <button className="secondary" onClick={() => (window.location.href = "/admin")}>
-            Jobs
-          </button>
-          <button className="secondary" onClick={refresh}>
+          <Link to="/admin">Shop jobs</Link>
+          <button className="secondary" onClick={()=>void refresh()} disabled={loading||busyId!==null||dirty}>
             Refresh
           </button>
         </div>
@@ -257,13 +257,14 @@ export default function ReviewQueue() {
         </div>
       )}
 
+      {dirty&&<p className="small">Decision notes are unsaved until you explicitly release or reject their change list. Clear the notes before refreshing.</p>}
       {error && (
-        <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card" role="alert" style={{ marginBottom: 12 }}>
           <p className="small">{error}</p>
         </div>
       )}
       {msg && (
-        <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card" role="status" style={{ marginBottom: 12 }}>
           <p className="small">{msg}</p>
         </div>
       )}
@@ -274,8 +275,8 @@ export default function ReviewQueue() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Nothing waiting on you</h3>
           <p className="small">
-            Every analysed job has been decided. New ones appear here on their own, and you are
-            emailed when they do.
+            No change lists are currently awaiting a decision. Refresh to check for new work,
+            or open Shop jobs to review files, troubleshooting cases and failed analyses.
           </p>
         </div>
       )}
@@ -284,7 +285,9 @@ export default function ReviewQueue() {
         <Card
           key={item.diffSetId}
           item={item}
-          busy={busyId === item.diffSetId}
+          busy={busyId !== null}
+          note={notes[item.diffSetId]||''}
+          onNote={value=>setNotes(previous=>({...previous,[item.diffSetId]:value}))}
           onDecide={(d, note) => decide(item, d, note)}
         />
       ))}

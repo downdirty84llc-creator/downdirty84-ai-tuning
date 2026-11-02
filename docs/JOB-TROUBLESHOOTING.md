@@ -15,9 +15,13 @@ Failed attachment requests retain the selected case and its submission ID for re
 
 ## Shop workflow
 
-At `/admin`, select a job and open its case history. This view is read-only for the submitted evidence. Download a snapshot when a local copy is useful. No new email notification is sent for case attachment.
+At `/admin`, select a job and open its case history. From the review queue, **Review this job and case history** opens that exact job at `/admin?job=<job ID>`, including jobs outside the 200 most recent entries. A saved job URL restores the selection on reload; browser Back/Forward restores previous job selections. Invalid, missing or unauthorized links never select a different job as a fallback. The case view is read-only for submitted evidence. Download a snapshot when a local copy is useful. No new email notification is sent for case attachment.
 
-Internal notes use **Save internal notes**. Changing status does not save or erase the notes draft. Switching jobs with unsaved notes offers **Keep editing notes** or **Discard draft and open job**. Save notes before navigating to another page; the browser also warns before reload/close. Internal notes are omitted from customer job API responses.
+Internal notes use **Save internal notes**. Changing status does not save or erase the notes draft. Switching jobs, following an in-app link or using browser Back/Forward with unsaved notes offers **Keep editing notes**, **Save notes and continue**, or **Discard notes and leave**. A failed save keeps the draft and requested destination open for retry. Navigation waits for an in-flight save. Reload/close uses the browser warning: cancel that action and save from the page first. Internal notes are omitted from customer job API responses.
+
+Review-queue decision notes also prompt before leaving. They are submitted only by the explicit **Release** or **Reject** action; the navigation prompt never submits a calibration decision. Failed decisions retain their notes. Duplicate clicks are guarded and other decisions stay disabled while a request is pending. A queue entry with safety blockers cannot be released through the UI. Refresh is disabled while decision notes are unsaved, so it cannot silently replace their cards.
+
+These guards protect work in the current page; they are not draft recovery after a browser crash. Existing authentication, server release gates, supported formats and Studio 0.28 remain unchanged. No customer information is added to browser storage or URL parameters; job URLs contain only the job identifier and still require authorized access.
 
 ## Storage and access
 
