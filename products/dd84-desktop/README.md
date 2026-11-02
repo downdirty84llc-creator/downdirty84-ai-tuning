@@ -191,9 +191,9 @@ Packaging now uses ASAR and an explicit application-file allowlist. It excludes
 local customer data, test fixtures and build scripts; production dependencies
 are pruned separately. Native serial bindings are unpacked for loading. The
 build fails if required files, source bytes, displayed version or manifest do
-not match. Seven archive tests exercise positive validation and rejection of
+not match. Eight archive-verifier tests exercise positive validation and rejection of
 changed code, missing modules/bindings, extra files, tune data inside dependencies
-and a wrong version.
+a wrong version and leaked build-only manifest overrides.
 
 On Windows, the package check runs the packaged executable in non-GUI runtime
 mode with system Node and Node search/options variables excluded. It loads the
