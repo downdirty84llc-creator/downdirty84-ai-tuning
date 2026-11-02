@@ -119,8 +119,11 @@ const NULL_THRESHOLDS = (): Thresholds => ({
  * Owner-confirmed overrides, per profile.
  *
  * Anything left null falls back to that profile's defaults. A profile is only
- * treated as confirmed when its flag in OWNER_CONFIRMED_PROFILES is true, and
- * confirming one profile deliberately says nothing about the others — the
+ * treated as confirmed when its flag in OWNER_CONFIRMED_PROFILES is true and
+ * every threshold has an explicit finite owner value. Inherited defaults are
+ * never owner-confirmed.
+ *
+ * Confirming one profile deliberately says nothing about the others — the
  * whole reason these are separate is that reviewing NA gasoline numbers does
  * not vouch for boosted or E85 ones.
  *
@@ -186,6 +189,23 @@ export const OWNER_CONFIRMED_PROFILES: Record<ProfileKey, boolean> = {
 
 export type ThresholdSource = "OWNER_CONFIRMED" | "CONSERVATIVE_DEFAULTS";
 
+/**
+ * A flag alone cannot sign off defaults. Check the expected keys rather than
+ * the values present in the override, so a missing property also fails closed.
+ * This only checks completeness, not engineering validity: real review is
+ * still required before changing any confirmation flag.
+ */
+function profileConfirmed(profile: ProfileKey): boolean {
+  if (!OWNER_CONFIRMED_PROFILES[profile]) return false;
+  const defaults = PROFILE_DEFAULTS[profile];
+  const overrides = OWNER_OVERRIDES[profile];
+  return (["safety", "drivability", "diffgen"] as const).every((group) =>
+    Object.keys(defaults[group]).every((key) =>
+      Number.isFinite((overrides[group] as Record<string, number | null>)[key])
+    )
+  );
+}
+
 function mergeGroup<T extends Record<string, number | null>>(defaults: T, overrides: T): T {
   const out = { ...defaults };
   for (const k of Object.keys(defaults) as Array<keyof T>) {
@@ -221,19 +241,19 @@ export function resolveThresholds(
 
   return {
     thresholds: merged,
-    source: OWNER_CONFIRMED_PROFILES[profile] ? "OWNER_CONFIRMED" : "CONSERVATIVE_DEFAULTS",
+    source: profileConfirmed(profile) ? "OWNER_CONFIRMED" : "CONSERVATIVE_DEFAULTS",
     profile
   };
 }
 
 /** True when every profile has been reviewed. Reported by /ready. */
 export function allProfilesConfirmed(): boolean {
-  return PROFILE_KEYS.every((k) => OWNER_CONFIRMED_PROFILES[k]);
+  return PROFILE_KEYS.every(profileConfirmed);
 }
 
 /** Profiles still running on unreviewed starting values. */
 export function unconfirmedProfiles(): ProfileKey[] {
-  return PROFILE_KEYS.filter((k) => !OWNER_CONFIRMED_PROFILES[k]);
+  return PROFILE_KEYS.filter((k) => !profileConfirmed(k));
 }
 
 /**

@@ -35,6 +35,58 @@ test("only the confirmed profile reports OWNER_CONFIRMED", () => {
   }
 });
 
+test("confirmation flags alone cannot label inherited defaults as reviewed", () => {
+  const flags = { ...OWNER_CONFIRMED_PROFILES };
+  try {
+    for (const k of PROFILE_KEYS) OWNER_CONFIRMED_PROFILES[k] = true;
+    assert.equal(allProfilesConfirmed(), false);
+    assert.deepEqual(unconfirmedProfiles().sort(), ["BOOSTED_E85", "BOOSTED_GAS", "NA_E85"]);
+    for (const k of PROFILE_KEYS.filter((k) => k !== "NA_GAS")) {
+      assert.equal(resolveThresholds(k).source, "CONSERVATIVE_DEFAULTS");
+      assert.deepEqual(resolveThresholds(k).thresholds, PROFILE_DEFAULTS[k]);
+    }
+  } finally {
+    Object.assign(OWNER_CONFIRMED_PROFILES, flags);
+  }
+});
+
+test("explicit values without an approval flag remain unconfirmed", () => {
+  const original = OWNER_OVERRIDES.BOOSTED_GAS;
+  try {
+    OWNER_OVERRIDES.BOOSTED_GAS = structuredClone(PROFILE_DEFAULTS.BOOSTED_GAS);
+    assert.equal(OWNER_CONFIRMED_PROFILES.BOOSTED_GAS, false);
+    assert.equal(resolveThresholds("BOOSTED_GAS").source, "CONSERVATIVE_DEFAULTS");
+    assert.ok(unconfirmedProfiles().includes("BOOSTED_GAS"));
+  } finally {
+    OWNER_OVERRIDES.BOOSTED_GAS = original;
+  }
+});
+
+test("a confirmation requires explicit finite values in every threshold group", () => {
+  const overrides = OWNER_OVERRIDES.NA_GAS;
+  // A partial profile must not acquire a signature through a fallback. Cover
+  // every key, including the less visible drivability and diffgen settings.
+  for (const group of ["safety", "drivability", "diffgen"] as const) {
+    const values = overrides[group] as Record<string, number | null>;
+    for (const key of Object.keys(PROFILE_DEFAULTS.NA_GAS[group])) {
+      const original = values[key];
+      try {
+        for (const incomplete of [null, NaN, Infinity, -Infinity]) {
+          values[key] = incomplete;
+          assert.equal(resolveThresholds("NA_GAS").source, "CONSERVATIVE_DEFAULTS", `${group}.${key}`);
+          assert.ok(unconfirmedProfiles().includes("NA_GAS"), `${group}.${key}`);
+        }
+        delete values[key];
+        assert.equal(resolveThresholds("NA_GAS").source, "CONSERVATIVE_DEFAULTS", `missing ${group}.${key}`);
+        assert.ok(unconfirmedProfiles().includes("NA_GAS"));
+      } finally {
+        values[key] = original;
+      }
+    }
+  }
+  assert.equal(resolveThresholds("NA_GAS").source, "OWNER_CONFIRMED");
+});
+
 test("an unknown platform is never judged by the confirmed profile", () => {
   // The dangerous shortcut would be falling through to NA_GAS: a boosted E85
   // truck with no fuel recorded would then be measured against gasoline

@@ -20,6 +20,12 @@ export type CatalogAddon = {
 export type Catalog = {
   /** False when amounts could not be confirmed with Stripe. */
   pricesLive: boolean;
+  /** Missing on an older API; fail closed until the backend confirms availability. */
+  checkout?: {
+    enabled: boolean;
+    code: "READY" | "PAYMENTS_DISABLED" | "PAYMENTS_MISCONFIGURED" | "PAYMENTS_UNVERIFIED";
+    message: string;
+  };
   services: CatalogService[];
   addons: CatalogAddon[];
 };
