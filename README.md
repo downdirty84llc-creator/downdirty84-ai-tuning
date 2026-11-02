@@ -2,7 +2,8 @@
 
 Customers can now explicitly attach saved troubleshooting cases to their jobs, and the shop can review immutable snapshots alongside internal notes. See the [case-sharing workflow and verification](docs/JOB-TROUBLESHOOTING.md). Windows Studio 0.28 case files are compatible.
 
-> **Status: production-ready.** The full pipeline runs — payment creates a job,
+> **Status: implementation available; deployment verification required.** With
+> payment credentials, account verification and delivery checks completed, payment creates a job,
 > the customer uploads a log, it is parsed, validated, checked against safety
 > and drivability rules, and MAF suggestions are computed from wideband data.
 > The owner releases; the customer gets a branded change list. No route serves
@@ -275,7 +276,14 @@ thing before you deploy at all.
 
 Two states are deliberately *not* failures: **no key** (payments are simply
 off) and **Stripe unreachable** (an outage must not cascade into this app
-refusing all traffic). Neither is ever reported as OK.
+refusing all traffic). Neither is ever reported as OK. New checkouts remain blocked until both Stripe
+credentials are present and the account is verified. The general API can stay
+available for existing/manual work. A transient verification failure can retry
+on catalogue/checkout access after one minute, without polling Stripe on health
+checks. The buy page reports this separately from unavailable prices.
+
+See [the payment activation and profile-review handoff](docs/PORTAL-REPAIR-HANDOFF.md)
+and [Stripe settlement/isolated acceptance](docs/STRIPE-ACCEPTANCE.md).
 
 Starting a payment: `POST /api/v1/checkout` with `{ service, addons?, vehicle?,
 platform?, fuel?, induction? }`. **The client names a service, never a price** —

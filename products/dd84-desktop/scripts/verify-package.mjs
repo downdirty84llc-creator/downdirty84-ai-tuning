@@ -22,6 +22,10 @@ export function verifyArchive(archive, root = sourceRoot) {
   delete expectedManifest.private;
   delete expectedManifest.scripts;
   delete expectedManifest.devDependencies;
+  // Packager 20 strips package-manager settings from the shipped manifest.
+  // Keep the strict comparison: overrides must be absent, not silently ignored
+  // in the actual archive. The source lockfile still controls build resolution.
+  delete expectedManifest.overrides;
   for (const name of runtimeFiles) {
     assert(entries.includes(name), `Missing runtime file: ${name}`);
     assert(lstatSync(path.join(root, name)).isFile(), `Source must be a regular file: ${name}`);

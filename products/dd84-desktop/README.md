@@ -191,9 +191,9 @@ Packaging now uses ASAR and an explicit application-file allowlist. It excludes
 local customer data, test fixtures and build scripts; production dependencies
 are pruned separately. Native serial bindings are unpacked for loading. The
 build fails if required files, source bytes, displayed version or manifest do
-not match. Seven archive tests exercise positive validation and rejection of
+not match. Eight archive-verifier tests exercise positive validation and rejection of
 changed code, missing modules/bindings, extra files, tune data inside dependencies
-and a wrong version.
+a wrong version and leaked build-only manifest overrides.
 
 On Windows, the package check runs the packaged executable in non-GUI runtime
 mode with system Node and Node search/options variables excluded. It loads the
@@ -281,3 +281,34 @@ Bench 0.2.0 cannot record external CAN yet; its internal-loopback JSON is not a
 D84W capture. This workspace neither opens a hardware connection nor feeds
 calibration learning. External bench firmware/acceptance and controller-specific
 calibration adapters remain separate milestones.
+
+
+### Packaging dependency overrides
+
+The build-only `@electron/asar` dependency is scoped to patched `glob` 14.0.3
+and `minimatch` 11.0.4 through `package.json` overrides. ASAR 4.3.0/4.3.1 still
+declare vulnerable older-major ranges. These are deliberately cross-major
+pins, not an `npm audit fix --force` downgrade or a weaker audit policy:
+[glob advisory](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4),
+[minimatch advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+
+ASAR uses the supported `glob()` and `minimatch()` calls for file discovery and
+native-module unpacking. Its actual archive creation, runtime-file byte checks,
+`**/*.node` handling, and packaged Windows runtime/native-serial smoke checks
+remain test gates. `scripts/asar-compatibility.test.mjs` covers the matching and
+archive behavior across the override boundary. The existing strict Windows
+`npm audit --audit-level=low` gate is unchanged. Electron, Packager, ASAR and
+the app's runtime dependencies are not upgraded by this override.
+
+The default glob 14.0.3 entrypoint bundles minimatch 11.0.2 internally; the
+external override does not rewrite those bundled bytes. Its source-map matcher
+was compared byte-for-byte with the official 11.0.2 source, which is newer than
+the advisory's patched minimum 11.0.1 and contains the amplification limits.
+ASAR's separate direct minimatch import resolves to 11.0.4. An audit result alone
+must not be taken as proof that bundled dependency code was updated.
+
+Remove the override only when upstream ASAR declares patched compatible ranges,
+then regenerate the lockfile and rerun archive compatibility, full Studio tests,
+audit, Windows packaging and the native runtime verification. A successful
+package does not replace the remaining real-device/clean-machine acceptance
+checks or authorize ECU writes.

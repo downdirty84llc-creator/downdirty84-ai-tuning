@@ -117,9 +117,13 @@ modes are not symmetric: too sensitive means a false blocker and a mildly
 annoyed owner; too permissive means a real lean event passing as clean. Expect
 false positives — that is the trade being made on purpose.
 
-To confirm them: fill `OWNER_OVERRIDES` in `thresholds.ts` and set
-`OWNER_CONFIRMED_THRESHOLDS = true`. Do both; the flag alone just asserts that
-unreviewed defaults were reviewed.
+To confirm a profile: validate its thresholds against the actual platform,
+fuel and hardware, write every reviewed value into that profile's
+`OWNER_OVERRIDES` entry in `thresholds.ts`, and set only its corresponding
+`OWNER_CONFIRMED_PROFILES` flag. Runtime confirmation requires both that flag
+and a complete set of explicit finite values; a flag alone cannot label
+inherited defaults as reviewed. This completeness check is not engineering
+validation and does not replace the owner's review.
 
 A threshold that is genuinely `null` still skips its rule rather than passing
 it, emits `R1_THRESHOLD_UNSET`, and still blocks diffgen — an unevaluated
@@ -202,10 +206,11 @@ visible immediately instead of becoming a wrong finding.
 
 ### 2. Threshold confirmation
 
-The engine runs today on conservative defaults, so nothing is blocked — but
-every report says they are unconfirmed until you review them. These are
-engineering judgment about your platforms, your fuel, and your customers'
-hardware, and they are safety-critical:
+`NA_GAS` has an existing owner-confirmed configuration. `BOOSTED_GAS`,
+`NA_E85` and `BOOSTED_E85` remain unconfirmed; their reports say so. Unknown
+fuel or induction uses the strictest starting values and is also unconfirmed.
+These values are engineering judgment about your platforms, your fuel, and
+your customers' hardware, and they are safety-critical:
 
 | Threshold | Question |
 | --- | --- |
@@ -217,9 +222,15 @@ hardware, and they are safety-critical:
 | `mafMaxStepPct` | Maximum adjacent-bin change in a MAF correction |
 | `mafMaxTotalPct` | Maximum single-pass correction before it needs a human |
 
-Current default values are in `thresholds.defaults.ts`, each with a note on why
-it sits where it does. Confirming them removes the `R3_THRESHOLDS_UNCONFIRMED`
-finding from every report.
+Current per-profile starting values are in `thresholds.profiles.ts`; shared
+baseline values are also documented in `thresholds.defaults.ts`. Confirmation
+requires reviewed values for every safety, drivability and diff-generation
+field, not only the abbreviated table above. Keep the review's platform and
+hardware scope, fuel/stoichiometric assumptions, sensor calibration and units,
+representative log evidence and acceptance criteria with the approval. Until
+that review exists, leave the profile's confirmation flag false. Confirming
+one profile removes `R3_THRESHOLDS_UNCONFIRMED` only for that profile; it never
+approves the others or removes the manual release gate.
 
 ---
 

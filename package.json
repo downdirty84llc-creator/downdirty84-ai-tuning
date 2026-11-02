@@ -13,7 +13,8 @@
     "test:capture-review": "node scripts/test-capture-review.mjs",
     "preview": "vite preview",
     "test:audit-report": "node --test scripts/audit-report.test.mjs",
-    "test:workspaces": "node scripts/test-workspaces.mjs"
+    "test:workspaces": "node scripts/test-workspaces.mjs",
+    "test:checkout": "node scripts/test-checkout.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

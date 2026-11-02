@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getCatalog,
   startCheckout,
@@ -15,9 +15,9 @@ import {
  *
  *  1. **Never show a price Stripe will not charge.** Every amount here comes
  *     live from the Stripe account. When it cannot be confirmed the card says
- *     so and the button still works — Stripe shows the real price on the next
- *     screen. An advertised price that has drifted is a chargeback; a missing
- *     one is a mild annoyance.
+ *     so. Checkout is offered only when the backend confirms payment setup;
+ *     Stripe shows the exact price on its payment screen. A stale advertised
+ *     amount is worse than an explicitly unavailable one.
  *
  *  2. **Ask what the car is, here.** Fuel and induction pick the safety
  *     thresholds the log is judged against. Collected at the moment of sale
@@ -39,7 +39,7 @@ function Price({ amount, currency }: { amount: number | null; currency: string }
   if (text === null) {
     // Deliberately not "$0" and not blank — the customer needs to know the
     // number exists and will be shown, not that it is missing or free.
-    return <span className="small" style={{ opacity: 0.75 }}>Price shown at checkout</span>;
+    return <span className="small" style={{ opacity: 0.75 }}>Price unavailable</span>;
   }
   return <span style={{ fontSize: 26, fontWeight: 700 }}>{text}</span>;
 }
@@ -50,6 +50,11 @@ export default function Buy() {
   const [addons, setAddons] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const checkoutInFlight = useRef(false);
+  const mounted = useRef(false);
+  const catalogRequest = useRef(0);
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     email: "",
@@ -59,15 +64,47 @@ export default function Buy() {
     induction: ""
   });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setCatalog(await getCatalog());
-      } catch (e) {
-        setError(`Could not load the service list: ${(e as Error).message}`);
+  async function refreshCatalog() {
+    const request = ++catalogRequest.current;
+    setLoadingCatalog(true);
+    setCatalogError(null);
+    try {
+      const next = await getCatalog();
+      if (request === catalogRequest.current) setCatalog(next);
+    } catch (e) {
+      if (request === catalogRequest.current) {
+        setCatalogError(`Could not check service availability: ${(e as Error).message}`);
       }
-    })();
+    } finally {
+      if (request === catalogRequest.current) setLoadingCatalog(false);
+    }
+  }
+
+  useEffect(() => {
+    mounted.current = true;
+    void refreshCatalog();
+    // Back from hosted checkout may restore this component from the browser's
+    // back/forward cache with its pre-navigation busy state still intact.
+    const restored = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      checkoutInFlight.current = false;
+      setBusy(false);
+      setError(null);
+      void refreshCatalog();
+    };
+    window.addEventListener("pageshow", restored);
+    return () => {
+      mounted.current = false;
+      catalogRequest.current++;
+      window.removeEventListener("pageshow", restored);
+    };
   }, []);
+
+  const checkoutEnabled = catalog?.checkout?.enabled === true && !loadingCatalog && !catalogError;
+  const availabilityMessage = loadingCatalog
+    ? "Checking payment availability…"
+    : catalogError || catalog?.checkout?.message ||
+      "Online payment availability could not be confirmed. Please contact us before booking.";
 
   const selected = useMemo(
     () => catalog?.services.find((s) => s.service === chosen) ?? null,
@@ -90,7 +127,8 @@ export default function Buy() {
   }
 
   async function onCheckout() {
-    if (!chosen) return;
+    if (!chosen || !checkoutEnabled || checkoutInFlight.current) return;
+    checkoutInFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -103,15 +141,25 @@ export default function Buy() {
         fuel: form.fuel || undefined,
         induction: form.induction || undefined
       });
+      // A late response must not pull someone out of a newer SPA workspace.
+      if (!mounted.current) return;
       // Stripe hosts the card form. Nothing sensitive touches this app.
       window.location.href = r.checkoutUrl;
     } catch (e) {
-      const m = (e as Error).message;
-      setError(
-        m.includes("503")
-          ? "Payments are not switched on yet. Email Downdirty84llc@gmail.com and we will sort it out."
-          : m
-      );
+      if (!mounted.current) return;
+      const failure = e as Error & { status?: number; details?: { message?: string } };
+      setError(failure.details?.message || failure.message);
+      if (failure.status === 503) {
+        setCatalog((current) => current && ({
+          ...current,
+          checkout: {
+            enabled: false,
+            code: "PAYMENTS_UNVERIFIED",
+            message: failure.details?.message || "Online payments are temporarily unavailable."
+          }
+        }));
+      }
+      checkoutInFlight.current = false;
       setBusy(false);
     }
   }
@@ -130,7 +178,7 @@ export default function Buy() {
           Request a service, share your vehicle details and upload the matching datalog. Every calibration change
           is checked by a person before it reaches you.
         </p>
-        {catalog && !catalog.pricesLive && (
+        {checkoutEnabled && catalog && !catalog.pricesLive && (
           <p className="small" style={{ color: "#fbbf24" }}>
             Live prices are temporarily unavailable — the exact amount is shown on the payment
             page before you are charged.
@@ -138,13 +186,30 @@ export default function Buy() {
         )}
       </div>
 
+      {!checkoutEnabled && (
+        <div className="card" role="status" style={{ marginBottom: 14 }}>
+          <p>{availabilityMessage}</p>
+          {!loadingCatalog && (
+            <>
+              <p className="small">
+                You can browse services below. For booking help, email{" "}
+                <a href="mailto:Downdirty84llc@gmail.com">Downdirty84llc@gmail.com</a>.
+              </p>
+              <button className="secondary" onClick={() => void refreshCatalog()} disabled={busy}>
+                Check availability again
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {error && (
-        <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card" role="alert" style={{ marginBottom: 14 }}>
           <p className="small">{error}</p>
         </div>
       )}
 
-      {!catalog && !error && <p className="small">Loading…</p>}
+      {!catalog && loadingCatalog && <p className="small">Loading services…</p>}
 
       {/* ── 1. What you want ─────────────────────────────────────────── */}
       {catalog && (
@@ -202,7 +267,7 @@ export default function Buy() {
                         onChange={() => toggleAddon(a)}
                       />
                       <span style={{ flex: 1 }}>{a.label}</span>
-                      <span className="small">{price ?? "shown at checkout"}</span>
+                      <span className="small">{price ?? (checkoutEnabled ? "shown at checkout" : "price unavailable")}</span>
                     </label>
                   );
                 })}
@@ -293,16 +358,17 @@ export default function Buy() {
                     <div style={{ fontSize: 26, fontWeight: 700 }}>
                       {total !== null
                         ? formatMoney(total, selected?.currency ?? "usd")
-                        : "Shown at checkout"}
+                        : checkoutEnabled ? "Shown at checkout" : "Unavailable"}
                     </div>
                   </div>
-                  <button onClick={onCheckout} disabled={busy}>
-                    {busy ? "Opening Stripe…" : "Continue to payment"}
+                  <button onClick={onCheckout} disabled={busy || !checkoutEnabled}>
+                    {busy ? "Opening Stripe…" : checkoutEnabled ? "Continue to payment" : "Online payments unavailable"}
                   </button>
                 </div>
                 <p className="small" style={{ opacity: 0.7, marginBottom: 0 }}>
-                  Payment is handled by Stripe. Card details never touch our servers. After paying
-                  you will be sent a sign-in link to upload your log.
+                  {checkoutEnabled
+                    ? "Payment is handled by Stripe. Card details never touch our servers. After paying you will be sent a sign-in link to upload your log."
+                    : "Online checkout is unavailable. Contact us to discuss your service; do not send payment details by email."}
                 </p>
               </div>
             </>
