@@ -108,3 +108,13 @@ test("missing APP_BASE_URL is fatal in production", () => {
     assert.equal(checkEnv().ok, false);
   });
 });
+
+
+test("Stripe stays disabled with a missing or blank webhook credential", () => {
+  for (const secret of [undefined, "", "  \n "]) {
+    withEnv({ ...FULL, STRIPE_WEBHOOK_SECRET: secret }, () => {
+      assert.equal(checkEnv().payments, "DISABLED");
+      assert.equal(checkEnv().ok, true);
+    });
+  }
+});

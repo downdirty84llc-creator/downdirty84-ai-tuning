@@ -144,6 +144,9 @@ jobs:
           node products/dd84-desktop/prepare-link.mjs
           npm run test:workspaces
 
+      - name: Checkout availability and interrupted payment flows
+        run: npm run test:checkout
+
       - name: Connection screen state and reports
         run: npm run test:link-capture
 

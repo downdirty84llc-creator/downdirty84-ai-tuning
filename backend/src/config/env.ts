@@ -8,6 +8,7 @@
  * warning rather than silence.
  */
 
+import { paymentCredentialsConfigured } from "./checkout_availability.js";
 import { emailConfigured } from "../services/notify/email.js";
 
 export type EnvReport = {
@@ -69,11 +70,11 @@ export function checkEnv(): EnvReport {
     else warnings.push(`${msg} Links will be printed to this console instead.`);
   }
 
-  const stripe = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
+  const stripe = paymentCredentialsConfigured(process.env);
   if (!stripe) {
     warnings.push(
-      "Stripe is not configured. Paid orders will not create jobs automatically; " +
-        "they would have to be entered by hand."
+      "Stripe checkout is disabled. Both STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET " +
+        "are required before accepting online payments."
     );
   }
 

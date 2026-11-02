@@ -25,7 +25,7 @@ async function fixture(t, change = () => {}) {
     files.set(name, bytes);
   }
   const manifest = JSON.parse(files.get('package.json'));
-  delete manifest.private; delete manifest.scripts; delete manifest.devDependencies;
+  delete manifest.private; delete manifest.scripts; delete manifest.devDependencies; delete manifest.overrides;
   files.set('package.json', JSON.stringify(manifest));
   // Archive-structure test only; the real package test separately loads its native binary.
   files.set(binding, 'synthetic native-binding placeholder');
@@ -48,6 +48,11 @@ for (const [label, change, expected] of [
   ['unexpected local file', files => files.set('private-notes.txt', 'private'), /Unexpected packaged path/],
   ['tune hidden in dependencies', files => files.set('node_modules/example/customer.hpt', 'private'), /Forbidden packaged path/],
   ['missing native binding', files => files.delete(binding), /Missing Windows x64 serial binding/],
+  ['build-only overrides leaked into runtime', files => {
+    const manifest = JSON.parse(files.get('package.json'));
+    manifest.overrides = {'@electron/asar': {glob: '14.0.3', minimatch: '11.0.4'}};
+    files.set('package.json', JSON.stringify(manifest));
+  }, /Packaged manifest differs/],
   ['wrong packaged version', files => {
     const manifest = JSON.parse(files.get('package.json')); manifest.version = '0.0.0';
     files.set('package.json', JSON.stringify(manifest));
