@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {blankCase,caseReport} from '../shared/troubleshooting.mjs';
 import {canonicalCase} from '../dist/services/troubleshooting/cases.js';
+import {measuredCaseFixture} from './measured-case-fixture.mjs';
 
 // Called by the pipeline against its disposable Postgres and synthetic users.
 export async function testTroubleshooting({req,psql,check,jobId,foreignJob,otherOwnedJob,OWNER,ADMIN}) {
@@ -55,6 +56,16 @@ export async function testTroubleshooting({req,psql,check,jobId,foreignJob,other
   check('last history cursor empty',second.nextBefore,null);
   check('list metadata omits evidence text',first.cases.some(row=>'report' in row||'checks' in row),false);
   check('shop gets the same first page',(await req('GET',adminBase,{token:ADMIN})).json?.cases.map(row=>row.id).join(','),first.cases.map(row=>row.id).join(','));
+
+  const measured=measuredCaseFixture(),measuredBody={requestId:randomUUID(),report:measured};
+  const added=await req('POST',base,{token:OWNER,body:measuredBody});
+  check('V2 measured review stored',added.status,201);
+  const restored=await req('GET',`${adminBase}/${added.json.case.id}`,{token:ADMIN});
+  check('V2 measurements survive jsonb and shop reopen',canonicalCase(restored.json.case.report).sha256,canonicalCase(measured).sha256);
+  check('V2 operator outcome does not grant learning',restored.json.case.report.measuredReview.learningReady,false);
+  check('V2 server recomputes signed channel difference',restored.json.case.report.measuredReview.comparisons[0].delta.mean,-2);
+  check('V2 attachment retry is idempotent',(await req('POST',base,{token:OWNER,body:measuredBody})).status,200);
+  check('V2 invalid measured gates rejected',(await req('POST',base,{token:OWNER,body:{requestId:randomUUID(),report:{...measured,measuredReview:{...measured.measuredReview,automaticApplication:true}}}})).status,400);
 
   const shop=`/api/v1/admin/jobs/${jobId}`;
   check('customer cannot change internal notes',(await req('PATCH',shop,{token:OWNER,body:{internal_notes:'blocked'}})).status,403);

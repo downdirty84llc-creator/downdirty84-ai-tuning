@@ -2,6 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {canonicalCase} from './cases.js';
 import {blankCase,caseReport,commonChecks} from '../../../shared/troubleshooting.mjs';
+import {measuredCaseFixture} from '../../../scripts/measured-case-fixture.mjs';
+
+test('V2 measurements survive canonical storage and cannot import approval or forged deltas',()=>{
+  const input=measuredCaseFixture();
+  const saved=canonicalCase(input);
+  const imported=structuredClone(saved.report);
+  imported.measuredReview!.comparisons=[{delta:{mean:999}}];
+  imported.measuredReview!.status='DOCUMENTED_FOR_HUMAN_REVIEW';
+  assert.deepEqual(canonicalCase(imported),saved);
+  assert.equal(saved.report.measuredReview!.status,'NEEDS_MORE_EVIDENCE');
+  assert.equal(saved.report.assessment.status,'CONCERNS_RECORDED');
+  assert.equal((saved.report.measuredReview!.comparisons[0] as any).delta.mean,-2);
+  assert.throws(()=>canonicalCase({...input,untrusted:'x'.repeat(1024*1024)}),/1 MiB/);
+  assert.throws(()=>canonicalCase({...input,measuredReview:{...input.measuredReview,learningReady:true}}));
+});
 
 test('imported claims and source URLs cannot grant case approval',()=>{
   const report=blankCase();

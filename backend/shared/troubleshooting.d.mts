@@ -1,5 +1,6 @@
 export type TroubleshootingCase = {
-  format: 'DD84_TROUBLESHOOTING_CASE_V1';
+  format: 'DD84_TROUBLESHOOTING_CASE_V1'|'DD84_TROUBLESHOOTING_CASE_V2';
+  measuredReview?: import('./measuredReview.mjs').MeasuredReview;
   catalogVersion: string;
   issueId: string;
   context: Record<string, string>;
@@ -20,6 +21,7 @@ export function parseCase(value:string):TroubleshootingCase;
 export function caseReport(value:unknown):CaseReport;
 export function assessCase(value:unknown):CaseAssessment;
 export const catalogVersion:string;
+export const MAX_CASE_BYTES:number;
 export const fields:Array<[string,string,number]>;
 export const issues:Array<{id:string;title:string;summary:string;checks:Array<{id:string;label:string;detail:string}>;channels:string[];sourceIds:string[];next:string}>;
 export const commonChecks:Array<{id:string;label:string;detail:string}>;
