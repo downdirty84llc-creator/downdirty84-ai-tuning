@@ -3,7 +3,7 @@ import path from 'node:path';
 import {blankCase,caseReport} from '../backend/shared/troubleshooting.mjs';
 
 export async function testShopNavigation({browser,origin,output,ok}) {
-  const jobA='11111111-1111-4111-8111-111111111111',jobB='22222222-2222-4222-8222-222222222222',missing='99999999-9999-4999-8999-999999999999';
+  const jobA='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',jobB='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',missing='99999999-9999-4999-8999-999999999999';
   const diffId='33333333-3333-4333-8333-333333333333',caseId='44444444-4444-4444-8444-444444444444';
   const job=id=>({id,vehicle:id===jobA?'Recent synthetic car':'Older synthetic car',platform:'GM',service_type:'LOG_REVIEW',status:'IN_PROGRESS',internal_notes:'Saved notes for '+id,customer_email:'fixture@example.test'});
   const jobs={[jobA]:job(jobA),[jobB]:job(jobB)},gets=[],patches=[],decisions=[],errors=[];
@@ -42,9 +42,10 @@ export async function testShopNavigation({browser,origin,output,ok}) {
   await page.goBack();await dialog.waitFor();await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await notes.inputValue(),'Unsaved route draft');
   await nav.getByRole('link',{name:'Help',exact:true}).click();await dialog.getByRole('button',{name:'Discard notes and leave'}).click();await page.getByRole('heading',{name:'Choose your next step.'}).waitFor();assert.equal(patches.length,0);
   await page.goBack();await notes.waitFor();assert.equal(await notes.inputValue(),jobs[jobB].internal_notes);ok('header links and browser Back protect drafts; cancel and Escape retain notes, explicit discard writes nothing');
+  await page.goto(origin+'/admin?job='+jobB.toUpperCase());await notes.waitFor();assert.equal(await notes.inputValue(),jobs[jobB].internal_notes);
 
   await notes.fill('Draft saved before leaving');failPatch=true;await nav.getByRole('link',{name:'Help',exact:true}).click();await dialog.getByRole('button',{name:'Save notes and continue'}).dblclick();
-  await dialog.getByRole('alert').waitFor();assert.equal(patches.length,1);assert.equal(new URL(page.url()).searchParams.get('job'),jobB);assert.equal(await notes.inputValue(),'Draft saved before leaving');
+  await dialog.getByRole('alert').waitFor();assert.equal(patches.length,1);assert.equal(new URL(page.url()).searchParams.get('job'),jobB.toUpperCase());assert.equal(await notes.inputValue(),'Draft saved before leaving');
   failPatch=false;await dialog.getByRole('button',{name:'Save notes and continue'}).dblclick();await page.getByRole('heading',{name:'Choose your next step.'}).waitFor();assert.equal(patches.length,2);assert.deepEqual(patches[1],{id:jobB,body:{internal_notes:'Draft saved before leaving'}});
   await page.goBack();await notes.waitFor();assert.equal(await notes.inputValue(),'Draft saved before leaving');ok('save-and-continue retries failures without leaving or losing a draft and submits once per attempt');
 
@@ -67,9 +68,16 @@ export async function testShopNavigation({browser,origin,output,ok}) {
   failDecision=false;await page.getByRole('button',{name:'Reject',exact:true}).dblclick();await page.getByRole('heading',{name:'Nothing waiting on you'}).waitFor();assert.equal(decisions.length,2);assert.deepEqual(decisions[1],{decision:'REJECT',note:'Synthetic decision rationale'});await page.getByRole('link',{name:'Shop jobs'}).click();await page.getByRole('heading',{name:'Shop workspace',exact:true}).waitFor();assert.equal(await dialog.count(),0);
   ok('decision notes survive navigation cancellation and failed decisions; leaving never submits or releases a tune');
 
+  const otherDiff='55555555-5555-4555-8555-555555555555';
+  queueItems=[item,{...item,diffSetId:otherDiff,jobId:jobA,vehicle:jobs[jobA].vehicle}];await page.goto(origin+'/admin/queue');await page.getByRole('textbox',{name:'Decision note for Recent synthetic car'}).fill('Keep this other draft');
+  const firstCard=page.locator('.card').filter({has:page.getByRole('heading',{name:'Older synthetic car',exact:true})});await firstCard.getByRole('button',{name:'Reject',exact:true}).click();
+  const orphaned=page.getByRole('region',{name:'Draft notes for unavailable change lists'});await orphaned.waitFor();assert.equal(await orphaned.getByRole('textbox').inputValue(),'Keep this other draft');
+  assert(await page.getByRole('button',{name:'Refresh',exact:true}).isDisabled());await orphaned.getByRole('button',{name:'Clear draft for '+otherDiff,exact:true}).click();await orphaned.waitFor({state:'hidden'});assert.equal(decisions.length,3);
+  ok('a refreshed-away change list keeps another unsubmitted decision note visible for copying or clearing');
+
   queueItems=[{...item,safety:{...item.safety,blockers:1}}];await page.goto(origin+'/admin/queue');await page.getByRole('button',{name:'Release',exact:true}).waitFor();assert(await page.getByRole('button',{name:'Release',exact:true}).isDisabled());
   await page.setViewportSize({width:390,height:844});await page.getByRole('textbox',{name:'Decision note for Older synthetic car'}).fill('Mobile draft');await nav.getByRole('link',{name:'Help',exact:true}).click();await dialog.waitFor();
-  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(output,'shop-navigation-guard-mobile.png')});await page.keyboard.press('Escape');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(output,'shop-navigation-guard-mobile.png')});await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
   await page.getByRole('textbox',{name:'Decision note for Older synthetic car'}).fill('');await nav.getByRole('link',{name:'Help',exact:true}).click();await page.getByRole('heading',{name:'Choose your next step.'}).waitFor({timeout:5000}).catch(async error=>{await page.screenshot({path:path.join(output,'navigation-failure.png')});console.log(JSON.stringify({url:page.url(),body:await page.locator('body').innerText(),errors}));throw error;});
   assert.deepEqual(errors,[]);ok('blocker-bearing queue entries cannot be released in the UI; keyboard and mobile navigation dialog work without runtime errors');await page.close();
 

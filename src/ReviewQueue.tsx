@@ -177,6 +177,7 @@ export default function ReviewQueue() {
   const [loading, setLoading] = useState(true);
   const [notes,setNotes]=useState<Record<string,string>>({});
   const dirty=Object.values(notes).some(note=>note!==''),operation=useRef(false),alive=useRef(true),requests=useRef(0);
+  const unavailableDrafts=Object.entries(notes).filter(([id,note])=>note!==''&&!items.some(item=>item.diffSetId===id));
 
   async function refresh() {
     const request=++requests.current;setLoading(true);
@@ -258,6 +259,10 @@ export default function ReviewQueue() {
       )}
 
       {dirty&&<p className="small">Decision notes are unsaved until you explicitly release or reject their change list. Clear the notes before refreshing.</p>}
+      {unavailableDrafts.length>0&&<section className="card" aria-label="Draft notes for unavailable change lists">
+        <h2>Notes for unavailable change lists</h2><p>The refreshed queue no longer lists these change lists. Your drafts are still here to copy or clear; they have not been submitted.</p>
+        {unavailableDrafts.map(([id,note])=><div key={id}><label htmlFor={`unavailable-note-${id}`}>Decision note for change list {id}</label><textarea id={`unavailable-note-${id}`} readOnly value={note}/><button className="secondary" disabled={busyId!==null} onClick={()=>setNotes(previous=>{const next={...previous};delete next[id];return next;})}>Clear draft for {id}</button></div>)}
+      </section>}
       {error && (
         <div className="card" role="alert" style={{ marginBottom: 12 }}>
           <p className="small">{error}</p>
