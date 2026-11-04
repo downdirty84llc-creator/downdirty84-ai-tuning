@@ -15,9 +15,13 @@ Failed attachment requests retain the selected case and its submission ID for re
 
 ## Shop workflow
 
-At `/admin`, select a job and open its case history. This view is read-only for the submitted evidence. Download a snapshot when a local copy is useful. No new email notification is sent for case attachment.
+At `/admin`, select a job and open its case history. From the review queue, **Review this job and case history** opens that exact job at `/admin?job=<job ID>`, including jobs outside the 200 most recent entries. A saved job URL restores the selection on reload; browser Back/Forward restores previous job selections. Invalid, missing or unauthorized links never select a different job as a fallback. The case view is read-only for submitted evidence. Download a snapshot when a local copy is useful. No new email notification is sent for case attachment.
 
-Internal notes use **Save internal notes**. Changing status does not save or erase the notes draft. Switching jobs with unsaved notes offers **Keep editing notes** or **Discard draft and open job**. Save notes before navigating to another page; the browser also warns before reload/close. Internal notes are omitted from customer job API responses.
+Internal notes use **Save internal notes**. Changing status does not save or erase the notes draft. Switching jobs, following an in-app link or using browser Back/Forward with unsaved notes offers **Keep editing notes**, **Save notes and continue**, or **Discard notes and leave**. A failed save keeps the draft and requested destination open for retry. Navigation waits for an in-flight save. Reload/close uses the browser warning: cancel that action and save from the page first. Internal notes are omitted from customer job API responses.
+
+Review-queue decision notes also prompt before leaving. They are submitted only by the explicit **Release** or **Reject** action; the navigation prompt never submits a calibration decision. Failed decisions retain their notes. Duplicate clicks are guarded and other decisions stay disabled while a request is pending. A queue entry with safety blockers cannot be released through the UI. Refresh is disabled while decision notes are unsaved, so it cannot silently replace their cards.
+
+If a queue refresh after another decision removes a change list with an unsaved note, its draft remains visible in **Notes for unavailable change lists** for copying or clearing. These guards protect work in the current page; they are not draft recovery after a browser crash. Existing authentication, server release gates, supported formats and Studio 0.28 remain unchanged. Drafts are not saved to browser storage. Job URLs contain only the job identifier, without notes or contact details, and still require authorized access.
 
 ## Storage and access
 
@@ -35,7 +39,9 @@ The canonical catalog remains `products/dd84-desktop/troubleshooting.mjs`. Its e
 
 ## Verification
 
-Local checks: 153 backend tests, 207 desktop tests, 16 browser workflow groups, frontend/backend builds, connection-screen regression, eight audit-reporter tests, and production dependency audits. Browser cases use synthetic API fixtures, including retry/duplicate-click behavior, download round trips, pagination, invalid files, mobile layout, stale job responses, read-only admin evidence and explicit notes saves.
+Local checks (2026-11-04): 212 backend tests, 212 desktop tests, 26 browser workflow groups, frontend/backend builds, connection-screen regression, eight audit-reporter tests, and production dependency audits. Browser cases use synthetic API fixtures, including retry/duplicate-click behavior, download round trips, pagination, invalid files, mobile layout, stale job responses, read-only admin evidence and explicit notes saves.
+
+The navigation checks cover exact older-job links, uppercase job identifiers, invalid/missing/unauthorized jobs, Back/Forward, cancel/Escape/discard, save-and-continue retry and duplicate-click protection, pending saves, failed review decisions, refreshed-away drafts, blocker-bearing releases and narrow-screen dialogs. They never submit real customer evidence or release a live change list. The backend dependency lock also updates `qs` to 6.17.1; frontend and backend production audits report no vulnerabilities.
 
 The pipeline additionally exercises real PostgreSQL: migrations, concurrent idempotent submissions, owner/admin boundaries, exact-job case/cursor association, malformed/oversized inputs, fingerprint round trips, timestamp ties, no analysis/release side effects and internal-note privacy/preservation. CI runs the C-dependent capture and firmware checks that require a compiler absent from this Windows development computer.
 

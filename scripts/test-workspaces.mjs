@@ -10,6 +10,7 @@ import {runtimeFiles} from '../products/dd84-desktop/scripts/runtime-files.mjs';
 import {sample} from '../products/dd84-desktop/project.mjs';
 import {blankCase,caseReport,parseCase} from '../products/dd84-desktop/troubleshooting.mjs';
 import {testJobCases} from './test-job-cases.mjs';
+import {testShopNavigation} from './test-shop-navigation.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 assert.equal((await fs.readFile(path.join(root,'backend/shared/troubleshooting.mjs'),'utf8')).replaceAll('\r\n','\n'),(await fs.readFile(path.join(root,'products/dd84-desktop/troubleshooting.mjs'),'utf8')).replaceAll('\r\n','\n'),'Backend and desktop/web troubleshooting catalogs differ');
 const output=process.env.DD84_TEST_OUTPUT || await fs.mkdtemp(path.join(os.tmpdir(),'dd84-workspaces-'));
@@ -84,5 +85,6 @@ try{
   // A new page avoids discarding the deliberately unsaved troubleshooting case.
   const login=await browser.newPage();await login.route('**/api/v1/auth/start',async route=>{loginPosts++;await new Promise(r=>setTimeout(r,150));await route.fulfill({json:{ok:true}});});await login.goto(origin+'/login');await login.getByLabel('Email address').fill('fixture@example.test');await login.getByLabel('Email address').press('Enter');await text(login.getByRole('status'),/Link sent/);assert.equal(loginPosts,1);ok('keyboard sign-in form submits and reports completion');
   await testJobCases({browser,origin,output,ok});
+  await testShopNavigation({browser,origin,output,ok});
   await fs.writeFile(path.join(output,'result.json'),JSON.stringify({passed,desktopErrors:errors,webErrors,syntheticOnly:true},null,2));console.log(JSON.stringify({passed,output}));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
