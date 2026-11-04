@@ -4,11 +4,11 @@ import path from 'node:path';
 import {blankCase,caseReport} from '../backend/shared/troubleshooting.mjs';
 
 // Synthetic HTTP fixtures only: no customer jobs or production writes.
-export async function testJobCases({browser,origin,output,ok}) {
+export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   const jobA='11111111-1111-4111-8111-111111111111',jobB='22222222-2222-4222-8222-222222222222';
   const caseA='33333333-3333-4333-8333-333333333333',caseB='44444444-4444-4444-8444-444444444444';
   const job=id=>({id,vehicle:id===jobA?'Case vehicle A':'Case vehicle B',platform:'GM',service_type:'LOG_REVIEW',status:'NEW',internal_notes:'Existing shop notes',customer_email:'fixture@example.test'});
-  const input=blankCase();input.context.caseName='Synthetic pressure case';input.context.vehicle='Case vehicle A';input.context.symptom='Synthetic pressure reading concern';input.relationship='mismatch';
+  const input=measuredCase?structuredClone(measuredCase):blankCase();input.context.caseName='Synthetic pressure case';input.context.vehicle='Case vehicle A';input.context.symptom='Synthetic pressure reading concern';input.relationship='mismatch';
   const report=caseReport(input),saved={id:caseA,jobId:jobA,createdAt:'2026-10-26T12:00:00Z',report,sha256:'a'.repeat(64)};
   const summary=id=>({id,createdAt:saved.createdAt,caseName:id===caseA?input.context.caseName:'Older synthetic case',vehicle:input.context.vehicle,issueId:input.issueId,status:report.assessment.status,concerns:report.assessment.concerns.length,missing:report.assessment.missing.length});
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[],posts=[];
@@ -50,7 +50,7 @@ export async function testJobCases({browser,origin,output,ok}) {
   assert.deepEqual(JSON.parse(await fs.readFile(await (await download).path(),'utf8')),report);
   await panel.getByRole('button',{name:'Load older cases'}).click();await panel.getByRole('button',{name:/Older synthetic case/}).waitFor();
   assert.equal(await panel.locator('.case-history li').count(),2);await panel.getByRole('button',{name:/Synthetic pressure case/}).click();await snapshot.getByText(input.context.symptom,{exact:true}).waitFor();
-  await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(output,'job-case-mobile.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(output,'job-case-mobile.png'),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('.job-cases *')].filter(e=>e.getBoundingClientRect().right>innerWidth).slice(0,10).map(e=>({tag:e.tagName,cls:e.className,width:e.getBoundingClientRect().width})))));
   await panel.locator('input[type=file]').setInputFiles(file({format:'HPT'},'invalid.json'));await panel.getByRole('alert').waitFor();assert.equal(await preview.count(),0);assert.equal(posts.length,2);
   ok('saved snapshots download without data loss, paginate, and render on mobile; invalid files never submit');
   delayOld=true;await page.getByRole('button',{name:/Case vehicle B/}).click();await panel.getByText('No troubleshooting cases attached yet.').waitFor();
