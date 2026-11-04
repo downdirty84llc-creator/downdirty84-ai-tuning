@@ -1,4 +1,6 @@
+import {normalizeMeasuredReview} from './measuredReview.mjs';
 // DD84-authored evidence prompts. Forum reports identify needs, not tune values.
+export const MAX_CASE_BYTES=1024*1024;
 export const catalogVersion = '2026-10-26.1';
 export const sources = Object.freeze({
   channels: {kind:'Manufacturer documentation', title:'HP Tuners: scanner channels and polling', url:'https://docs.hptuners.com/VCM_Scanner/Channels/Channels/'},
@@ -49,7 +51,7 @@ export const issues = [
     check('connection-error','Failure details preserved','Record the exact error, operation and time, plus the manufacturer’s info log. Keep the original file; renaming a proprietary extension does not convert it.')],channels:['Exact error text','Software / firmware version','Controller identity','Manufacturer info log','Original native file and readable export if available'],sourceIds:['support','accessReport','history'],next:'Use the file guide for supported DD84 inputs, or send the evidence to the relevant manufacturer. DD84 cannot unlock or flash unsupported controllers.'},
   {id:'comparison',title:'Which tune changed, and did it help?',summary:'Make revisions traceable and compare like operating conditions.',checks:[
     check('compare-original','Original and revision preserved','Keep the original, revision, change reason and operator notes. File names such as final are labels, not proof of stage.'),
-    check('compare-context','Before/after conditions reviewed','Record fuel, hardware, temperature, gear/load and event windows. Missing after-data or different conditions cannot establish improvement.')],channels:['Exact tune revisions','Linked before/after recordings','Matching operating window','Units and sensor checks','Known configuration differences'],sourceIds:['history','support'],next:'Use Tune comparisons for source fingerprints and Learning evidence for reviewed before/after windows. This worksheet does not import measurements.'},
+    check('compare-context','Before/after conditions reviewed','Record fuel, hardware, temperature, gear/load and event windows. Missing after-data or different conditions cannot establish improvement.')],channels:['Exact tune revisions','Linked before/after recordings','Matching operating window','Units and sensor checks','Known configuration differences'],sourceIds:['history','support'],next:'Attach readable earlier/later CSVs under Measured differences, select comparable windows and record the observed outcome. Confirm exact tune associations separately.'},
   {id:'handoff',title:'Shop intake, repeat visits or remote handoff',summary:'Reduce missing information between the customer and technician.',checks:[
     check('handoff-scope','Request and ownership agreed','Record requested outcome, responsible tuner, permitted work and who supplies native files. Keep customer identifiers out of public forum posts.'),
     check('handoff-next','Next action assigned','Record tests already done, their results, remaining questions, next owner and an acceptance criterion. Request only channels the installed controller can supply.')],channels:['Vehicle and installed hardware','Exact calibration and recording association','Symptom / event time','Tests and results','Next owner and acceptance criterion'],sourceIds:['support','accessReport'],next:'Save this handoff with the original files. A checked box is an operator statement, not evidence that a vehicle is ready for release.'}
@@ -69,8 +71,10 @@ const allChecks = new Set([...commonChecks,...issues.flatMap(i=>i.checks)].map(c
 export function blankCase() { return {format:'DD84_TROUBLESHOOTING_CASE_V1',catalogVersion,issueId:'handoff',context:Object.fromEntries(fields.map(([id])=>[id,''])),relationship:'unknown',checks:{}}; }
 export function validateCase(value) {
   const fail=()=>{throw Error('This is not a supported DD84 troubleshooting case. Keep the current case and check the file.');};
-  if (!value || value.format!=='DD84_TROUBLESHOOTING_CASE_V1' || value.catalogVersion!==catalogVersion || !issues.some(i=>i.id===value.issueId) || !value.context || typeof value.context!=='object' || Array.isArray(value.context) || !value.checks || typeof value.checks!=='object' || Array.isArray(value.checks) || !['unknown','confirmed','mismatch'].includes(value.relationship)) fail();
+  if (!value || !['DD84_TROUBLESHOOTING_CASE_V1','DD84_TROUBLESHOOTING_CASE_V2'].includes(value.format) || value.catalogVersion!==catalogVersion || !issues.some(i=>i.id===value.issueId) || !value.context || typeof value.context!=='object' || Array.isArray(value.context) || !value.checks || typeof value.checks!=='object' || Array.isArray(value.checks) || !['unknown','confirmed','mismatch'].includes(value.relationship)) fail();
   const next=blankCase(); next.issueId=value.issueId; next.relationship=value.relationship;
+  if(value.format==='DD84_TROUBLESHOOTING_CASE_V2'){next.format=value.format;next.measuredReview=normalizeMeasuredReview(value.measuredReview);}
+  else if(value.measuredReview!==undefined)fail();
   for (const key of Object.keys(value.context)) if (!Object.hasOwn(fieldLimits,key)) fail();
   for (const [key,limit] of Object.entries(fieldLimits)) {
     const text=value.context[key]; if(typeof text!=='string'||text.length>limit) fail(); next.context[key]=text;
@@ -89,8 +93,9 @@ export function assessCase(value) {
   if(state.relationship==='mismatch')concerns.unshift('Tune and log do not match');
   const missing=fields.filter(([id])=>['vehicle','controller','symptom','tune','log','nextOwner','acceptance'].includes(id)&&!state.context[id].trim()).map(([,label])=>label);
   if(state.relationship==='unknown')missing.push('Confirmed tune-to-log relationship');
+  if(state.measuredReview){missing.push(...state.measuredReview.missing.map(x=>'Measured review: '+x));if(state.measuredReview.outcome.result==='worse')concerns.push('Operator reports a worse outcome');}
   for(const c of checks){const a=state.checks[c.id];if(!a||a.status==='unknown')missing.push(c.label);else if(!a.note.trim())missing.push(`${c.label}: evidence or explanation`);}
-  return {status:concerns.length?'CONCERNS_RECORDED':missing.length?'NEEDS_INFORMATION':'READY_FOR_HUMAN_REVIEW',concerns,missing,next:issue.next,channels:issue.channels,sourceIds:issue.sourceIds,notice:'Operator-entered evidence only. No diagnosis, calibration approval or permission to operate/flash a vehicle. Community reports are not calibration specifications.'};
+  return {status:concerns.length?'CONCERNS_RECORDED':missing.length?'NEEDS_INFORMATION':'READY_FOR_HUMAN_REVIEW',concerns,missing,next:issue.next,channels:issue.channels,sourceIds:issue.sourceIds,notice:'Operator notes and locally derived summaries are not independently authenticated. No diagnosis, calibration approval or permission to operate/flash a vehicle. Community reports are not calibration specifications.'};
 }
-export function caseReport(value) {const state=validateCase(value);return {...state,assessment:assessCase(state),sources:issues.find(i=>i.id===state.issueId).sourceIds.map(id=>({id,...sources[id]}))};}
-export function parseCase(text) {if(typeof text!=='string'||new TextEncoder().encode(text).length>128*1024)throw Error('Choose a troubleshooting JSON file smaller than 128 KiB.');return validateCase(JSON.parse(text));}
+export function caseReport(value) {const state=validateCase(value);const report={...state,assessment:assessCase(state),sources:issues.find(i=>i.id===state.issueId).sourceIds.map(id=>({id,...sources[id]}))};const limit=state.format==='DD84_TROUBLESHOOTING_CASE_V1'?128*1024:MAX_CASE_BYTES;if(new TextEncoder().encode(JSON.stringify(report,null,2)).length>limit)throw Error('Case exceeds its save limit. Shorten notes or use a smaller channel export.');return report;}
+export function parseCase(text) {if(typeof text!=='string'||new TextEncoder().encode(text).length>MAX_CASE_BYTES)throw Error('Choose a troubleshooting JSON file smaller than 1 MiB.');const value=JSON.parse(text);if(value?.format==='DD84_TROUBLESHOOTING_CASE_V1'&&new TextEncoder().encode(text).length>128*1024)throw Error('V1 cases must be smaller than 128 KiB.');return validateCase(value);}

@@ -1,7 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {apiGet,apiPost} from './client';
-import {caseReport,parseCase,fields,issues,commonChecks,type CaseReport} from '../backend/shared/troubleshooting.mjs';
+import {caseReport,parseCase,fields,issues,commonChecks,MAX_CASE_BYTES,type CaseReport} from '../backend/shared/troubleshooting.mjs';
+import {renderMeasuredReview} from '../products/dd84-desktop/measuredReviewUI.mjs';
+import '../products/dd84-desktop/troubleshooting.css';
 
 type Summary={id:string;createdAt:string;caseName:string;vehicle:string;issueId:string;status:string;concerns:number;missing:number};
 type SavedCase={id:string;jobId:string;createdAt:string;report:CaseReport;sha256:string};
@@ -10,6 +12,8 @@ const statusLabel=(status:string)=>status==='CONCERNS_RECORDED'?'Concerns record
 
 function CaseDetails({report}:{report:CaseReport}) {
   const issue=issues.find(i=>i.id===report.issueId)!;
+  const measured=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(measured.current)renderMeasuredReview(measured.current,report.measuredReview??null);},[report]);
   return <div className="case-details">
     <h3>{issue.title}</h3>
     <p><strong>{statusLabel(report.assessment.status)}</strong> · Operator statements; human review required.</p>
@@ -19,6 +23,7 @@ function CaseDetails({report}:{report:CaseReport}) {
     {report.assessment.concerns.length>0&&<><h4>Concerns to resolve</h4><ul>{report.assessment.concerns.map(item=><li key={item}>{item}</li>)}</ul></>}
     {report.assessment.missing.length>0&&<><h4>Information still needed</h4><ul>{report.assessment.missing.map(item=><li key={item}>{item}</li>)}</ul></>}
     <p><strong>Suggested next step:</strong> {report.assessment.next}</p>
+    <div className="measured-review" ref={measured}/>
     <details><summary>Sources and limits</summary><p>{report.assessment.notice}</p><ul>{report.sources.map(source=><li key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a> · {source.kind}</li>)}</ul></details>
   </div>;
 }
@@ -40,7 +45,7 @@ export default function JobCases({jobId,vehicle,admin=false}:{jobId:string;vehic
   async function perform(action:()=>Promise<void>){if(operation.current)return;operation.current=true;setBusy(true);setError('');setMessage('');try{await action();}catch(error){failure(error);}finally{operation.current=false;if(alive.current)setBusy(false);}}
   async function choose(file:File|undefined){
     const request=++fileRequest.current;setConfirmed(false);setPrepared(null);setOpened(null);setMessage('');setError('');if(!file)return;
-    try{if(file.size>128*1024)throw Error('Choose a saved DD84 troubleshooting JSON file smaller than 128 KiB.');
+    try{if(file.size>MAX_CASE_BYTES)throw Error('Choose a saved DD84 troubleshooting JSON file smaller than 1 MiB.');
       const report=caseReport(parseCase(await file.text()));if(!alive.current||request!==fileRequest.current)return;
       setPrepared({report,requestId:crypto.randomUUID(),filename:file.name});
     }catch(error){if(request===fileRequest.current)failure(error);}
@@ -57,8 +62,8 @@ export default function JobCases({jobId,vehicle,admin=false}:{jobId:string;vehic
     <p className="eyebrow">DD84 / CASE HISTORY</p><h2>Troubleshooting cases</h2>
     <p><strong>Job:</strong> {vehicle||'Vehicle not provided'} <span className="small">· {jobId}</span></p>
     <p>Keep the symptom, checks and next action with the job. Attaching a case does not start an analysis or release a tune.</p>
-    {!admin&&<><p><Link to="/troubleshoot">Prepare a case</Link> or use a saved case from Windows Studio 0.28. Save its JSON, then choose it here.</p>
-      <label htmlFor="job-case-file">Choose a saved troubleshooting case (JSON, up to 128 KiB)</label><input ref={input} id="job-case-file" type="file" accept=".json,application/json" disabled={busy} onChange={e=>void choose(e.target.files?.[0])}/>
+    {!admin&&<><p><Link to="/troubleshoot">Prepare a case with measured differences</Link> or use a saved case from Windows Studio. Save its JSON, then choose it here.</p>
+      <label htmlFor="job-case-file">Choose a saved troubleshooting case (JSON, up to 1 MiB)</label><input ref={input} id="job-case-file" type="file" accept=".json,application/json" disabled={busy} onChange={e=>void choose(e.target.files?.[0])}/>
       {prepared&&<section className="case-preview" aria-label="Case attachment preview"><h3>Review before sharing</h3><p>{prepared.filename}</p><CaseDetails report={prepared.report}/>
         <label className="case-confirm"><input type="checkbox" checked={confirmed} disabled={busy} onChange={e=>setConfirmed(e.target.checked)}/>These case details belong to this job. Share this snapshot with DD84 reviewers.</label>
         <button disabled={!confirmed||busy} onClick={()=>void attach()}>{busy?'Attaching…':'Attach case to this job'}</button>

@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {caseReport, parseCase, type CaseReport} from '../../../shared/troubleshooting.mjs';
+import {caseReport, parseCase, MAX_CASE_BYTES, type CaseReport} from '../../../shared/troubleshooting.mjs';
 
 function stableJson(value:unknown):string {
   if(Array.isArray(value))return '['+value.map(stableJson).join(',')+']';
@@ -10,7 +10,7 @@ function stableJson(value:unknown):string {
 export function canonicalCase(value:unknown):{report:CaseReport;sha256:string} {
   // Limit raw input before stripping imported assessments or other derived claims.
   const text=JSON.stringify(value);
-  if(typeof text!=='string'||Buffer.byteLength(text,'utf8')>128*1024)throw Error('Choose a troubleshooting case smaller than 128 KiB.');
+  if(typeof text!=='string'||Buffer.byteLength(text,'utf8')>MAX_CASE_BYTES)throw Error('Choose a troubleshooting case smaller than 1 MiB.');
   const report=caseReport(parseCase(text));
   // jsonb reorders keys; the fingerprint and retry identity must survive storage.
   return {report,sha256:createHash('sha256').update(stableJson(report)).digest('hex')};
