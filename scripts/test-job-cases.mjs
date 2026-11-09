@@ -34,7 +34,7 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   await page.goto(origin+'/dashboard');const panel=page.getByRole('region',{name:'Job troubleshooting cases'});
   await panel.getByText('No troubleshooting cases attached yet.').waitFor();
   const file=(value,name='synthetic.json')=>({name,mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
-  await panel.locator('input[type=file]').setInputFiles(file({...input,assessment:{status:'READY_FOR_HUMAN_REVIEW'},sources:[{url:'javascript:alert(1)'}]}));
+  await panel.locator('#job-case-file').setInputFiles(file({...input,assessment:{status:'READY_FOR_HUMAN_REVIEW'},sources:[{url:'javascript:alert(1)'}]}));
   const preview=panel.getByRole('region',{name:'Case attachment preview'});
   await preview.getByText('Concerns recorded',{exact:false}).waitFor();assert.equal(posts.length,0);
   assert.equal(await preview.locator('a[href^="javascript:"]').count(),0);
@@ -51,7 +51,7 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   await panel.getByRole('button',{name:'Load older cases'}).click();await panel.getByRole('button',{name:/Older synthetic case/}).waitFor();
   assert.equal(await panel.locator('.case-history li').count(),2);await panel.getByRole('button',{name:/Synthetic pressure case/}).click();await snapshot.getByText(input.context.symptom,{exact:true}).waitFor();
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(output,'job-case-mobile.png'),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('.job-cases *')].filter(e=>e.getBoundingClientRect().right>innerWidth).slice(0,10).map(e=>({tag:e.tagName,cls:e.className,width:e.getBoundingClientRect().width})))));
-  await panel.locator('input[type=file]').setInputFiles(file({format:'HPT'},'invalid.json'));await panel.getByRole('alert').waitFor();assert.equal(await preview.count(),0);assert.equal(posts.length,2);
+  await panel.locator('#job-case-file').setInputFiles(file({format:'HPT'},'invalid.json'));await panel.getByRole('alert').waitFor();assert.equal(await preview.count(),0);assert.equal(posts.length,2);
   ok('saved snapshots download without data loss, paginate, and render on mobile; invalid files never submit');
   delayOld=true;await page.getByRole('button',{name:/Case vehicle B/}).click();await panel.getByText('No troubleshooting cases attached yet.').waitFor();
   await page.getByRole('button',{name:/Case vehicle A/}).click();await panel.getByText('Loading case history…').waitFor();
@@ -77,7 +77,7 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   await admin.goto(origin+'/admin');await admin.getByRole('button',{name:/Case vehicle A/}).click();await admin.getByText('Loading job…').waitFor();
   await admin.getByRole('button',{name:/Case vehicle B/}).click();await admin.locator('#internal-notes').waitFor();holdA=false;releaseA();await admin.evaluate(()=>new Promise(resolve=>setTimeout(resolve,150)));
   assert.equal(await admin.locator('#internal-notes').inputValue(),'Existing shop notes');assert.equal(await admin.getByText('Case vehicle A',{exact:true}).count(),0);
-  const adminPanel=admin.getByRole('region',{name:'Job troubleshooting cases'});assert.equal(await adminPanel.locator('input[type=file]').count(),0);
+  const adminPanel=admin.getByRole('region',{name:'Job troubleshooting cases'});assert.equal(await adminPanel.locator('#job-case-file').count(),0);
   await adminPanel.getByRole('button',{name:/Synthetic pressure case/}).click();await adminPanel.getByRole('region',{name:'Saved case snapshot'}).waitFor();
   await admin.locator('#internal-notes').fill('Synthetic draft notes');await admin.locator('#internal-notes').press('Tab');assert.equal(patches.length,0);
   await admin.getByRole('button',{name:/Case vehicle A/}).click();await admin.getByRole('button',{name:'Keep editing notes'}).click();assert.equal(await admin.locator('#internal-notes').inputValue(),'Synthetic draft notes');

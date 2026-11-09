@@ -1,4 +1,4 @@
-# Measured reviews in Studio 0.29 and the web workspace
+# Measured reviews in Studio 0.30 and the web workspace
 
 Open Troubleshoot, describe the vehicle and checks, then expand **Compare measured differences and record the outcome**. Work remains local until you save a JSON and explicitly attach it to a job. Native tune files are fingerprinted only; their tables are not decoded or edited by this workflow.
 
@@ -8,6 +8,16 @@ Open Troubleshoot, describe the vehicle and checks, then expand **Compare measur
 4. Record why changes were made, what changed, relevant conditions, the success criterion, what was observed, next action and reviewer. Reported improvement is an operator statement; it does not establish horsepower or safety.
 5. Choose **Build and attach measured review**, then **Save troubleshooting case**. Pending edits block saving until rebuilt or discarded. A saved summary can be reopened without sources; recomputation requires reselecting the original CSVs and tunes. Retain source files separately.
 6. On My jobs, select the correct job, choose the saved case, inspect its preview and confirm its job association before attaching. Failed requests retain the snapshot for retry. The shop sees the same immutable snapshot; attachment does not start analysis or release a tune.
+
+## Recheck a saved source
+
+In a saved review, expand **Earlier/Later source, filters and complete channel inventory**, then select the original CSV under **Recheck earlier/later source**. This works in Studio, the web editor, and customer/shop case previews. The CSV is processed locally and is not uploaded.
+
+- **Source and saved statistics match** means the selected bytes have the saved SHA-256 and the saved window, filters, channel identities, coverage counts and every statistic were reproduced. Identical bytes with a different filename are accepted and explicitly identified.
+- **Different CSV selected** means the byte fingerprint differs. Select the original export; even different newline encoding produces different bytes.
+- **CSV bytes match, but summary items differ** identifies stored statistics, channel metadata or counts that cannot be reproduced. Rebuild the review from its sources and inspect the differences. Structural validity alone cannot establish that statistics came from the CSV.
+
+Checks apply only to the displayed summary in the current session. Opening/rebuilding a case, clearing a check, choosing a different file or encountering a read error cannot retain an earlier success. A delayed check from a replaced case is ignored. No verification claim is written into the saved case, and its notes, selections, hashes and reported outcome remain unchanged. Check both sides separately; a successful check does not establish sensor accuracy, tune-to-log association, matched test conditions, power improvement, calibration approval or learning readiness. Changing notes or measurements still uses the existing explicit build/save workflow.
 
 ## Supported data and calculations
 
