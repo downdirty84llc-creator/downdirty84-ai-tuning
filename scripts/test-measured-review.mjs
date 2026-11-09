@@ -46,6 +46,21 @@ export async function testMeasuredReview({browser,origin,output,ok}) {
   await page.getByLabel('What did you observe, and what supports it?',{exact:true}).fill('Pending change');
   await page.getByRole('button',{name:'Discard pending measured changes',exact:true}).click();
   assert.equal(await page.getByLabel('What did you observe, and what supports it?',{exact:true}).inputValue(),r.outcome.observation);
+  const earlierCsv=csv('0,1000,50,10\n1,2000,60,20\n2,3000,70,30');
+  const earlierDetails=panel.locator('details').filter({has:page.getByText('Earlier source, filters and complete channel inventory',{exact:true})});
+  await earlierDetails.locator('summary').click();
+  const recheck=page.getByLabel('Recheck earlier source CSV',{exact:true}),verification=page.getByRole('status',{name:'Earlier source verification',exact:true});
+  await recheck.setInputFiles(file('renamed.csv',earlierCsv));
+  await verification.filter({hasText:'Source and saved statistics match'}).waitFor();assert.match(await verification.textContent(),/filename differs/);
+  const verifiedSave=page.waitForEvent('download');await page.getByRole('button',{name:'Save troubleshooting case',exact:true}).click();
+  assert.deepEqual(JSON.parse(await fs.readFile(await(await verifiedSave).path(),'utf8')),saved);
+  await recheck.setInputFiles(file('earlier.csv',earlierCsv.replace('20\n','21\n')));
+  await verification.filter({hasText:'Different CSV selected'}).waitFor();
+  await recheck.setInputFiles(file('earlier.csv','bad'));
+  await verification.filter({hasText:'Source check did not complete'}).waitFor();
+  await recheck.setInputFiles(file('earlier.csv',earlierCsv));await verification.filter({hasText:'Source and saved statistics match'}).waitFor();
+  await page.getByRole('button',{name:'Clear earlier source check',exact:true}).click();await verification.filter({hasText:'Not checked in this session'}).waitFor();
+  ok('local source checks detect wrong files, clear stale success, accept renamed identical bytes and leave saved cases unchanged');
   await page.setViewportSize({width:700,height:600});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await panel.getByRole('heading',{name:'Measured differences and recorded outcome'}).scrollIntoViewIfNeeded();
   await page.screenshot({path:path.join(output,'studio-measured-review.png')});
@@ -56,10 +71,32 @@ export async function testMeasuredReview({browser,origin,output,ok}) {
   await web.goto(origin+'/troubleshoot');const before=transmissions;
   await web.locator('#trouble-open').setInputFiles(file('measured.json',JSON.stringify(saved)));
   await web.getByRole('heading',{name:'Measured differences and recorded outcome'}).waitFor();
+  await web.getByText('Earlier source, filters and complete channel inventory',{exact:true}).click();
+  const webCheck=web.getByLabel('Recheck earlier source CSV',{exact:true}),webVerification=web.getByRole('status',{name:'Earlier source verification',exact:true});
+  await webCheck.setInputFiles(file('earlier.csv',earlierCsv));await webVerification.filter({hasText:'Source and saved statistics match'}).waitFor();
   assert(await web.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   const third=web.waitForEvent('download');await web.getByRole('button',{name:'Save troubleshooting case',exact:true}).click();
   assert.deepEqual(JSON.parse(await fs.readFile(await(await third).path(),'utf8')),saved);assert.equal(transmissions,before);
+  await webVerification.scrollIntoViewIfNeeded();await web.screenshot({path:path.join(output,'web-source-verification-mobile.png')});
+  // A structurally valid but altered statistic is caught only by a real source check.
+  const altered=structuredClone(saved);altered.measuredReview.before.channels.find(c=>c.name==='Spark').mean=16;
+  await web.locator('#trouble-open').setInputFiles(file('altered.json',JSON.stringify(altered)));
+  await web.getByText('Earlier source, filters and complete channel inventory',{exact:true}).click();
+  await webVerification.filter({hasText:'Not checked in this session'}).waitFor();
+  await webCheck.setInputFiles(file('earlier.csv',earlierCsv));await webVerification.filter({hasText:'CSV bytes match, but 1 saved summary item(s) differ'}).waitFor();
+  assert(await web.getByText('Spark (3): mean',{exact:true}).isVisible());
+  assert.equal(transmissions,before);assert(await web.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await webVerification.scrollIntoViewIfNeeded();await web.screenshot({path:path.join(output,'web-source-mismatch-mobile.png')});
+  // A slow file read must not paint its result into a newly opened case.
+  await web.evaluate(()=>{const original=File.prototype.arrayBuffer;window.releaseMeasuredRead=null;File.prototype.arrayBuffer=function(){if(this.name==='delayed.csv')return new Promise(resolve=>{window.releaseMeasuredRead=()=>resolve(original.call(this));});return original.call(this);};});
+  await webCheck.setInputFiles(file('delayed.csv',earlierCsv));await webVerification.filter({hasText:'Checking selected CSV'}).waitFor();
+  await web.locator('#trouble-open').setInputFiles(file('restored.json',JSON.stringify(saved)));
+  await web.getByText('Earlier source, filters and complete channel inventory',{exact:true}).click();
+  await web.evaluate(()=>window.releaseMeasuredRead());
+  await webVerification.filter({hasText:'Not checked in this session'}).waitFor();
+  await webCheck.setInputFiles(file('earlier.csv',earlierCsv));await webVerification.filter({hasText:'Source and saved statistics match'}).waitFor();
   await web.getByRole('heading',{name:'Measured differences and recorded outcome'}).scrollIntoViewIfNeeded();await web.screenshot({path:path.join(output,'web-measured-review-mobile.png')});await web.close();
   ok('desktop V2 review round-trips on mobile web without uploading local evidence');
+  ok('mobile source checks expose altered summaries, reset on reopen and ignore results from replaced cases');
   return saved;
 }

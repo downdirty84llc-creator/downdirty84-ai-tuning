@@ -1,9 +1,34 @@
 import {inspectMeasuredFile,summarizeMeasuredFile,byteFingerprint,MAX_MEASURED_CSV_BYTES} from './measuredCsv.mjs';
 import {normalizeMeasuredReview} from './measuredReview.mjs';
+import {recheckMeasuredSource} from './measuredVerification.mjs';
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 const shown=x=>x===null?'—':typeof x==='number'?Number(x.toPrecision(7)).toString():String(x);
 const labels={changeReason:'Why was the tune changed?',changes:'Changes made to the calibration or hardware',conditions:'Fuel, hardware, sensor checks and test-condition differences',criterion:'What result would meet the goal?',observation:'What did you observe, and what supports it?',nextAction:'Next action and unresolved questions',reviewer:'Reviewed by'};
 function table(headers,rows){const wrap=el('div');wrap.className='measured-table';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',headers.join(', '));const t=el('table'),head=el('thead'),tr=el('tr');headers.forEach(h=>{const th=el('th',h);th.scope='col';tr.append(th);});head.append(tr);const body=el('tbody');rows.forEach(row=>{const r=el('tr');row.forEach(v=>r.append(el('td',shown(v))));body.append(r);});t.append(head,body);wrap.append(t);return wrap;}
+function sourceCheck(root,review,side,label){
+  const box=el('div');box.className='measured-verification';
+  const heading=el('h4','Recheck '+label.toLowerCase()+' source');
+  const field=el('label','Select the original CSV to verify this saved summary'),input=el('input');
+  input.type='file';input.accept='.csv';input.setAttribute('aria-label','Recheck '+label.toLowerCase()+' source CSV');field.append(input);
+  const status=el('p','Not checked in this session. Saved measurements have not been verified against a selected source.');status.setAttribute('role','status');status.setAttribute('aria-label',label+' source verification');
+  const mismatches=el('ul'),clear=el('button','Clear '+label.toLowerCase()+' source check');clear.type='button';clear.className='secondary';
+  box.append(heading,el('p','This local check compares the CSV fingerprint and recomputes every channel statistic using the saved window and filters. It does not validate sensors, tune association or the reported outcome. The saved case stays unchanged.'),field,status,mismatches,clear);root.append(box);
+  let request=0;
+  const reset=()=>{request++;input.value='';mismatches.replaceChildren();status.textContent='Not checked in this session. Saved measurements have not been verified against a selected source.';};
+  clear.onclick=reset;
+  input.onchange=async()=>{
+    const file=input.files?.[0];if(!file)return;const token=++request;mismatches.replaceChildren();status.textContent='Checking selected CSV locally…';
+    try{
+      if(file.size>MAX_MEASURED_CSV_BYTES)throw Error('CSV exceeds 32 MiB.');
+      const result=await recheckMeasuredSource(review,side,new Uint8Array(await file.arrayBuffer()),file.name);
+      if(token!==request||!box.isConnected)return;
+      if(result.status==='SOURCE_AND_SUMMARY_MATCH')status.textContent='Source and saved statistics match in this session.'+(result.filenameChanged?' The selected filename differs; its bytes match.':'')+' Sensor accuracy, tune association and outcome are not verified.';
+      else if(result.status==='FILE_MISMATCH')status.textContent='Different CSV selected. Its fingerprint does not match this saved source. Select the original export; no saved measurements were changed.';
+      else{status.textContent=`CSV bytes match, but ${result.differences.length} saved summary item(s) differ. Rebuild from the source and review the differences before using this summary.`;for(const text of result.differences.slice(0,20))mismatches.append(el('li',text));if(result.differences.length>20)mismatches.append(el('li',`${result.differences.length-20} additional differences.`));}
+    }catch(e){if(token===request&&box.isConnected)status.textContent='Source check did not complete: '+e.message+' No verification retained.';}
+    finally{if(token===request)input.value='';}
+  };
+}
 export function renderMeasuredReview(root,input){
   root.replaceChildren();if(!input)return;
   let r;try{r=normalizeMeasuredReview(input);}catch{root.append(el('p','This measurement summary is invalid. Reopen the source files to build a new review.'));return;}root.append(el('h3','Measured differences and recorded outcome'),el('p',`${r.comparisons.length} comparable channel labels · ${r.unmatched.length} unpaired entries · ${r.missing.length} remaining evidence items`),el('p','Reported outcome: '+r.outcome.result+' — operator statement, not a measured power or safety verdict.'));
@@ -13,6 +38,7 @@ export function renderMeasuredReview(root,input){
     if(!s){details.append(el('p','No readable recording attached.'));root.append(details);continue;}
     details.append(el('p',`${s.source.name} · ${s.source.format} · ${s.source.encoding} · ${s.source.bytes} bytes`),el('p','CSV SHA-256: '+s.source.sha256),el('p',s.tune?`Tune: ${s.tune.name} · SHA-256: ${s.tune.sha256} · Association: ${s.tune.associationNote||'Not confirmed'}`:'Exact tune association not recorded.'),el('p',`${s.selection.start}–${s.selection.end} seconds · ${s.windowRows} window rows · ${s.rows} included · ${s.invalidFilterRows} missing/nonnumeric filter rows · ${s.outsideFilterRows} outside filters · ${s.duplicateTimes} repeated included timestamps`));
     details.append(el('p',s.selection.filters.length?s.selection.filters.map(f=>`${f.name} [${f.unit||'unit unspecified'}]: ${f.min}–${f.max}`).join('; '):'No channel filters. Whole-window summaries may reflect different operating conditions.'));
+    sourceCheck(details,r,label==='Earlier'?'before':'after',label);
     details.append(table(['Channel','Unit','Numeric','Missing','Text','Min','Max','Mean','Median','P95'],s.channels.map(c=>[c.name||`Unnamed column ${c.id}`,c.unit||'Unspecified',c.numeric,c.missing,c.text,c.min,c.max,c.mean,c.median,c.p95])));root.append(details);
   }
   root.append(el('p','Later minus earlier statistics. No interpolation, time weighting, unit conversion, correction factors or automatic approval.'));

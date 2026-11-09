@@ -24,6 +24,7 @@ const {createHash} = require('node:crypto');
   const filename = path.join(process.cwd(), 'runtime-project.json');
   const caseFilename = path.join(process.cwd(), 'runtime-learning-case.json');
   const comparisonFilename = path.join(process.cwd(), 'runtime-learning-comparison.json');
+  const measuredFilename = path.join(process.cwd(), 'runtime-measured-case.json');
   try {
     const saved = await writeVerifiedCopy(filename, bytes);
     assert.deepEqual(await fs.readFile(filename), bytes);
@@ -96,16 +97,29 @@ const {createHash} = require('node:crypto');
     await writeVerifiedCopy(comparisonFilename, comparisonBytes);
     assert.deepEqual(await fs.readFile(comparisonFilename), comparisonBytes);
     assert.deepEqual(await comparison.reopenLearningComparison(await fs.readFile(comparisonFilename,'utf8'), comparisonCase, [earlier,rechecked]), compared);
+    const measuredCsv=await load('measuredCsv.mjs'),measuredReview=await load('measuredReview.mjs'),troubleshooting=await load('troubleshooting.mjs'),verification=await load('measuredVerification.mjs');
+    const measuredFile=await measuredCsv.inspectMeasuredFile(Buffer.from(csv),'synthetic.csv');
+    const measuredState=troubleshooting.blankCase();measuredState.format='DD84_TROUBLESHOOTING_CASE_V2';
+    measuredState.measuredReview=measuredReview.normalizeMeasuredReview({format:'DD84_MEASURED_REVIEW_V1',writeStrategy:'SIMULATION_ONLY',learningReady:false,automaticApplication:false,
+      before:{...measuredCsv.summarizeMeasuredFile(measuredFile,{start:0,end:1}),tune:null},after:null,
+      outcome:{result:'unassessed',changeReason:'',changes:'',conditions:'',criterion:'',observation:'Synthetic packaged runtime test',nextAction:'',reviewer:''}});
+    const measuredCase=troubleshooting.caseReport(measuredState),measuredBytes=validateRequest({filename:'measured-case.json',text:JSON.stringify(measuredCase)});
+    await writeVerifiedCopy(measuredFilename,measuredBytes);assert.deepEqual(await fs.readFile(measuredFilename),measuredBytes);
+    const restoredMeasured=troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8')));assert.deepEqual(restoredMeasured,measuredCase);
+    assert.equal((await verification.recheckMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'renamed.csv')).status,'SOURCE_AND_SUMMARY_MATCH');
+    restoredMeasured.measuredReview.before.channels[1].mean=450;
+    assert.equal((await verification.recheckMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'synthetic.csv')).status,'SUMMARY_MISMATCH');
     console.log(JSON.stringify({
       version: manifest.version, electron: process.versions.electron,
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
     await fs.unlink(caseFilename).catch(error => { if (error.code !== 'ENOENT') throw error; });
     await fs.unlink(comparisonFilename).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    await fs.unlink(measuredFilename).catch(error => { if (error.code !== 'ENOENT') throw error; });
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
