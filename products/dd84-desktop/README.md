@@ -1,8 +1,10 @@
-# DD84 Calibration Studio — Windows preview 0.34.0
+# DD84 Calibration Studio — Windows preview 0.35.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
 ## Start here
+
+Preview 0.35 adds **Open in Troubleshooting** to saved web job cases. It retrieves that exact customer/shop snapshot as a local editable copy, keeps the original attachment unchanged, and offers Keep/Replace if the workspace already has unsaved work. Save a revised JSON and attach it explicitly to the matching job. Windows Studio also protects case replacement during a pending save, ignores delayed file reads after choosing New case, and closes an old print preview when the case is replaced. The offline Windows app continues to open saved JSON files; it does not connect to job accounts.
 
 Preview 0.34 adds **Preview printable case report** in Troubleshooting and web customer/shop snapshots. Review a green DD84-branded handoff with vehicle context, current and retained checks, outcomes, source fingerprints and complete channel statistics. Print or choose a PDF destination in the system dialog. Pending measured changes must be applied or discarded first. Printing does not save the editable case or send it to anyone; retain the case JSON and source files. Shop internal notes are excluded.
 
