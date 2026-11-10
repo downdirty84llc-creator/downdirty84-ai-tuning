@@ -148,6 +148,7 @@ jobs:
       - name: Branded workspaces, troubleshooting and customer workflow
         run: |
           node products/dd84-desktop/prepare-link.mjs
+          node --test scripts/case-handoff.test.mjs
           npm run test:workspaces
 
       - name: Checkout availability and interrupted payment flows

@@ -87,5 +87,6 @@ export function mountCasePrint(root,getCase,{getRevision=()=>0}={}){
   let active=true,busy=false,close=null;
   const button=el('button','Preview printable case report'),status=el('p');button.type='button';status.setAttribute('role','status');root.append(button,status);
   button.onclick=async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing report…';const revision=getRevision();try{close=await openCasePrintPreview(getCase(),{isCurrent:()=>active&&root.isConnected&&revision===getRevision(),returnFocus:button});status.textContent=revision===getRevision()?'':'Case changed while preparing the report. Open the preview again.';}catch(e){if(active)status.textContent=e.message;}finally{busy=false;if(active)button.disabled=false;}};
-  return ()=>{active=false;close?.();root.replaceChildren();};
+  const closePreview=()=>{close?.();close=null;};
+  return Object.assign(()=>{active=false;closePreview();root.replaceChildren();},{closePreview});
 }
