@@ -1,8 +1,10 @@
-# DD84 Calibration Studio — Windows preview 0.31.0
+# DD84 Calibration Studio — Windows preview 0.32.0
 
 An offline Windows x64 workbench for local calibration evidence, simulation editing and real exported-value drafts. Captured complete Sierra MAF/spark/cooling and VE zone boundaries are editable in separate DD84 drafts. VE coefficients remain read-only with named mode rows while their physical units and scaling are unverified. Captured controller identity can be attached to the exact source fingerprint. Native HPT/Holley files remain read only; this preview has no validated native decoder or writer. Readable VCM Scanner CSV exports can be inspected, reviewed and saved; native HPL measurements are not decoded. Learning and real ECU writes remain disabled.
 
 ## Start here
+
+Preview 0.32 adds **Resume saved earlier/later CSV**. Matching original CSVs restore the saved time window, up to four filters and the stored tune association for editing. Wrong files or altered summaries cannot resume. Build and save after editing; regular CSV selection still starts a replacement recording. Stored tune associations remain operator statements.
 
 Preview 0.31 adds **Update outcome notes** for saved measured reviews. Record follow-up observations without reloading CSVs or changing measurements. Rebuilding now protects each saved recording until you reselect its CSV or explicitly clear it. Save the case after applying notes; existing job snapshots remain unchanged.
 
