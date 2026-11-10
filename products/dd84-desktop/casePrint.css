@@ -1,0 +1,24 @@
+.case-print-dialog{box-sizing:border-box;width:min(1000px,96vw);max-width:96vw;max-height:94vh;margin:auto;padding:0;border:1px solid #638633;border-radius:12px;overflow:auto;color:#172414;background:#fff;font:15px/1.55 system-ui,sans-serif}
+.case-print-dialog::backdrop{background:rgba(0,0,0,.75)}
+.case-print-tools{padding:20px;background:#172515;color:#eff8e8;border-bottom:4px solid #a8eb00}
+.case-print-tools h2{color:inherit;font-size:23px;margin:0 0 10px}.case-print-tools p{margin:8px 0;overflow-wrap:anywhere}
+.case-print-tools button{display:inline-block;background:#a8eb00;color:#172414;border:1px solid #a8eb00;border-radius:7px;padding:10px 16px;margin:12px 12px 0 0;font:inherit;cursor:pointer}
+.case-print-tools button:last-of-type{background:transparent;color:#eff8e8}.case-print-tools label{display:block;margin:12px 0}.case-print-tools input{width:auto;display:inline;margin-right:8px}
+.case-print-dialog :focus-visible{outline:3px solid #649500;outline-offset:3px}
+.case-print-document{padding:28px;min-width:0;overflow-wrap:anywhere;white-space:normal}
+.case-print-document header{border-bottom:3px solid #649500;margin:0 0 24px;padding:0 0 20px;position:static;display:block;background:white;color:#172414}
+.case-print-document header img{display:block;max-width:120px;height:auto}.case-print-document h1{font-size:28px;color:#172414}.case-print-document h2{font-size:21px;color:#2e501e;margin:28px 0 12px}.case-print-document h3{font-size:17px;color:#172414;margin:18px 0 8px}
+.case-print-document p,.case-print-document li{white-space:pre-wrap;margin:8px 0;color:#172414}.case-print-document ul{padding-left:22px}.case-print-document strong{color:inherit}
+.case-print-document section{background:#fff;color:#172414;border:0;border-radius:0;box-shadow:none;padding:0}
+.case-print-document .case-print-check,.case-print-document .case-print-channel{border-top:1px solid #bdc9b4;margin:20px 0;padding-top:4px;min-width:0}
+.case-print-document table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:13px;margin:12px 0;color:#172414}.case-print-document th,.case-print-document td{padding:7px;border:1px solid #bdc9b4;text-align:left;white-space:normal;overflow-wrap:anywhere;color:#172414;background:#fff;position:static}.case-print-document th{background:#e8f1e0}.case-print-document th:first-child{width:23%}
+@media(max-width:600px){.case-print-document{padding:16px}.case-print-document table{font-size:11px}.case-print-document th,.case-print-document td{padding:5px}.case-print-tools{padding:16px}}
+@media print{
+  @page{size:auto;margin:14mm;background:white;@bottom-center{content:"DD84 · " counter(page) " / " counter(pages);font:8pt system-ui,sans-serif;color:#44563c}}
+  html:has(.case-print-dialog[open]),body:has(>.case-print-dialog[open]){height:auto!important;overflow:visible!important;background:white!important;color:#172414!important;color-scheme:light!important}
+  body:has(>.case-print-dialog[open])>:not(.case-print-dialog){display:none!important}
+  .case-print-dialog[open]{display:block!important;position:static!important;inset:auto!important;width:auto!important;max-width:none!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;font-size:10pt}
+  .case-print-dialog::backdrop{background:transparent!important;display:none!important}.case-print-tools{display:none!important}
+  .case-print-document{padding:0!important;overflow:visible!important}.case-print-document h1{font-size:22pt}.case-print-document h2{font-size:15pt}.case-print-document h3{font-size:12pt}.case-print-document table{font-size:9pt}
+  .case-print-document h2,.case-print-document h3{break-after:avoid}.case-print-channel,.case-print-document tr{break-inside:avoid}.case-print-document thead{display:table-header-group}
+}

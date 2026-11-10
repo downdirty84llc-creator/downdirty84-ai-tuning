@@ -120,6 +120,10 @@ const {createHash} = require('node:crypto');
     assert(entries.length>0);assert.equal(channelView.filterMeasuredChannels(entries,{view:'unpaired'}).length,entries.length);
     assert.equal(channelView.filterMeasuredChannels(entries,{view:'changed'}).length,0);
     assert.equal(JSON.stringify(revisedCase),channelSnapshot);
+    const printModel=await load('casePrint.mjs'),printSnapshot=await printModel.prepareCasePrint(revisedCase);
+    assert.deepEqual(printSnapshot.report,revisedCase);
+    assert.equal(printSnapshot.sha256,createHash('sha256').update(JSON.stringify(revisedCase,null,2)).digest('hex'));
+    assert.equal(JSON.stringify(revisedCase),channelSnapshot);
     const revisedBytes=validateRequest({filename:'measured-case.json',text:JSON.stringify(revisedCase)});
     await writeVerifiedCopy(measuredFilename,revisedBytes);
     assert.deepEqual(troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8'))),revisedCase);
@@ -131,7 +135,7 @@ const {createHash} = require('node:crypto');
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, measuredSourceResumedWithoutSelectionLoss:true, alteredSummaryResumeRejected:true, channelViewsPreserveEvidence:true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, measuredSourceResumedWithoutSelectionLoss:true, alteredSummaryResumeRejected:true, channelViewsPreserveEvidence:true, printableCasePreservesEvidence:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
