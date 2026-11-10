@@ -107,6 +107,9 @@ const {createHash} = require('node:crypto');
     await writeVerifiedCopy(measuredFilename,measuredBytes);assert.deepEqual(await fs.readFile(measuredFilename),measuredBytes);
     const restoredMeasured=troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8')));assert.deepEqual(restoredMeasured,measuredCase);
     assert.equal((await verification.recheckMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'renamed.csv')).status,'SOURCE_AND_SUMMARY_MATCH');
+    const resumed=await verification.resumeMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'renamed.csv');
+    const resumedSummary={...measuredCsv.summarizeMeasuredFile(resumed.loaded,{...resumed.selection,filters:resumed.selection.filters.map(f=>({channelId:f.id,min:f.min,max:f.max}))}),tune:resumed.tune};
+    assert.deepEqual(resumedSummary,restoredMeasured.measuredReview.before);
     const editing=await load('measuredEditing.mjs');
     const updatedNotes=editing.updateMeasuredOutcome(restoredMeasured.measuredReview,{...restoredMeasured.measuredReview.outcome,result:'inconclusive',observation:'Synthetic follow-up without CSV reload'});
     assert.deepEqual(updatedNotes.before,restoredMeasured.measuredReview.before);assert.deepEqual(updatedNotes.after,restoredMeasured.measuredReview.after);
@@ -117,12 +120,13 @@ const {createHash} = require('node:crypto');
     assert.deepEqual(troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8'))),revisedCase);
     restoredMeasured.measuredReview.before.channels[1].mean=450;
     assert.equal((await verification.recheckMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'synthetic.csv')).status,'SUMMARY_MISMATCH');
+    await assert.rejects(verification.resumeMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'synthetic.csv'),/could not be reproduced/);
     console.log(JSON.stringify({
       version: manifest.version, electron: process.versions.electron,
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, measuredSourceResumedWithoutSelectionLoss:true, alteredSummaryResumeRejected:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
