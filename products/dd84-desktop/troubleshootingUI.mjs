@@ -12,7 +12,7 @@ export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
   const saveButton=button('Save troubleshooting case',async()=>{
     if(saving)return;
     saving=true; saveButton.disabled=true; const snapshot=revision;
-    try{if(measured.hasDraft())throw Error('Build and attach the measured review or discard its pending changes before saving.');const result=await save(caseReport(state),'DD84-troubleshooting-case.json');
+    try{if(measured.hasDraft())throw Error('Build and attach the measured review or discard its pending changes before saving. For outcome-only changes, choose Update outcome notes.');const result=await save(caseReport(state),'DD84-troubleshooting-case.json');
       if(disposed)return;
       if(result?.status==='saved'&&snapshot===revision)dirty=false;
       status.textContent=result?.status==='saved'?'Case saved. Your original tune and log need separate backups.':result?.status==='unconfirmed'?'Download requested. Verify the JSON file in Downloads; this browser cannot confirm completion.':result?.status==='canceled'?'Save canceled. Your case is still open.':'Save did not complete. Keep this case open and retry.';
