@@ -111,7 +111,7 @@ const {createHash} = require('node:crypto');
     const updatedNotes=editing.updateMeasuredOutcome(restoredMeasured.measuredReview,{...restoredMeasured.measuredReview.outcome,result:'inconclusive',observation:'Synthetic follow-up without CSV reload'});
     assert.deepEqual(updatedNotes.before,restoredMeasured.measuredReview.before);assert.deepEqual(updatedNotes.after,restoredMeasured.measuredReview.after);
     assert.throws(()=>editing.assertMeasuredRebuildSources(updatedNotes,{}),/Reselect the earlier CSV/);
-    const revisedCase={...restoredMeasured,measuredReview:updatedNotes};
+    const revisedCase=troubleshooting.caseReport({...restoredMeasured,measuredReview:updatedNotes});
     const revisedBytes=validateRequest({filename:'measured-case.json',text:JSON.stringify(revisedCase)});
     await writeVerifiedCopy(measuredFilename,revisedBytes);
     assert.deepEqual(troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8'))),revisedCase);
