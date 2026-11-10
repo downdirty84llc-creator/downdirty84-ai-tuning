@@ -4,6 +4,7 @@ import {apiGet,apiPost} from './client';
 import {caseReport,parseCase,fields,issues,commonChecks,MAX_CASE_BYTES,type CaseReport} from '../backend/shared/troubleshooting.mjs';
 import {renderMeasuredReview} from '../products/dd84-desktop/measuredReviewUI.mjs';
 import {mountCasePrint} from '../products/dd84-desktop/casePrintUI.mjs';
+import {caseHandoffHref} from './caseHandoff.mjs';
 import '../products/dd84-desktop/troubleshooting.css';
 
 type Summary={id:string;createdAt:string;caseName:string;vehicle:string;issueId:string;status:string;concerns:number;missing:number};
@@ -80,6 +81,6 @@ export default function JobCases({jobId,vehicle,admin=false}:{jobId:string;vehic
     {!loading&&!error&&!rows.length&&<p>No troubleshooting cases attached yet.</p>}
     <ul className="case-history">{rows.map(row=><li key={row.id}><button className="secondary" disabled={busy} onClick={()=>void open(row.id)}>{row.caseName||'Untitled case'} · {new Date(row.createdAt).toLocaleString()}</button><p>{issues.find(issue=>issue.id===row.issueId)?.title??row.issueId} · {statusLabel(row.status)} · {row.concerns} concerns · {row.missing} missing items</p></li>)}</ul>
     {nextBefore&&<button className="secondary" disabled={loading||busy} onClick={()=>void history(nextBefore)}>Load older cases</button>}
-    {opened&&<section className="case-snapshot" aria-label="Saved case snapshot"><h3>Saved case snapshot</h3><p>Attached {new Date(opened.createdAt).toLocaleString()} · {opened.id}</p><button className="secondary" onClick={download}>Download saved case</button><CaseDetails report={opened.report}/><details><summary>Snapshot fingerprint</summary><p className="case-fingerprint">SHA-256: {opened.sha256}</p><p className="small">Identifies the saved JSON snapshot; it does not verify the vehicle or the operator's statements.</p></details></section>}
+    {opened&&<section className="case-snapshot" aria-label="Saved case snapshot"><h3>Saved case snapshot</h3><p>Attached {new Date(opened.createdAt).toLocaleString()} · {opened.id}</p><button className="secondary" onClick={download}>Download saved case</button><p><Link to={caseHandoffHref({jobId,caseId:opened.id,access:admin?'shop':'customer'})}>Open in Troubleshooting</Link> to edit a local copy. This saved attachment remains unchanged.</p><CaseDetails report={opened.report}/><details><summary>Snapshot fingerprint</summary><p className="case-fingerprint">SHA-256: {opened.sha256}</p><p className="small">Identifies the saved JSON snapshot; it does not verify the vehicle or the operator's statements.</p></details></section>}
   </section>;
 }

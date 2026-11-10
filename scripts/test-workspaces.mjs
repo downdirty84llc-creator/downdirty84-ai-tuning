@@ -13,6 +13,7 @@ import {testMeasuredReview} from './test-measured-review.mjs';
 import {testMeasuredResume} from './test-measured-resume.mjs';
 import {testMeasuredChannels} from './test-measured-channels.mjs';
 import {testCasePrint} from './test-case-print.mjs';
+import {testCaseHandoff} from './test-case-handoff.mjs';
 import {testJobCases} from './test-job-cases.mjs';
 import {testShopNavigation} from './test-shop-navigation.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -93,6 +94,7 @@ try{
   await testMeasuredResume({browser,origin,output,ok});
   await testMeasuredChannels({browser,origin,output,ok});
   await testCasePrint({browser,origin,output,ok,measuredCase});
+  await testCaseHandoff({browser,origin,output,ok,measuredCase});
   await testJobCases({browser,origin,output,ok,measuredCase});
   await testShopNavigation({browser,origin,output,ok});
   await fs.writeFile(path.join(output,'result.json'),JSON.stringify({passed,desktopErrors:errors,webErrors,syntheticOnly:true},null,2));console.log(JSON.stringify({passed,output}));

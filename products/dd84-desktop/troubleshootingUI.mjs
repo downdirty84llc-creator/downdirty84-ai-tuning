@@ -2,7 +2,7 @@ import {blankCase,validateCase,parseCase,caseReport,assessCase,issues,commonChec
 import {mountMeasuredReview} from './measuredReviewUI.mjs';
 import {mountCasePrint} from './casePrintUI.mjs';
 
-export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
+export function mountTroubleshooting(root, {save, externalLinks=false,onLocalCaseOpened=()=>{}}={}) {
   let state=blankCase(), dirty=false, revision=0, pending=null, saving=false, disposed=false, openRequest=0;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const button=(text,action)=>{const n=el('button',text);n.type='button';n.onclick=action;return n;};
@@ -18,16 +18,25 @@ export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
       if(result?.status==='saved'&&snapshot===revision)dirty=false;
       status.textContent=result?.status==='saved'?'Case saved. Your original tune and log need separate backups.':result?.status==='unconfirmed'?'Download requested. Verify the JSON file in Downloads; this browser cannot confirm completion.':result?.status==='canceled'?'Save canceled. Your case is still open.':'Save did not complete. Keep this case open and retry.';
     }catch(e){if(!disposed)status.textContent=`Save failed: ${e.message}`;}
-    finally{saving=false;if(!disposed)saveButton.disabled=false;}
+    finally{saving=false;if(!disposed){saveButton.disabled=false;replaceButton.disabled=false;if(pending)confirmationText.textContent='The save request has finished. Review its result above before replacing the current case.';}}
   });
   const open=el('input');open.type='file';open.accept='.json';open.id='trouble-open';
   const openLabel=el('label','Open saved troubleshooting case');openLabel.htmlFor=open.id;openLabel.append(open);
   const status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
-  const replace=next=>{state=validateCase(next);dirty=false;revision++;pending=null;confirm.hidden=true;renderInputs();status.textContent='Case opened. Checklist findings are operator statements; the assessment was recalculated.';};
+  const replace=(next,label,external)=>{state=validateCase(next);dirty=false;revision++;disposePrint.closePreview();confirm.hidden=true;renderInputs();status.textContent=(label?'Local copy opened: '+label+'. ':'Case opened. ')+'Checklist findings are operator statements; the assessment was recalculated. Original saved snapshots are unchanged.';if(!external)onLocalCaseOpened();};
   const confirm=el('div',undefined,'trouble-confirm');confirm.hidden=true;
-  confirm.append(el('p','Replace the current unsaved case? Save it first if you want to keep it.'),button('Keep current case',()=>{pending=null;confirm.hidden=true;open.value='';}),button('Replace current case',()=>{if(pending)replace(pending);}));
-  const stage=next=>{if(dirty){pending=next;confirm.hidden=false;}else replace(next);};
-  const newButton=button('New case',()=>stage(blankCase()));newButton.className='secondary';
+  const confirmationText=el('p'),incoming=el('p');
+  const cancelPending=(result='kept')=>{const old=pending;pending=null;confirm.hidden=true;old?.onDecision?.(result);};
+  const keepButton=button('Keep current case',()=>{cancelPending();open.value='';});
+  const replaceButton=button('Replace current case',()=>{if(!pending||saving)return;const choice=pending;pending=null;replace(choice.next,choice.label,choice.external);choice.onDecision?.('opened');});
+  confirm.append(confirmationText,incoming,keepButton,replaceButton);
+  const stage=(next,{label='',external=false,onDecision}={})=>{
+    const choice={next:validateCase(next),label,external,onDecision};cancelPending('superseded');
+    if(dirty||saving){pending=choice;confirm.hidden=false;confirmationText.textContent=saving?'Wait for the current save to finish before replacing this case.':'Replace the current unsaved case? Save it first if you want to keep it.';incoming.textContent='Incoming case: '+(label||choice.next.context.caseName||choice.next.context.vehicle||'Untitled case');replaceButton.disabled=saving;keepButton.focus();}
+    else{replace(choice.next,label,external);onDecision?.('opened');}
+    return ()=>{if(pending===choice)cancelPending('canceled');};
+  };
+  const newButton=button('New case',()=>{openRequest++;stage(blankCase());});newButton.className='secondary';
   open.onchange=async()=>{const file=open.files?.[0];if(!file)return;const token=revision,request=++openRequest;
     try{if(file.size>MAX_CASE_BYTES)throw Error('Choose a case smaller than 1 MiB.');const next=parseCase(await file.text());if(disposed||request!==openRequest)return;if(token!==revision)throw Error('The case changed while loading. Choose the file again.');stage(next);}
     catch(e){if(!disposed&&request===openRequest)status.textContent=`Could not open case: ${e.message}`;}finally{if(request===openRequest)open.value='';}
@@ -72,5 +81,9 @@ export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
   select.onchange=()=>{state.issueId=select.value;changed();renderChecks();};
   const unload=e=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',unload);
   renderInputs();
-  return ()=>{disposed=true;disposePrint();measured.dispose();window.removeEventListener('beforeunload',unload);root.replaceChildren();};
+  const dispose=()=>{disposed=true;openRequest++;cancelPending('canceled');disposePrint();measured.dispose();window.removeEventListener('beforeunload',unload);root.replaceChildren();};
+  return Object.assign(dispose,{
+    getOpenVersion:()=>openRequest+revision,
+    openCase:(value,options={})=>{if(disposed)throw Error('The case workspace is closed.');const next=validateCase(value);openRequest++;return stage(next,{...options,external:true});}
+  });
 }

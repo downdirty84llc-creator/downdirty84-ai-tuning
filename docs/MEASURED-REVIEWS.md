@@ -1,4 +1,4 @@
-# Measured reviews in Studio 0.34 and the web workspace
+# Measured reviews in Studio 0.35 and the web workspace
 
 Open Troubleshoot, describe the vehicle and checks, then expand **Compare measured differences and record the outcome**. Work remains local until you save a JSON and explicitly attach it to a job. Native tune files are fingerprinted only; their tables are not decoded or edited by this workflow.
 
@@ -8,6 +8,16 @@ Open Troubleshoot, describe the vehicle and checks, then expand **Compare measur
 4. Record why changes were made, what changed, relevant conditions, the success criterion, what was observed, next action and reviewer. Reported improvement is an operator statement; it does not establish horsepower or safety.
 5. Choose **Build and attach measured review**, then **Save troubleshooting case**. Pending edits block saving until applied or discarded. A saved summary can be reopened without sources; recomputation requires reselecting the original CSVs and tunes. Retain source files separately.
 6. On My jobs, select the correct job, choose the saved case, inspect its preview and confirm its job association before attaching. Failed requests retain the snapshot for retry. The shop sees the same immutable snapshot; attachment does not start analysis or release a tune.
+
+## Continue from a saved job snapshot
+
+In My jobs or the shop workspace, open a saved case and choose **Open in Troubleshooting**. The link contains only the job ID, case ID and access scope. The web workspace fetches the exact snapshot through the existing authenticated customer or shop endpoint, verifies both identifiers, and recalculates the case assessment. Shop access still requires the server's admin permission; the link never grants access by itself.
+
+The opened copy retains all measured summaries, source identities, filters and outcome notes. Edit the local copy, save its JSON, then explicitly attach the revision to the matching job when appropriate. Opening or editing does not modify the saved attachment, upload evidence, run analysis or release a tune. Source CSVs and native tune files are not downloaded or reverified; use the existing source-check/resume tools to reselect originals.
+
+If the workspace has unsaved work, **Keep current case** is the default focused choice; **Replace current case** opens the incoming copy. Replacement waits for an in-flight save. An expired session, denied access, missing case, malformed response or failed request leaves the current case untouched. Retry after resolving the failure. If you edit or choose another case while loading, the delayed response cannot overwrite it. Leaving the handoff cancels its pending replacement; opening a local JSON or New case clears the completed handoff link. No automatic fallback to a different job or snapshot occurs.
+
+The Windows app remains offline: download the saved JSON from the web and open it in Studio. Its shared editor also prevents replacement during a pending save and ignores late file reads after New case. Replacing a case closes its previous print preview.
 
 ## Recheck a saved source
 
