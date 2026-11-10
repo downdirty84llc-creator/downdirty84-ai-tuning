@@ -1,4 +1,4 @@
-# Measured reviews in Studio 0.30 and the web workspace
+# Measured reviews in Studio 0.31 and the web workspace
 
 Open Troubleshoot, describe the vehicle and checks, then expand **Compare measured differences and record the outcome**. Work remains local until you save a JSON and explicitly attach it to a job. Native tune files are fingerprinted only; their tables are not decoded or edited by this workflow.
 
@@ -6,7 +6,7 @@ Open Troubleshoot, describe the vehicle and checks, then expand **Compare measur
 2. Select each CSV. Review its time window and optionally filter on up to two exported channels per recording. A row must contain numeric values inside every selected filter. Missing filter readings are excluded and counted, never filled. Different export rates or sparse asynchronous channels can still prevent useful comparison.
 3. Optionally select the corresponding native tune to compute its SHA-256 fingerprint, then explain how you know that exact tune ran during that recording. A filename suffix or timestamp alone does not establish this relationship. Replacing a CSV clears its prior tune binding.
 4. Record why changes were made, what changed, relevant conditions, the success criterion, what was observed, next action and reviewer. Reported improvement is an operator statement; it does not establish horsepower or safety.
-5. Choose **Build and attach measured review**, then **Save troubleshooting case**. Pending edits block saving until rebuilt or discarded. A saved summary can be reopened without sources; recomputation requires reselecting the original CSVs and tunes. Retain source files separately.
+5. Choose **Build and attach measured review**, then **Save troubleshooting case**. Pending edits block saving until applied or discarded. A saved summary can be reopened without sources; recomputation requires reselecting the original CSVs and tunes. Retain source files separately.
 6. On My jobs, select the correct job, choose the saved case, inspect its preview and confirm its job association before attaching. Failed requests retain the snapshot for retry. The shop sees the same immutable snapshot; attachment does not start analysis or release a tune.
 
 ## Recheck a saved source
@@ -18,6 +18,14 @@ In a saved review, expand **Earlier/Later source, filters and complete channel i
 - **CSV bytes match, but summary items differ** identifies stored statistics, channel metadata or counts that cannot be reproduced. Rebuild the review from its sources and inspect the differences. Structural validity alone cannot establish that statistics came from the CSV.
 
 Checks apply only to the displayed summary in the current session. Opening/rebuilding a case, clearing a check, choosing a different file or encountering a read error cannot retain an earlier success. A delayed check from a replaced case is ignored. No verification claim is written into the saved case, and its notes, selections, hashes and reported outcome remain unchanged. Check both sides separately; a successful check does not establish sensor accuracy, tune-to-log association, matched test conditions, power improvement, calibration approval or learning readiness. Changing notes or measurements still uses the existing explicit build/save workflow.
+
+## Update a saved outcome without reloading recordings
+
+Open the saved case, edit the reported outcome or its explanation, conditions, success criterion, next action and reviewer, then choose **Update outcome notes**. Both source summaries, tune fingerprints and associations, windows, filters, channel statistics and calculated differences stay unchanged. Choose **Save troubleshooting case** to retain the revision. A previously attached job snapshot remains immutable; attaching the revision creates a separate snapshot.
+
+Recording edits cannot be silently discarded by updating notes: build those changes first, or use **Discard pending measured changes** and enter the notes again. Rebuilding a saved review requires each previously saved CSV. To intentionally remove one side, choose **Clear earlier/later recording**, then build; the missing recording becomes an evidence gap. Selecting a single CSV does not remove an unloaded saved side. Reloaded CSVs start with their full time window and no filters; review the selections and tune associations before rebuilding.
+
+Outcome changes remain operator statements. They do not authenticate stored measurements or establish improvement. Source checks reset for the updated display and can be rerun against the original CSVs.
 
 ## Supported data and calculations
 

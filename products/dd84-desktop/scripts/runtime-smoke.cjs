@@ -107,6 +107,14 @@ const {createHash} = require('node:crypto');
     await writeVerifiedCopy(measuredFilename,measuredBytes);assert.deepEqual(await fs.readFile(measuredFilename),measuredBytes);
     const restoredMeasured=troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8')));assert.deepEqual(restoredMeasured,measuredCase);
     assert.equal((await verification.recheckMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'renamed.csv')).status,'SOURCE_AND_SUMMARY_MATCH');
+    const editing=await load('measuredEditing.mjs');
+    const updatedNotes=editing.updateMeasuredOutcome(restoredMeasured.measuredReview,{...restoredMeasured.measuredReview.outcome,result:'inconclusive',observation:'Synthetic follow-up without CSV reload'});
+    assert.deepEqual(updatedNotes.before,restoredMeasured.measuredReview.before);assert.deepEqual(updatedNotes.after,restoredMeasured.measuredReview.after);
+    assert.throws(()=>editing.assertMeasuredRebuildSources(updatedNotes,{}),/Reselect the earlier CSV/);
+    const revisedCase=troubleshooting.caseReport({...restoredMeasured,measuredReview:updatedNotes});
+    const revisedBytes=validateRequest({filename:'measured-case.json',text:JSON.stringify(revisedCase)});
+    await writeVerifiedCopy(measuredFilename,revisedBytes);
+    assert.deepEqual(troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8'))),revisedCase);
     restoredMeasured.measuredReview.before.channels[1].mean=450;
     assert.equal((await verification.recheckMeasuredSource(restoredMeasured.measuredReview,'before',Buffer.from(csv),'synthetic.csv')).status,'SUMMARY_MISMATCH');
     console.log(JSON.stringify({
@@ -114,7 +122,7 @@ const {createHash} = require('node:crypto');
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });
