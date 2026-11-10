@@ -46,6 +46,9 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   const snapshot=panel.getByRole('region',{name:'Saved case snapshot'});await snapshot.waitFor();
   assert.equal(posts.length,2);assert.equal(posts[0].requestId,posts[1].requestId);
   assert.equal(await preview.count(),0);ok('case preview requires confirmation, strips forged claims, and failed submissions retry with one stable identity');
+  await snapshot.getByRole('button',{name:'Preview printable case report',exact:true}).click();
+  const customerPrint=page.getByRole('dialog',{name:'DD84 case report preview',exact:true});await customerPrint.waitFor();
+  assert.match(await customerPrint.textContent(),/Synthetic pressure case/);assert.equal(posts.length,2);await customerPrint.getByRole('button',{name:'Close preview',exact:true}).click();
   if(measuredCase){
     const explorer=snapshot.getByRole('region',{name:'Measurement channel explorer',exact:true});await explorer.getByLabel('Find a channel',{exact:true}).fill('Spark');
     await explorer.getByRole('button',{name:'Inspect Spark [deg]',exact:true}).click();assert.match(await explorer.getByRole('region',{name:'Selected channel details',exact:true}).textContent(),/Numeric:/);assert.equal(posts.length,2);
@@ -89,6 +92,12 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
     ok('customer and shop snapshots expose the same read-only channel explorer without API writes');
   }
   await admin.locator('#internal-notes').fill('Synthetic draft notes');await admin.locator('#internal-notes').press('Tab');assert.equal(patches.length,0);
+  await adminPanel.getByRole('button',{name:'Preview printable case report',exact:true}).click();
+  const shopPrint=admin.getByRole('dialog',{name:'DD84 case report preview',exact:true});await shopPrint.waitFor();
+  assert(!(await shopPrint.locator('article').textContent()).includes('Synthetic draft notes'));assert(!(await shopPrint.locator('article').textContent()).includes('fixture@example.test'));
+  await admin.emulateMedia({media:'print'});assert.equal(await admin.locator('#internal-notes').isVisible(),false);assert(await shopPrint.locator('article').isVisible());await admin.emulateMedia({media:'screen'});
+  await shopPrint.getByRole('button',{name:'Close preview',exact:true}).click();assert.equal(patches.length,0);assert.equal(await admin.locator('#internal-notes').inputValue(),'Synthetic draft notes');
+  ok('customer and shop printable snapshots exclude private shop notes and account data without submitting requests');
   await admin.getByRole('button',{name:/Case vehicle A/}).click();await admin.getByRole('button',{name:'Keep editing notes'}).click();assert.equal(await admin.locator('#internal-notes').inputValue(),'Synthetic draft notes');
   await admin.getByRole('button',{name:'IN_PROGRESS',exact:true}).dblclick();await admin.getByText('Job status updated.',{exact:true}).waitFor();assert.deepEqual(patches,[{status:'IN_PROGRESS'}]);assert.equal(await admin.locator('#internal-notes').inputValue(),'Synthetic draft notes');
   await admin.getByRole('button',{name:'Save internal notes',exact:true}).dblclick();await admin.getByText('Internal notes saved.',{exact:true}).waitFor();assert.deepEqual(patches[1],{internal_notes:'Synthetic draft notes'});assert.equal(patches.length,2);

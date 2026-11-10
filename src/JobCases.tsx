@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import {apiGet,apiPost} from './client';
 import {caseReport,parseCase,fields,issues,commonChecks,MAX_CASE_BYTES,type CaseReport} from '../backend/shared/troubleshooting.mjs';
 import {renderMeasuredReview} from '../products/dd84-desktop/measuredReviewUI.mjs';
+import {mountCasePrint} from '../products/dd84-desktop/casePrintUI.mjs';
 import '../products/dd84-desktop/troubleshooting.css';
 
 type Summary={id:string;createdAt:string;caseName:string;vehicle:string;issueId:string;status:string;concerns:number;missing:number};
@@ -13,9 +14,12 @@ const statusLabel=(status:string)=>status==='CONCERNS_RECORDED'?'Concerns record
 function CaseDetails({report}:{report:CaseReport}) {
   const issue=issues.find(i=>i.id===report.issueId)!;
   const measured=useRef<HTMLDivElement>(null);
+  const printable=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(measured.current)renderMeasuredReview(measured.current,report.measuredReview??null);},[report]);
+  useEffect(()=>{if(printable.current)return mountCasePrint(printable.current,()=>report);},[report]);
   return <div className="case-details">
     <h3>{issue.title}</h3>
+    <div ref={printable} />
     <p><strong>{statusLabel(report.assessment.status)}</strong> · Operator statements; human review required.</p>
     <dl className="case-context">{fields.map(([key,label])=><div key={key}><dt>{label}</dt><dd>{report.context[key]||'Not provided'}</dd></div>)}</dl>
     <p><strong>Tune / log relationship:</strong> {report.relationship==='confirmed'?'Confirmed by the operator':report.relationship==='mismatch'?'The tune and log differ':'Not confirmed'}</p>

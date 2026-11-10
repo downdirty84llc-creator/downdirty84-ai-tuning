@@ -1,4 +1,4 @@
-# Measured reviews in Studio 0.33 and the web workspace
+# Measured reviews in Studio 0.34 and the web workspace
 
 Open Troubleshoot, describe the vehicle and checks, then expand **Compare measured differences and record the outcome**. Work remains local until you save a JSON and explicitly attach it to a job. Native tune files are fingerprinted only; their tables are not decoded or edited by this workflow.
 
@@ -46,6 +46,16 @@ Choose a channel to inspect all five statistics, earlier/later windows and filte
 Duplicate labels, different units, unspecified units, blank labels and channels without numeric pairs remain separate unpaired entries, with the pairing reason. They are never combined through the display controls. Time/index columns remain in the complete source inventory. A difference beyond the numeric range is unavailable, not zero.
 
 Search, selection and display filters do not alter the case, its evidence gaps, source checks or reported outcome. Saving still includes the complete review. View settings reset when opening or rebuilding a case; no search or inspection state is persisted or sent to the API.
+
+## Prepare a printable handoff
+
+Choose **Preview printable case report** in Troubleshooting or a customer/shop case snapshot. The local preview uses the full normalized case, including context, checklist findings, retained checks from other issues, outcome notes, evidence gaps, source fingerprints, windows and filters. Current assessment and source references are recalculated from the trusted catalog. Pending measured edits must be built/applied or discarded first; the preview never silently prints an older attached review.
+
+Full channel tables are included by default. Every source channel is represented, with all five statistics, numeric/missing/text counts and the available differences. Time/index columns are inventoried separately. Channel search and view filters do not limit the report. Uncheck **Include full channel tables** for a shorter summary; the document explicitly states that measurements were omitted and retains its evidence gaps and limitations.
+
+**Print / Save as PDF** opens the system print dialog. Choose a printer or a PDF destination if supported. The application cannot verify completion; canceling does not save a report. Only the report prints, excluding navigation, editing controls, other job data and private shop notes. Review your own case notes for information you do not intend to share. Printing does not send anything, save the editable case or attach it to a job. Save the JSON separately; PDFs cannot reopen as cases.
+
+The document includes a SHA-256 of the full normalized case serialized as UTF-8 `JSON.stringify(caseReport, null, 2)` without a trailing newline. The fingerprint identifies contents, not authenticity or approval, and is independent of the full-table display choice. It is not the server's attachment identifier. Session-only source checks are not exported as verification claims. Close or Escape returns to the previous control without changing the case.
 
 ## Supported data and calculations
 

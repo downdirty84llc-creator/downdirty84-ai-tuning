@@ -1,5 +1,6 @@
 import {blankCase,validateCase,parseCase,caseReport,assessCase,issues,commonChecks,fields,sources,catalogVersion,MAX_CASE_BYTES} from './troubleshooting.mjs';
 import {mountMeasuredReview} from './measuredReviewUI.mjs';
+import {mountCasePrint} from './casePrintUI.mjs';
 
 export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
   let state=blankCase(), dirty=false, revision=0, pending=null, saving=false, disposed=false, openRequest=0;
@@ -52,6 +53,8 @@ export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
   result.append(resultStatus,concernsTitle,concerns,missingTitle,missing,el('h3','Suggested evidence to request'),el('p','Use supported channels from the installed controller; names and availability vary. Preserve the full original recording.'),channelList,el('h3','Next step'),next,el('p','Human review is always required. This worksheet does not diagnose a fault, approve calibration changes or establish that a vehicle is safe to operate. No numeric tune targets are generated.'),sourcesDetails);
   const measuredSection=el('details',undefined,'card');measuredSection.append(el('summary','3. Compare measured differences and record the outcome'));const measuredRoot=el('section');measuredSection.append(measuredRoot);
   const measured=mountMeasuredReview(measuredRoot,{onDirty:changed,onAttach:report=>{if(report){state.format='DD84_TROUBLESHOOTING_CASE_V2';state.measuredReview=report;}else{state.format='DD84_TROUBLESHOOTING_CASE_V1';delete state.measuredReview;}changed();}});
+  const printRoot=el('div');intro.append(printRoot);
+  const disposePrint=mountCasePrint(printRoot,()=>{if(measured.hasDraft())throw Error('Build and attach the measured review or discard its pending changes before previewing. For outcome-only changes, choose Update outcome notes.');return caseReport(state);},{getRevision:()=>revision});
   root.append(intro,symptomSection,contextSection,checksSection,measuredSection,result);
   function changed(){dirty=true;revision++;renderAssessment();}
   function fillList(node,items){node.replaceChildren(...items.map(text=>el('li',text)));}
@@ -69,5 +72,5 @@ export function mountTroubleshooting(root, {save, externalLinks=false}={}) {
   select.onchange=()=>{state.issueId=select.value;changed();renderChecks();};
   const unload=e=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',unload);
   renderInputs();
-  return ()=>{disposed=true;measured.dispose();window.removeEventListener('beforeunload',unload);root.replaceChildren();};
+  return ()=>{disposed=true;disposePrint();measured.dispose();window.removeEventListener('beforeunload',unload);root.replaceChildren();};
 }
