@@ -46,6 +46,10 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   const snapshot=panel.getByRole('region',{name:'Saved case snapshot'});await snapshot.waitFor();
   assert.equal(posts.length,2);assert.equal(posts[0].requestId,posts[1].requestId);
   assert.equal(await preview.count(),0);ok('case preview requires confirmation, strips forged claims, and failed submissions retry with one stable identity');
+  if(measuredCase){
+    const explorer=snapshot.getByRole('region',{name:'Measurement channel explorer',exact:true});await explorer.getByLabel('Find a channel',{exact:true}).fill('Spark');
+    await explorer.getByRole('button',{name:'Inspect Spark [deg]',exact:true}).click();assert.match(await explorer.getByRole('region',{name:'Selected channel details',exact:true}).textContent(),/Numeric:/);assert.equal(posts.length,2);
+  }
   const download=page.waitForEvent('download');await snapshot.getByRole('button',{name:'Download saved case'}).click();
   assert.deepEqual(JSON.parse(await fs.readFile(await (await download).path(),'utf8')),report);
   await panel.getByRole('button',{name:'Load older cases'}).click();await panel.getByRole('button',{name:/Older synthetic case/}).waitFor();
@@ -79,6 +83,11 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   assert.equal(await admin.locator('#internal-notes').inputValue(),'Existing shop notes');assert.equal(await admin.getByText('Case vehicle A',{exact:true}).count(),0);
   const adminPanel=admin.getByRole('region',{name:'Job troubleshooting cases'});assert.equal(await adminPanel.locator('#job-case-file').count(),0);
   await adminPanel.getByRole('button',{name:/Synthetic pressure case/}).click();await adminPanel.getByRole('region',{name:'Saved case snapshot'}).waitFor();
+  if(measuredCase){
+    const explorer=adminPanel.getByRole('region',{name:'Measurement channel explorer',exact:true});await explorer.getByLabel('Find a channel',{exact:true}).fill('Spark');
+    await explorer.getByRole('button',{name:'Inspect Spark [deg]',exact:true}).click();assert.match(await explorer.getByRole('region',{name:'Selected channel details',exact:true}).textContent(),/Numeric:/);assert.equal(patches.length,0);
+    ok('customer and shop snapshots expose the same read-only channel explorer without API writes');
+  }
   await admin.locator('#internal-notes').fill('Synthetic draft notes');await admin.locator('#internal-notes').press('Tab');assert.equal(patches.length,0);
   await admin.getByRole('button',{name:/Case vehicle A/}).click();await admin.getByRole('button',{name:'Keep editing notes'}).click();assert.equal(await admin.locator('#internal-notes').inputValue(),'Synthetic draft notes');
   await admin.getByRole('button',{name:'IN_PROGRESS',exact:true}).dblclick();await admin.getByText('Job status updated.',{exact:true}).waitFor();assert.deepEqual(patches,[{status:'IN_PROGRESS'}]);assert.equal(await admin.locator('#internal-notes').inputValue(),'Synthetic draft notes');

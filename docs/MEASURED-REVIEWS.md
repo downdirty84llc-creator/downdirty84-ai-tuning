@@ -1,4 +1,4 @@
-# Measured reviews in Studio 0.32 and the web workspace
+# Measured reviews in Studio 0.33 and the web workspace
 
 Open Troubleshoot, describe the vehicle and checks, then expand **Compare measured differences and record the outcome**. Work remains local until you save a JSON and explicitly attach it to a job. Native tune files are fingerprinted only; their tables are not decoded or edited by this workflow.
 
@@ -36,6 +36,16 @@ Successful resume restores the saved start/end times, all filters and their boun
 Resume both saved sides before rebuilding, review or change the selections, choose **Build and attach measured review**, then **Save troubleshooting case**. Resuming alone does not change the attached report. An unchanged rebuild preserves the complete normalized case. Editing a filter recomputes measurements from the selected source; no automatic learning or tuning approval is added.
 
 The regular **Earlier/Later CSV** selector remains the replacement workflow: it starts at the full recording window, clears filters and removes the prior tune association. Use it when intentionally replacing a source or rebuilding a summary that did not pass verification. It does not claim that mismatched evidence has been verified.
+
+## Explore channels in a saved review
+
+**Review individual channels** is available in Studio, the web editor, and customer/shop case snapshots. Search by channel name, exported unit or channel ID; select an exact unit, statistic and channel view. Available views include comparable channels, a changed/increased/decreased statistic, incomplete numeric readings and unpaired channels. Direction filters apply to the selected statistic only. They do not rank changes across units or classify performance improvements.
+
+Choose a channel to inspect all five statistics, earlier/later windows and filters, source filenames and IDs, and exact numeric/missing/nonnumeric counts. Numeric coverage uses each recording's included rows as the denominator. Percentages are truncated to one decimal place so incomplete readings never round up to 100%; exact counts remain visible. Coverage does not measure elapsed-time sampling, sensor quality, or simultaneous acquisition. No-data windows and absent sides remain explicit.
+
+Duplicate labels, different units, unspecified units, blank labels and channels without numeric pairs remain separate unpaired entries, with the pairing reason. They are never combined through the display controls. Time/index columns remain in the complete source inventory. A difference beyond the numeric range is unavailable, not zero.
+
+Search, selection and display filters do not alter the case, its evidence gaps, source checks or reported outcome. Saving still includes the complete review. View settings reset when opening or rebuilding a case; no search or inspection state is persisted or sent to the API.
 
 ## Supported data and calculations
 
