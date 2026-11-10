@@ -2,6 +2,7 @@ import {inspectMeasuredFile,summarizeMeasuredFile,byteFingerprint,MAX_MEASURED_C
 import {normalizeMeasuredReview} from './measuredReview.mjs';
 import {recheckMeasuredSource,resumeMeasuredSource} from './measuredVerification.mjs';
 import {updateMeasuredOutcome,assertMeasuredRebuildSources} from './measuredEditing.mjs';
+import {renderMeasuredChannels} from './measuredChannelsUI.mjs';
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 const shown=x=>x===null?'—':typeof x==='number'?Number(x.toPrecision(7)).toString():String(x);
 const labels={changeReason:'Why was the tune changed?',changes:'Changes made to the calibration or hardware',conditions:'Fuel, hardware, sensor checks and test-condition differences',criterion:'What result would meet the goal?',observation:'What did you observe, and what supports it?',nextAction:'Next action and unresolved questions',reviewer:'Reviewed by'};
@@ -43,7 +44,7 @@ export function renderMeasuredReview(root,input){
     details.append(table(['Channel','Unit','Numeric','Missing','Text','Min','Max','Mean','Median','P95'],s.channels.map(c=>[c.name||`Unnamed column ${c.id}`,c.unit||'Unspecified',c.numeric,c.missing,c.text,c.min,c.max,c.mean,c.median,c.p95])));root.append(details);
   }
   root.append(el('p','Later minus earlier statistics. No interpolation, time weighting, unit conversion, correction factors or automatic approval.'));
-  root.append(table(['Channel','Unit','Earlier mean','Later mean','Δ mean','Δ median','Δ min','Δ max','Δ P95','Flags'],r.comparisons.map(c=>[c.name,c.unit,r.before.channels.find(a=>a.id===c.beforeId).mean,r.after.channels.find(a=>a.id===c.afterId).mean,c.delta.mean,c.delta.median,c.delta.min,c.delta.max,c.delta.p95,c.flags.join(', ')])));
+  renderMeasuredChannels(root,r);
   const missing=el('ul');r.missing.forEach(m=>missing.append(el('li',m)));root.append(el('h4','Evidence still needed'),missing);
   const extra=el('details');extra.append(el('summary','Unpaired channels and limitations'));const list=el('ul');r.unmatched.forEach(c=>list.append(el('li',`${c.side}: ${c.name||'Unnamed column '+c.id} [${c.unit||'unspecified'}] — ${c.reason}`)));r.limitations.forEach(x=>list.append(el('li',x)));extra.append(list);root.append(extra);
 }
