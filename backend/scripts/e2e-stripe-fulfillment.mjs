@@ -63,6 +63,48 @@ try {
   assert.match(index.rows[0]?.indexdef ?? '', /CREATE UNIQUE INDEX/);
   ok('session uniqueness migration installs its database-enforced guard on a clean schema');
 
+  // Permission fixtures exist only in this disposable database and a transaction
+  // rolled back in finally (including CREATE ROLE). Never grant production roles.
+  const accessClient = await pool.connect();
+  const deniedRole = `dd84_denied_${randomUUID().replaceAll('-', '')}`;
+  assert(/^dd84_denied_[a-f0-9]{32}$/.test(deniedRole));
+  try {
+    await accessClient.query('BEGIN');
+    await accessClient.query(`CREATE ROLE "${deniedRole}" NOLOGIN NOSUPERUSER NOBYPASSRLS`);
+    await accessClient.query(`GRANT USAGE ON SCHEMA public TO "${deniedRole}"`);
+    const { rows: [owner] } = await accessClient.query("INSERT INTO users(email) VALUES ('outbox-access@example.test') RETURNING id");
+    const { rows: [order] } = await accessClient.query(`INSERT INTO orders(user_id,stripe_event_id,stripe_session_id,customer_email,amount_total_cents)
+      VALUES ($1,'evt_access','cs_access','outbox-access@example.test',100) RETURNING id`, [owner.id]);
+    await accessClient.query(`INSERT INTO payment_onboarding_outbox
+      (stripe_session_id,order_id,customer_email,service_label,amount_cents,currency)
+      VALUES ('cs_access',$1,'outbox-access@example.test','Synthetic',100,'usd')`, [order.id]);
+    await accessClient.query(`SET LOCAL ROLE "${deniedRole}"`);
+    await accessClient.query('SAVEPOINT denied_read');
+    await assert.rejects(accessClient.query('SELECT * FROM payment_onboarding_outbox'), e => e.code === '42501');
+    await accessClient.query('ROLLBACK TO SAVEPOINT denied_read');
+    await accessClient.query('RESET ROLE');
+    // Even if a hosting platform supplies table grants, no RLS policy must
+    // allow this non-owner role to read/change customer onboarding intent.
+    await accessClient.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON payment_onboarding_outbox TO "${deniedRole}"`);
+    await accessClient.query(`SET LOCAL ROLE "${deniedRole}"`);
+    assert.equal((await accessClient.query('SELECT * FROM payment_onboarding_outbox')).rowCount, 0);
+    assert.equal((await accessClient.query("UPDATE payment_onboarding_outbox SET delivered_at=now() WHERE stripe_session_id='cs_access'")).rowCount, 0);
+    assert.equal((await accessClient.query("DELETE FROM payment_onboarding_outbox WHERE stripe_session_id='cs_access'")).rowCount, 0);
+    await accessClient.query('SAVEPOINT denied_write');
+    await assert.rejects(accessClient.query(`INSERT INTO payment_onboarding_outbox
+      (stripe_session_id,order_id,customer_email,service_label,amount_cents,currency)
+      VALUES ('cs_denied',$1,'denied@example.test','Synthetic',100,'usd')`, [order.id]), e => e.code === '42501');
+    await accessClient.query('ROLLBACK TO SAVEPOINT denied_write');
+    await accessClient.query('RESET ROLE');
+    const original = await accessClient.query("SELECT delivered_at FROM payment_onboarding_outbox WHERE stripe_session_id='cs_access'");
+    assert.equal(original.rowCount, 1);
+    assert.equal(original.rows[0].delivered_at, null);
+    ok('non-owner role cannot access outbox; RLS blocks reads/writes even with table grants');
+  } finally {
+    await accessClient.query('ROLLBACK');
+    accessClient.release();
+  }
+
   process.env.DATABASE_URL = databaseURL.href;
   process.env.NODE_ENV = 'test';
   const { createStripeRouter } = await import('../dist/routes/stripe.routes.js');
