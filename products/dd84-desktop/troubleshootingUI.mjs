@@ -1,6 +1,7 @@
 import {blankCase,validateCase,parseCase,caseReport,assessCase,issues,commonChecks,fields,sources,catalogVersion,MAX_CASE_BYTES} from './troubleshooting.mjs';
 import {mountMeasuredReview} from './measuredReviewUI.mjs';
 import {mountCasePrint} from './casePrintUI.mjs';
+import {mountCaseComparison} from './caseComparisonUI.mjs';
 
 export function mountTroubleshooting(root, {save, externalLinks=false,onLocalCaseOpened=()=>{}}={}) {
   let state=blankCase(), dirty=false, revision=0, pending=null, saving=false, disposed=false, openRequest=0;
@@ -23,7 +24,7 @@ export function mountTroubleshooting(root, {save, externalLinks=false,onLocalCas
   const open=el('input');open.type='file';open.accept='.json';open.id='trouble-open';
   const openLabel=el('label','Open saved troubleshooting case');openLabel.htmlFor=open.id;openLabel.append(open);
   const status=el('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
-  const replace=(next,label,external)=>{state=validateCase(next);dirty=false;revision++;disposePrint.closePreview();confirm.hidden=true;renderInputs();status.textContent=(label?'Local copy opened: '+label+'. ':'Case opened. ')+'Checklist findings are operator statements; the assessment was recalculated. Original saved snapshots are unchanged.';if(!external)onLocalCaseOpened();};
+  const replace=(next,label,external)=>{state=validateCase(next);dirty=false;revision++;disposePrint.closePreview();disposeComparison.invalidate();confirm.hidden=true;renderInputs();status.textContent=(label?'Local copy opened: '+label+'. ':'Case opened. ')+'Checklist findings are operator statements; the assessment was recalculated. Original saved snapshots are unchanged.';if(!external)onLocalCaseOpened();};
   const confirm=el('div',undefined,'trouble-confirm');confirm.hidden=true;
   const confirmationText=el('p'),incoming=el('p');
   const cancelPending=(result='kept')=>{const old=pending;pending=null;confirm.hidden=true;old?.onDecision?.(result);};
@@ -64,8 +65,10 @@ export function mountTroubleshooting(root, {save, externalLinks=false,onLocalCas
   const measured=mountMeasuredReview(measuredRoot,{onDirty:changed,onAttach:report=>{if(report){state.format='DD84_TROUBLESHOOTING_CASE_V2';state.measuredReview=report;}else{state.format='DD84_TROUBLESHOOTING_CASE_V1';delete state.measuredReview;}changed();}});
   const printRoot=el('div');intro.append(printRoot);
   const disposePrint=mountCasePrint(printRoot,()=>{if(measured.hasDraft())throw Error('Build and attach the measured review or discard its pending changes before previewing. For outcome-only changes, choose Update outcome notes.');return caseReport(state);},{getRevision:()=>revision});
+  const comparisonRoot=el('div');intro.append(comparisonRoot);
+  const disposeComparison=mountCaseComparison(comparisonRoot,()=>{if(measured.hasDraft())throw Error('Build and attach the measured review or discard its pending changes before comparing. For outcome-only changes, choose Update outcome notes.');return caseReport(state);},{getRevision:()=>revision,save});
   root.append(intro,symptomSection,contextSection,checksSection,measuredSection,result);
-  function changed(){dirty=true;revision++;renderAssessment();}
+  function changed(){dirty=true;revision++;disposeComparison.invalidate();renderAssessment();}
   function fillList(node,items){node.replaceChildren(...items.map(text=>el('li',text)));}
   function renderAssessment(){const a=assessCase(state);resultStatus.textContent=a.status==='CONCERNS_RECORDED'?'Concerns recorded — resolve these with the tuner':a.status==='NEEDS_INFORMATION'?'More evidence needed':'Prepared for human review — not approval to tune';fillList(concerns,a.concerns);concernsTitle.hidden=!a.concerns.length;fillList(missing,a.missing);missingTitle.hidden=!a.missing.length;fillList(channelList,a.channels);next.textContent=a.next;}
   function renderChecks(){checksRoot.replaceChildren();const issue=issues.find(i=>i.id===state.issueId);summary.textContent=issue.summary;
@@ -81,7 +84,7 @@ export function mountTroubleshooting(root, {save, externalLinks=false,onLocalCas
   select.onchange=()=>{state.issueId=select.value;changed();renderChecks();};
   const unload=e=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',unload);
   renderInputs();
-  const dispose=()=>{disposed=true;openRequest++;cancelPending('canceled');disposePrint();measured.dispose();window.removeEventListener('beforeunload',unload);root.replaceChildren();};
+  const dispose=()=>{disposed=true;openRequest++;cancelPending('canceled');disposePrint();disposeComparison();measured.dispose();window.removeEventListener('beforeunload',unload);root.replaceChildren();};
   return Object.assign(dispose,{
     getOpenVersion:()=>openRequest+revision,
     openCase:(value,options={})=>{if(disposed)throw Error('The case workspace is closed.');const next=validateCase(value);openRequest++;return stage(next,{...options,external:true});}

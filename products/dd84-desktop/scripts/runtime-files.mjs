@@ -5,6 +5,7 @@ export const runtimeFiles = [
   'measuredCsv.mjs', 'measuredReview.mjs', 'measuredReviewUI.mjs', 'measuredVerification.mjs', 'measuredEditing.mjs',
   'measuredChannels.mjs', 'measuredChannelsUI.mjs',
   'casePrint.mjs', 'casePrintUI.mjs', 'casePrint.css',
+  'caseComparison.mjs', 'caseComparisonUI.mjs',
   'INDEPENDENT_SYSTEM.md', 'PARAMETER_PROJECT.md', 'README.md',
   'REAL_PARAMETER_DRAFTS.md', 'RELEASE_CHECKLIST.md',
   'bench.mjs', 'benchUI.mjs', 'benchWorker.mjs', 'board.cjs', 'boardUI.mjs',

@@ -1,4 +1,4 @@
-# Measured reviews in Studio 0.35 and the web workspace
+# Measured reviews in Studio 0.36 and the web workspace
 
 Open Troubleshoot, describe the vehicle and checks, then expand **Compare measured differences and record the outcome**. Work remains local until you save a JSON and explicitly attach it to a job. Native tune files are fingerprinted only; their tables are not decoded or edited by this workflow.
 
@@ -18,6 +18,16 @@ The opened copy retains all measured summaries, source identities, filters and o
 If the workspace has unsaved work, **Keep current case** is the default focused choice; **Replace current case** opens the incoming copy. Replacement waits for an in-flight save. An expired session, denied access, missing case, malformed response or failed request leaves the current case untouched. Retry after resolving the failure. If you edit or choose another case while loading, the delayed response cannot overwrite it. Leaving the handoff cancels its pending replacement; opening a local JSON or New case clears the completed handoff link. No automatic fallback to a different job or snapshot occurs.
 
 The Windows app remains offline: download the saved JSON from the web and open it in Studio. Its shared editor also prevents replacement during a pending save and ignores late file reads after New case. Replacing a case closes its previous print preview.
+
+## Compare two saved case revisions
+
+Open a case in Troubleshooting, expand **Compare saved case revisions**, and choose the reference case JSON. The open case is current; neither case is replaced. On My jobs or in the shop workspace, choose **Use as comparison reference** beside a saved snapshot, then open another snapshot from that job. You can also select a local reference JSON within a saved snapshot preview. Review vehicle and controller identifiers: sharing a job or a filename does not prove matching vehicle conditions or chronological order.
+
+The comparison lists exact additions, removals and changes to vehicle/event fields, all recorded checks (including inactive issues), operator outcomes, source filenames/fingerprints, tune associations, windows, filters, counts and all five channel statistics. Same-source channel values align only when CSV SHA-256, channel ID, name and unit all match. Different source bytes, changed units or changed IDs produce separate removed/added channel values. No unit conversion or numeric performance delta is inferred. Imported derived claims are recalculated; source recheck success is not persisted as an authentication claim.
+
+Search by text or select a category; pages show up to 50 changes. **Save case comparison** retains all changes and both complete canonical cases regardless of those display settings. Fingerprints use the same canonical UTF-8 JSON basis as printable reports, not original JSON-file bytes or server attachment identifiers. Comparison files are read-only evidence records; keep and reopen the separate case JSONs for editing. No comparison is automatically attached, emailed or uploaded.
+
+Build/apply or discard pending measured edits before comparing. Changing the case invalidates the displayed result; choose **Compare with current case** to refresh. Clearing the comparison cancels delayed file reads. Invalid files and failed requests leave the current case unchanged. Windows uses the existing verified JSON save flow; browser downloads remain explicitly unconfirmed until you inspect the downloaded file.
 
 ## Recheck a saved source
 
