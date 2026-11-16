@@ -21,7 +21,8 @@ function installCloseGuard(win, dialog, {isSaving = () => false} = {}) {
         buttons: ['Keep editing', 'Discard and close'],
         defaultId: 0,
         cancelId: 0,
-        message: 'Discard unsaved calibration changes?'
+        message: 'Close with unsaved work?',
+        detail: 'Local recovery copies, if enabled, are retained. Save each workspace separately to keep normal project and report files.'
       });
     }).then(({response}) => {
       prompting = false;

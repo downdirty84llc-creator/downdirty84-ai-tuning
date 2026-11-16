@@ -6,15 +6,22 @@ import {previewTableEdit,applyTableEdit} from './tableEdit.mjs';
 import {retainTableTabOrder,showMessage as message,setupNavigation} from './navigation.mjs';
 import {saveJson} from './saveFileUI.mjs';
 import {openWorkspace} from './workspaces.mjs';
+import {mountProjectRecovery} from './projectRecoveryUI.mjs';
 const $=id=>document.getElementById(id);
 let project=null,history=[],dirty=false,request=0,sourceRevision=0,selected='',sourceCheck='Source file not rechecked in this session.';
 let comparisonProject=null,comparisonResult=null,comparisonSelected='';
 let rangePreview=null;
+let projectDirty=false,reviewDirty=false,comparisonDirty=false,saving=false;
+const recovery=mountProjectRecovery($('project-recovery'),{
+  getSnapshot:()=>project?{project:validate(project),note:$('note').value}:null,
+  restore:snapshot=>{if(!discard())return false;request++;replace(snapshot.project);$('note').value=snapshot.note;projectDirty=true;reviewDirty=!!snapshot.note;syncDirty();return true;}
+});
+function syncDirty(){dirty=projectDirty||reviewDirty||comparisonDirty;if(project)$('identity').textContent=`${project.controller} · ${project.definitionSet} · ${dirty?'Unsaved edits':'Project loaded / saved'}`;}
 const definition=path=>projectDefinition(project,path);
 setupNavigation();
 function element(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
-function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();openWorkspace('projects','edit-title');}
-function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;dirty=true;$('real-compare-note').value='';render();}
+function replace(next){sourceRevision++;sourceCheck='Source file not rechecked in this session.';project=next;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';history=[];dirty=projectDirty=reviewDirty=comparisonDirty=false;selected=next.parameters[0].path;$('parameter-search').value='';$('note').value='';render();openWorkspace('projects','edit-title');recovery.changed();}
+function mutate(next){request++;history.push(project);if(history.length>100)history.shift();project=next;projectDirty=true;comparisonDirty=false;$('real-compare-note').value='';syncDirty();render();recovery.changed();}
 function axisValue(p,d,axis,index){return d.axes[axis].labels?.[index]??String(p.axes[axis][index]);}
 function location(p,index){const d=definition(p.path)??p.definition;return Object.values(coordinates(p,index)).map((v,i)=>d?.axes[i].labels?.[p.axes[i].indexOf(v)]??`${d?.axes[i].label??['X','Y'][i]} ${v} ${d?.axes[i].unit??''}`.trim()).join(', ')||'Value';}
 function difference(before,after){
@@ -162,7 +169,7 @@ function renderRealComparison(){
   for(const p of comparisonResult.parameters){const option=element('option',`${p.label} · ${comparisonStatus[p.status]}${p.items.length?` (${p.items.length})`:''}`);option.value=p.path;list.append(option);}
   list.value=comparisonSelected;$('real-compare-save').disabled=false;renderComparisonDetails();
 }
-const discard=()=>!dirty||confirm('Discard unsaved project edits?');
+const discard=()=>{if(saving){message('Wait for the current project save to finish before replacing it.');return false;}return !dirty||confirm('Discard unsaved project edits and review notes?');};
 $('new').onclick=()=>{if(discard()){request++;replace(sample());message('Six synthetic parameters opened. These do not represent a vehicle tune.');}};
 $('open').onchange=async event=>{
   const file=event.target.files[0];event.target.value='';if(!file||!discard())return;const id=++request;
@@ -172,19 +179,20 @@ $('parameter-search').oninput=()=>{if(project)renderLibrary();};
 $('parameter-list').onchange=()=>{selected=$('parameter-list').value;renderParameter();};
 $('name').oninput=()=>{request++;};
 $('name').onchange=()=>{try{mutate(validate({...project,name:$('name').value}));}catch(e){message(e.message);$('name').value=project.name;}};
-$('undo').onclick=()=>{if(history.length){request++;project=history.pop();dirty=true;$('real-compare-note').value='';render();message('Last project edit undone.');}};
+$('undo').onclick=()=>{if(history.length){request++;project=history.pop();projectDirty=true;comparisonDirty=false;$('real-compare-note').value='';syncDirty();render();recovery.changed();message('Last project edit undone.');}};
 $('reset').onclick=()=>{if(confirm('Restore all editable parameters from their originals?'))mutate(restore(project));};
 $('reset-selected').onclick=()=>{if(confirm('Restore this parameter from its original?'))mutate(restore(project,selected));};
-function download(value,suffix){
-  return saveJson(value,`DD84-${suffix}.json`);
+async function download(value,suffix){
+  if(saving){message('A project save is already running. Wait for its result.');return {status:'busy'};}
+  saving=true;try{return await saveJson(value,`DD84-${suffix}.json`);}finally{saving=false;}
 }
-$('save').onclick=()=>download(validate(project),isReal(project)?'real-calibration-draft':'project');
+$('save').onclick=async()=>{const version=request,result=await download(validate(project),isReal(project)?'real-calibration-draft':'project');if(result?.status==='saved'&&version===request){projectDirty=false;syncDirty();}};
 $('backup').onclick=()=>download(backup(project),isReal(project)?'exported-original-values':'original');
 $('export').onclick=async()=>{
   const id=++request;
-  try{const result=await review(project,$('note').value);if(id!==request){message('Project changed while preparing the review. Export again after finishing edits.');return;}download(result,isReal(project)?'real-review-draft':'review-draft');}catch(e){if(id===request)message(e.message);}
+  try{const result=await review(project,$('note').value);if(id!==request){message('Project changed while preparing the review. Export again after finishing edits.');return;}const saved=await download(result,isReal(project)?'real-review-draft':'review-draft');if(saved?.status==='saved'&&id===request){reviewDirty=false;syncDirty();}}catch(e){if(id===request)message(e.message);}
 };
-$('note').addEventListener('input',()=>{request++;dirty=true;});
+$('note').addEventListener('input',()=>{request++;reviewDirty=true;syncDirty();recovery.changed();});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 
 $('real-import').onchange=async event=>{
@@ -220,13 +228,13 @@ $('real-compare-open').onchange=async event=>{
   try{
     if(file.size>OPEN_LIMIT)throw Error('Reference draft exceeds 4 MB.');
     const next=parse(await file.text());if(!isReal(next))throw Error('Choose a real exported-value DD84 draft, not a simulation project.');
-    if(id!==request)return;comparisonProject=next;comparisonSelected='';$('real-compare-note').value='';renderRealComparison();message('Reference draft loaded for comparison. No values copied into your project.');
+    if(id!==request)return;comparisonProject=next;comparisonSelected='';$('real-compare-note').value='';comparisonDirty=false;syncDirty();renderRealComparison();message('Reference draft loaded for comparison. No values copied into your project.');
   }catch(e){if(id===request)message(e.message);}
 };
-$('real-compare-clear').onclick=()=>{request++;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';renderRealComparison();message('Reference comparison cleared.');};
+$('real-compare-clear').onclick=()=>{request++;comparisonProject=null;comparisonSelected='';$('real-compare-note').value='';comparisonDirty=false;syncDirty();renderRealComparison();message('Reference comparison cleared.');};
 $('real-compare-list').onchange=()=>{comparisonSelected=$('real-compare-list').value;renderComparisonDetails();};
-$('real-compare-note').oninput=()=>{request++;dirty=true;};
+$('real-compare-note').oninput=()=>{request++;comparisonDirty=true;syncDirty();};
 $('real-compare-save').onclick=async()=>{
   const id=++request;
-  try{const result=await reportRealComparison(comparisonProject,project,$('real-compare-note').value);if(id!==request){message('Comparison changed while preparing the report. Finish edits and export again.');return;}download(result,'tune-stage-comparison');}catch(e){if(id===request)message(e.message);}
+  try{const result=await reportRealComparison(comparisonProject,project,$('real-compare-note').value);if(id!==request){message('Comparison changed while preparing the report. Finish edits and export again.');return;}const saved=await download(result,'tune-stage-comparison');if(saved?.status==='saved'&&id===request){comparisonDirty=false;syncDirty();}}catch(e){if(id===request)message(e.message);}
 };
