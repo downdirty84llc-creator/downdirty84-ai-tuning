@@ -21,3 +21,8 @@ contextBridge.exposeInMainWorld('dd84Board', {
   probe: port => ipcRenderer.invoke('dd84-board-probe',port),
   loopback: port => ipcRenderer.invoke('dd84-board-loopback',port)
 });
+// Fixed recovery slot only: callers cannot choose a filesystem path.
+contextBridge.exposeInMainWorld('dd84Recovery', {
+  read:()=>ipcRenderer.invoke('dd84-recovery-read'),
+  write:(expectedToken,enabled,snapshot)=>ipcRenderer.invoke('dd84-recovery-write',{expectedToken,enabled,snapshot})
+});
