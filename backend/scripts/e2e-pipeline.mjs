@@ -125,7 +125,13 @@ const gen = await req("POST", `/api/v1/jobs/${jobId}/diffsets/generate`, {
 check("diffset generated", gen.status, 201);
 const dsId = gen.json?.diffSetId;
 
-const items = gen.json?.items ?? [];
+check("unreleased generation response hides calibration items", gen.json?.items, undefined);
+const customerPending = await req("GET", `/api/v1/diffsets/${dsId}`, { token: OWNER });
+check("customer can see pending status", customerPending.json?.releaseStatus, "OWNER_REVIEW");
+check("customer cannot read unreleased proposal", customerPending.json?.items, undefined);
+const adminPending = await req("GET", `/api/v1/diffsets/${dsId}`, { token: ADMIN });
+check("admin can inspect proposal for owner review", adminPending.status, 200);
+const items = adminPending.json?.items ?? [];
 ok(`generated ${items.length} MAF curve points`);
 const near = items.filter((i) => Math.abs(i.after - 1.04) < 0.015);
 check("multipliers match the injected 4% error", near.length === items.length && items.length > 0, true);
@@ -136,6 +142,8 @@ check("export blocked before release", (await req("POST", `/api/v1/diffsets/${ds
 
 const rel = await req("POST", `/api/v1/diffsets/${dsId}/release`, { token: ADMIN, body: { decision: "RELEASE", note: "reviewed" } });
 check("admin releases", rel.status, 200);
+const customerReleased = await req("GET", `/api/v1/diffsets/${dsId}`, { token: OWNER });
+check("customer sees proposal only after release", customerReleased.json?.items?.length, items.length);
 // The release response must say whether the customer was actually told. A
 // release that silently fails to notify leaves the customer waiting forever
 // while the owner believes the job is finished.
@@ -174,6 +182,14 @@ const gen2 = await req("POST", `/api/v1/jobs/${job2}/diffsets/generate`, {
   token: OWNER, body: { runId: s2.json.runId, generator: "GM_LS_MAF_V1", uploadId: up2.json.uploadId }
 });
 check("generate refused on unsafe log -> 403", gen2.status, 403);
+
+// A safe run cannot be reused to launder a different (unsafe) owned log.
+const mismatchedSource = await req("POST", `/api/v1/jobs/${jobId}/diffsets/generate`, {
+  token: OWNER,
+  body: { runId: started.json.runId, generator: "GM_LS_MAF_V1", uploadId: up2.json.uploadId }
+});
+check("safe verdict cannot authorize suggestions from a different unsafe log", mismatchedSource.status, 400);
+
 check("nothing persisted for the unsafe run", psql(`SELECT count(*) FROM diffsets WHERE run_id='${s2.json.runId}';`), 0);
 
 /* ══════════════ 3. BAD LOG: failure is reported, not swallowed ═════════ */

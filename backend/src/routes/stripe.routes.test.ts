@@ -46,7 +46,7 @@ async function fixture(options: {
   const state = {
     current: options.current ?? session(), retrieves: 0, accountChecks: 0,
     lineRequests: [] as Stripe.Checkout.SessionListLineItemsParams[],
-    transactions: 0, orders: [] as unknown[][], jobs: [] as unknown[][],
+    outbox: new Map<string, any>(), transactions: 0, orders: [] as unknown[][], jobs: [] as unknown[][],
     notifications: [] as { to: string; subject: string; text: string }[], minted: [] as string[]
   };
   const dependencies: StripeWebhookDependencies = {
@@ -69,6 +69,15 @@ async function fixture(options: {
     transaction: async fn => {
       state.transactions++;
       return fn({ query: async <T>(sql: string, values: unknown[] = []) => {
+        if (sql.includes("INSERT INTO payment_onboarding_outbox")) {
+          state.outbox.set(values[0] as string, {customer_email:values[2],service_label:values[3],amount_cents:values[4],currency:values[5],delivered_at:null}); return [];
+        }
+        if (sql.includes("FROM payment_onboarding_outbox")) {
+          const row = state.outbox.get(values[0] as string); return row ? [row] : [];
+        }
+        if (sql.includes("UPDATE payment_onboarding_outbox")) {
+          state.outbox.get(values[0] as string).delivered_at = "synthetic-delivered"; return [];
+        }
         if (sql.includes("INSERT INTO users")) return [{ id: "user_synthetic" }] as T[];
         if (sql.includes("INSERT INTO orders")) {
           assert(sql.includes("ON CONFLICT DO NOTHING"));
@@ -343,20 +352,34 @@ test("nonadvancing provider pagination cannot partially fulfill an order", async
 });
 
 
-for (const [label, options, firstStatus] of [
-  ["notification", { notificationFailure: true }, 200],
-  ["magic-link persistence", { mintFailure: true }, 500]
+for (const [label, options] of [
+  ["notification", { notificationFailure: true, mintFailure: false }],
+  ["magic-link persistence", { mintFailure: true, notificationFailure: false }]
 ] as const) {
-  test(`post-commit ${label} failure cannot duplicate order/job on retry`, async () => {
-    const f = await fixture(options);
+  test(`post-commit ${label} failure stays retryable without duplicate order/job`, async () => {
+    const mutable: { notificationFailure: boolean; mintFailure: boolean } = { ...options };
+    const f = await fixture(mutable);
     try {
-      assert.equal((await f.post(event())).status, firstStatus);
-      assert.equal((await f.post(event())).body.duplicate, true);
-      assert.equal((await f.post(event("checkout.session.async_payment_succeeded", {id:"evt_retry_distinct"}))).body.duplicate, true);
-      assert.equal(f.state.orders.length, 1);
-      assert.equal(f.state.jobs.length, 1);
-      // Notification retries/outbox are intentionally not claimed by the
-      // order/job exactly-once invariant; post-commit delivery is separate.
+      assert.equal((await f.post(event())).status, 503);
+      assert.equal((await f.post(event())).status, 503);
+      assert.equal(f.state.outbox.get("cs_test_synthetic").delivered_at, null);
+      mutable.notificationFailure = false; mutable.mintFailure = false;
+      const retry = await f.post(event("checkout.session.async_payment_succeeded", {id:"evt_retry_distinct"}));
+      assert.equal(retry.status, 200); assert.equal(retry.body.duplicate, true);
+      assert.equal(f.state.orders.length, 1); assert.equal(f.state.jobs.length, 1);
+      assert.equal(f.state.outbox.size, 1); assert(f.state.outbox.get("cs_test_synthetic").delivered_at);
+      const sent = f.state.notifications.length;
+      await f.post(event()); assert.equal(f.state.notifications.length, sent);
     } finally { await f.close(); }
   });
 }
+
+test("legacy orders without an onboarding intent do not retro-email", async () => {
+  const f = await fixture();
+  try {
+    f.state.orders.push(["user_synthetic", "evt_synthetic", "cs_test_synthetic"]);
+    assert.equal((await f.post(event())).body.duplicate, true);
+    assert.equal(f.state.notifications.length, 0); assert.equal(f.state.minted.length, 0);
+    assert.equal(f.state.jobs.length, 0);
+  } finally { await f.close(); }
+});

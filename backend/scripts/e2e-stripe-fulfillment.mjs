@@ -56,6 +56,9 @@ try {
   } finally { migrationClient.release(); }
   ok('migration refuses historical duplicate sessions and leaves both rows intact');
   await pool.query(sessionSQL);
+  for (const name of migrations.filter(name => name > sessionMigration)) {
+    await pool.query(await fs.readFile(path.join(migrationsDir, name), 'utf8'));
+  }
   const index = await pool.query("SELECT indexdef FROM pg_indexes WHERE tablename='orders' AND indexname='orders_stripe_session_id_unique'");
   assert.match(index.rows[0]?.indexdef ?? '', /CREATE UNIQUE INDEX/);
   ok('session uniqueness migration installs its database-enforced guard on a clean schema');
@@ -65,13 +68,38 @@ try {
   const { createStripeRouter } = await import('../dist/routes/stripe.routes.js');
   const { withTransaction, pool: routePool } = await import('../dist/db.js');
   applicationPool = routePool;
+  // Authentication uses this same disposable database. The token, user and
+  // session must commit together; real row locks arbitrate concurrent claims.
+  const { verifyMagicLink, createMagicLinkVerifier } = await import('../dist/services/auth/auth.service.js');
+  const { sha256 } = await import('../dist/services/auth/crypto.js');
+  const authToken = `synthetic-auth-${randomUUID()}`;
+  const authEmail = `auth-${randomUUID()}@example.test`;
+  await pool.query("INSERT INTO auth_tokens(email,token_hash,expires_at) VALUES ($1,$2,now()+interval '10 minutes')", [authEmail, sha256(authToken)]);
+  const claims = await Promise.allSettled(Array.from({length:8}, () => verifyMagicLink(authToken)));
+  assert.equal(claims.filter(x => x.status === 'fulfilled').length, 1);
+  assert.equal(claims.filter(x => x.status === 'rejected').length, 7);
+  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM sessions s JOIN users u ON u.id=s.user_id WHERE u.email=$1', [authEmail])).rows[0].n, 1);
+  ok('eight concurrent magic-link callbacks create exactly one session');
+  const retryToken = `synthetic-retry-${randomUUID()}`;
+  const retryEmail = `retry-${randomUUID()}@example.test`;
+  await pool.query("INSERT INTO auth_tokens(email,token_hash,expires_at) VALUES ($1,$2,now()+interval '10 minutes')", [retryEmail, sha256(retryToken)]);
+  const failSession = createMagicLinkVerifier(fn => withTransaction(tx => fn({query: (sql, params) => {
+    if (/INSERT INTO sessions/.test(sql)) throw new Error('Synthetic session insert failure');
+    return tx.query(sql, params);
+  }})));
+  await assert.rejects(failSession(retryToken), /Synthetic session insert failure/);
+  assert.equal((await pool.query('SELECT used_at FROM auth_tokens WHERE token_hash=$1', [sha256(retryToken)])).rows[0].used_at, null);
+  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM users WHERE email=$1', [retryEmail])).rows[0].n, 0);
+  await verifyMagicLink(retryToken);
+  ok('session failure rolls token and user back; the original magic link can retry');
+
   const { EXPECTED_STRIPE_ACCOUNT, SERVICE_PRICES, NON_TUNING_PRODUCTS } = await import('../dist/config/stripe_catalog.js');
   const sdk = new Stripe('sk_test_synthetic_not_a_credential', { apiVersion: '2024-06-20' });
   const webhookSecret = 'whsec_synthetic_local_database_test';
   const env = { NODE_ENV: 'test', STRIPE_SECRET_KEY: 'sk_test_synthetic_not_a_credential', STRIPE_WEBHOOK_SECRET: webhookSecret };
   const sessions = new Map(), pages = new Map();
   const sent = [];
-  let retrievals = 0, lineReads = 0, failJobInsert = false;
+  let retrievals = 0, lineReads = 0, failJobInsert = false, failMail = false;
   const servicePrice = Object.entries(SERVICE_PRICES).find(([, entry]) => entry.service === 'LOG_REVIEW')[0];
   const line = (id, priceId = servicePrice, productId = 'prod_synthetic_tuning') => ({
     id, object: 'item', description: 'Synthetic local service', amount_total: 3900, quantity: 1,
@@ -109,8 +137,8 @@ try {
       }
       return tx.query(sql, params);
     } })),
-    mintLink: async email => ({ url: `https://example.test/synthetic/${encodeURIComponent(email)}`, ttlMinutes: 15 }),
-    send: async message => { sent.push(message); return { ok: true, transport: 'CONSOLE', id: 'synthetic' }; },
+    mintLink: (await import('../dist/services/auth/auth.service.js')).mintMagicLink,
+    send: async message => { if (failMail) return { ok: false, transport: 'NONE', error: 'Synthetic outage' }; sent.push(message); return { ok: true, transport: 'CONSOLE', id: 'synthetic' }; },
     recipients: () => ['synthetic-owner@example.test'],
     env: () => env
   }));
@@ -183,6 +211,20 @@ try {
   accepted(await deliver(rollback, { id: rollbackEvent }));
   assert.deepEqual(await count(rollback), { orders: 1, jobs: 1 });
   ok('a failed job insert rolls back its order/user claim and the same event retries successfully');
+
+  const mailRetry = addSession('mail_retry');
+  failMail = true;
+  assert.equal((await deliver(mailRetry)).status, 503);
+  assert.deepEqual(await count(mailRetry), { orders: 1, jobs: 1 });
+  assert.equal((await pool.query('SELECT delivered_at FROM payment_onboarding_outbox WHERE stripe_session_id=$1', [mailRetry.id])).rows[0].delivered_at, null);
+  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM auth_tokens WHERE email=$1', [mailRetry.customer_email])).rows[0].n, 0);
+  failMail = false;
+  accepted(await deliver(mailRetry));
+  accepted(await deliver(mailRetry));
+  assert.deepEqual(await count(mailRetry), { orders: 1, jobs: 1 });
+  assert.equal(sent.filter(message => message.to === mailRetry.customer_email).length, 1);
+  assert((await pool.query('SELECT delivered_at FROM payment_onboarding_outbox WHERE stripe_session_id=$1', [mailRetry.id])).rows[0].delivered_at);
+  ok('mail failure leaves durable intent pending and rolls back token; signed retry delivers once without duplicate job');
 
   const other = addSession('non_tuning', {}, [[line('li_non_tuning', 'price_other_business', [...NON_TUNING_PRODUCTS][0])]]);
   accepted(await deliver(other));

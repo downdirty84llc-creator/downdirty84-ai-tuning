@@ -1,4 +1,4 @@
-import { query } from "../../db.js";
+import { query, withTransaction } from "../../db.js";
 import { randomToken, sha256 } from "./crypto.js";
 import { notify, signInEmail } from "../notify/notifications.js";
 
@@ -17,13 +17,14 @@ const SESSION_DAYS = Number(process.env.SESSION_DAYS || 14);
  * a link for one.
  */
 export async function mintMagicLink(
-  emailRaw: string
+  emailRaw: string,
+  execute: typeof query = query
 ): Promise<{ url: string; ttlMinutes: number } | null> {
   const email = emailRaw.trim().toLowerCase();
   if (!email || !email.includes("@")) return null;
 
   const token = randomToken("mlk");
-  await query(
+  await execute(
     `
     INSERT INTO auth_tokens (email, token_hash, expires_at)
     VALUES ($1, $2, now() + ($3 || ' minutes')::interval)
@@ -62,50 +63,40 @@ export async function startMagicLink(emailRaw: string): Promise<{ ok: true }> {
   return { ok: true };
 }
 
-export async function verifyMagicLink(token: string): Promise<{ user: { id: string; email: string }; sessionToken: string }> {
+export function createMagicLinkVerifier(transaction = withTransaction) {
+ return async function verifyMagicLink(token: string): Promise<{ user: { id: string; email: string }; sessionToken: string }> {
   const tokenHash = sha256(token);
 
-  const rows = await query<{ id: string; email: string; used_at: string | null }>(
-    `
-    SELECT id, email, used_at
-    FROM auth_tokens
-    WHERE token_hash = $1
-      AND expires_at > now()
-    LIMIT 1
-    `,
-    [tokenHash]
-  );
+  return transaction(async (tx) => {
+    // Conditional UPDATE locks and consumes the token atomically. Concurrent
+    // callbacks cannot both mint sessions, and a later failure rolls back use.
+    const rows = await tx.query<{ email: string }>(
+      `UPDATE auth_tokens SET used_at = now()
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+       RETURNING email`,
+      [tokenHash]
+    );
+    if (rows.length === 0) throw new Error("INVALID_OR_EXPIRED");
 
-  if (rows.length === 0) throw new Error("INVALID_OR_EXPIRED");
-  if (rows[0].used_at) throw new Error("TOKEN_ALREADY_USED");
-
-  await query(`UPDATE auth_tokens SET used_at = now() WHERE id = $1`, [rows[0].id]);
-
-  const email = rows[0].email;
-  const userRows = await query<{ id: string; email: string }>(
-    `
-    INSERT INTO users (email)
-    VALUES ($1)
-    ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-    RETURNING id, email
-    `,
-    [email]
-  );
-  const user = userRows[0];
-
-  const sessionToken = randomToken("ses");
-  const sessionHash = sha256(sessionToken);
-
-  await query(
-    `
-    INSERT INTO sessions (user_id, session_hash, expires_at)
-    VALUES ($1, $2, now() + ($3 || ' days')::interval)
-    `,
-    [user.id, sessionHash, SESSION_DAYS]
-  );
-
-  return { user, sessionToken };
+    const userRows = await tx.query<{ id: string; email: string }>(
+      `INSERT INTO users (email) VALUES ($1)
+       ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+       RETURNING id, email`,
+      [rows[0].email]
+    );
+    const user = userRows[0];
+    const sessionToken = randomToken("ses");
+    await tx.query(
+      `INSERT INTO sessions (user_id, session_hash, expires_at)
+       VALUES ($1, $2, now() + ($3 || ' days')::interval)`,
+      [user.id, sha256(sessionToken), SESSION_DAYS]
+    );
+    return { user, sessionToken };
+  });
+ };
 }
+
+export const verifyMagicLink = createMagicLinkVerifier();
 
 export async function logoutSession(rawSessionToken: string | undefined): Promise<void> {
   if (!rawSessionToken) return;

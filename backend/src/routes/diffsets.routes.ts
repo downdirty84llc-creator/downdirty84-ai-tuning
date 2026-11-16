@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/session.js";
-import { requireAdmin } from "../middleware/admin.js";
+import { requireAdmin, isAdminEmail } from "../middleware/admin.js";
 import {
   createDiffSet,
   findDiffSetById,
   findRunForJob,
   listDiffSetsForRun,
-  setDiffSetRelease,
-  type DiffSetRecord
+  setDiffSetRelease
 } from "../services/analyze/run_store.js";
+import { publicDiffSet } from "../services/diffgen/public_response.js";
+import { resolveGenerationSource } from "../services/diffgen/source_binding.js";
 import { enforceMvpDiffAllowlist } from "../services/diffgen/mvp_enforcement.js";
 import { generateMafSuggestions } from "../services/analyze/diffgen/maf.js";
 import { parseLog } from "../services/analyze/log/parser.js";
@@ -36,20 +37,6 @@ function itemCounts(payload: any) {
     else if (it.status === "REJECTED") counts.rejected++;
   }
   return counts;
-}
-
-/** Customer-facing shape. Deliberately omits user_id and released_by. */
-function publicDiffSet(d: DiffSetRecord) {
-  return {
-    ...d.payload,
-    diffSetId: d.diffSetId,
-    runId: d.runId,
-    jobId: d.jobId,
-    createdAt: d.createdAt,
-    releaseStatus: d.releaseStatus,
-    releasedAt: d.releasedAt,
-    releaseNote: d.releaseNote
-  };
 }
 
 /**
@@ -91,16 +78,17 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
     );
   }
 
-  // Re-read and re-analyse the log so the suggestions come from the data, not
-  // from whatever a previous request happened to persist.
-  const rows = await getUploadsByIds(userId, [String(req.body?.uploadId ?? "")]);
-  const source = rows[0]
-    ? rows[0]
-    : (await getUploadsByIds(userId, [String(run.validation?.analyzedUploadId ?? "")]))[0];
+  // A verdict for log A must never authorize suggestions derived from log B.
+  const source = await resolveGenerationSource({
+    userId,
+    jobId,
+    analyzedUploadId: run.validation?.analyzedUploadId,
+    requestedUploadId: req.body?.uploadId
+  }, getUploadsByIds);
 
   if (!source) {
-    return badRequest(res, "The log analysed by this run is no longer available.", {
-      hint: "Re-upload the log and run the analysis again."
+    return badRequest(res, "The log does not match the source analysed by this run.", {
+      hint: "Use the exact analysed log attached to this job, or run the analysis again."
     });
   }
 
@@ -178,7 +166,7 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
     }
   }
 
-  return res.status(201).json(publicDiffSet(saved));
+  return res.status(201).json(publicDiffSet(saved, isAdminEmail(req.user!.email)));
 }));
 
 /**
@@ -212,9 +200,10 @@ diffsetsRouter.get("/jobs/:jobId/diffsets", requireAuth, wrap(async (req, res) =
  * GET /api/v1/diffsets/:diffSetId
  */
 diffsetsRouter.get("/diffsets/:diffSetId", requireAuth, wrap(async (req, res) => {
-  const diff = await findDiffSetById(req.params.diffSetId, req.user!.id);
+  const asAdmin = isAdminEmail(req.user!.email);
+  const diff = await findDiffSetById(req.params.diffSetId, req.user!.id, { asAdmin });
   if (!diff) return notFound(res, "DiffSet not found.");
-  return res.json(publicDiffSet(diff));
+  return res.json(publicDiffSet(diff, asAdmin));
 }));
 
 /**
