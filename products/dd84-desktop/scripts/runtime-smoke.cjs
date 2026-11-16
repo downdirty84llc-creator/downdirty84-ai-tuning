@@ -125,6 +125,11 @@ const {createHash} = require('node:crypto');
     assert.equal(printSnapshot.sha256,createHash('sha256').update(JSON.stringify(revisedCase,null,2)).digest('hex'));
     assert.equal(JSON.stringify(revisedCase),channelSnapshot);
     const revisedBytes=validateRequest({filename:'measured-case.json',text:JSON.stringify(revisedCase)});
+    const caseRevision=await load('caseComparison.mjs'),caseRevisionReport=await caseRevision.prepareCaseComparison(restoredMeasured,revisedCase);
+    assert(caseRevisionReport.changes.length>0);assert.deepEqual(caseRevisionReport.current,revisedCase);
+    assert.equal(caseRevisionReport.currentSha256,printSnapshot.sha256);
+    await writeVerifiedCopy(comparisonFilename,validateRequest({filename:'DD84-case-comparison.json',text:JSON.stringify(caseRevisionReport)}));
+    assert.deepEqual(JSON.parse(await fs.readFile(comparisonFilename,'utf8')),caseRevisionReport);
     await writeVerifiedCopy(measuredFilename,revisedBytes);
     assert.deepEqual(troubleshooting.caseReport(troubleshooting.parseCase(await fs.readFile(measuredFilename,'utf8'))),revisedCase);
     restoredMeasured.measuredReview.before.channels[1].mean=450;
@@ -135,7 +140,7 @@ const {createHash} = require('node:crypto');
       nativeSerialBindingLoaded: true, completeEditedProjectSavedAndReopened: true,
       originalPreserved: true, sharedBenchModulesPassed: true,
       savedProjectSha256: saved.sha256, learningCaseSavedReopenedAndRechecked: true,
-      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, measuredSourceResumedWithoutSelectionLoss:true, alteredSummaryResumeRejected:true, channelViewsPreserveEvidence:true, printableCasePreservesEvidence:true, hardwareAccessed: false
+      learningComparisonSavedAndRecomputed: true, operatingContextRecomputed: true, operatingBandRecomputed:true, runSetupRecomputed:true, sensorChecksRecomputed:true, measuredCaseSavedReopenedAndSourceRechecked:true, alteredMeasuredSummaryDetected:true, outcomeNotesSavedWithoutChangingMeasurements:true, partialMeasuredRebuildBlocked:true, measuredSourceResumedWithoutSelectionLoss:true, alteredSummaryResumeRejected:true, channelViewsPreserveEvidence:true, printableCasePreservesEvidence:true, caseComparisonSavedWithoutSourceChanges:true, hardwareAccessed: false
     }));
   } finally {
     await fs.unlink(filename).catch(error => { if (error.code !== 'ENOENT') throw error; });

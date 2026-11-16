@@ -13,7 +13,7 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   const summary=id=>({id,createdAt:saved.createdAt,caseName:id===caseA?input.context.caseName:'Older synthetic case',vehicle:input.context.vehicle,issueId:input.issueId,status:report.assessment.status,concerns:report.assessment.concerns.length,missing:report.assessment.missing.length});
   const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[],posts=[];
   page.on('pageerror',error=>errors.push(error.message));let attached=false,failSubmit=true,releaseOld;
-  const oldResponse=new Promise(resolve=>releaseOld=resolve);let delayOld=false;
+  const oldResponse=new Promise(resolve=>releaseOld=resolve);let delayOld=false,wrongSnapshot=false;
   await page.route('**/api/v1/**',async route=>{
     const request=route.request(),url=new URL(request.url()),p=url.pathname;let json={},status=200;
     if(p.endsWith('/me'))json={id:'fixture',email:'fixture@example.test'};
@@ -27,7 +27,7 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
       if(p.includes(jobA)&&delayOld)await oldResponse;
       json=p.includes(jobB)?{cases:[],nextBefore:null}:url.searchParams.has('before')?{cases:[summary(caseB)],nextBefore:null}:{cases:attached?[summary(caseA)]:[],nextBefore:attached?caseA:null};
     }else if(p.endsWith('/'+caseA))json={case:saved};
-    else if(p.endsWith('/'+caseB))json={case:{...saved,id:caseB}};
+    else if(p.endsWith('/'+caseB))json={case:{...saved,id:caseB,jobId:wrongSnapshot?jobB:jobA}};
     else{status=404;json={message:'Unmocked route'};}
     await route.fulfill({status,json});
   });
@@ -57,6 +57,12 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   assert.deepEqual(JSON.parse(await fs.readFile(await (await download).path(),'utf8')),report);
   await panel.getByRole('button',{name:'Load older cases'}).click();await panel.getByRole('button',{name:/Older synthetic case/}).waitFor();
   assert.equal(await panel.locator('.case-history li').count(),2);await panel.getByRole('button',{name:/Synthetic pressure case/}).click();await snapshot.getByText(input.context.symptom,{exact:true}).waitFor();
+  wrongSnapshot=true;await panel.locator('.case-history li').last().getByRole('button',{name:'Use as comparison reference',exact:true}).click();await panel.getByRole('alert').getByText(/does not match the requested job and case/).waitFor();assert.equal(await panel.getByRole('button',{name:'Clear job comparison reference',exact:true}).count(),0);assert(await snapshot.isVisible());
+  wrongSnapshot=false;await panel.locator('.case-history li').last().getByRole('button',{name:'Use as comparison reference',exact:true}).click();
+  await snapshot.getByRole('region',{name:'Case revision comparison'}).getByRole('heading',{name:'0 changed items between selected revisions',exact:true}).waitFor();
+  assert.equal(posts.length,2);await panel.getByRole('button',{name:'Clear job comparison reference',exact:true}).click();
+  assert.equal(await snapshot.getByRole('region',{name:'Case revision comparison'}).isVisible(),false);
+  ok('customer snapshots compare against a reference from the same job without uploading or modifying either case');
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(output,'job-case-mobile.png'),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('.job-cases *')].filter(e=>e.getBoundingClientRect().right>innerWidth).slice(0,10).map(e=>({tag:e.tagName,cls:e.className,width:e.getBoundingClientRect().width})))));
   await panel.locator('#job-case-file').setInputFiles(file({format:'HPT'},'invalid.json'));await panel.getByRole('alert').waitFor();assert.equal(await preview.count(),0);assert.equal(posts.length,2);
   ok('saved snapshots download without data loss, paginate, and render on mobile; invalid files never submit');
@@ -73,7 +79,7 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
     const request=route.request(),p=new URL(request.url()).pathname;let json={},status=200;
     if(p==='/api/v1/admin/jobs')json={jobs:Object.values(jobs)};
     else if(p.endsWith('/troubleshooting-cases'))json={cases:[summary(caseA)],nextBefore:null};
-    else if(p.endsWith('/'+caseA)&&p.includes('/troubleshooting-cases/'))json={case:saved};
+    else if(p.endsWith('/'+caseA)&&p.includes('/troubleshooting-cases/'))json={case:{...saved,jobId:p.includes(jobB)?jobB:jobA}};
     else if(p.startsWith('/api/v1/admin/jobs/')){
       const id=p.split('/').at(-1);
       if(request.method()==='PATCH'){patches.push(request.postDataJSON());await new Promise(resolve=>setTimeout(resolve,150));Object.assign(jobs[id],request.postDataJSON());json={ok:true};}
@@ -86,6 +92,8 @@ export async function testJobCases({browser,origin,output,ok,measuredCase}) {
   assert.equal(await admin.locator('#internal-notes').inputValue(),'Existing shop notes');assert.equal(await admin.getByText('Case vehicle A',{exact:true}).count(),0);
   const adminPanel=admin.getByRole('region',{name:'Job troubleshooting cases'});assert.equal(await adminPanel.locator('#job-case-file').count(),0);
   await adminPanel.getByRole('button',{name:/Synthetic pressure case/}).click();await adminPanel.getByRole('region',{name:'Saved case snapshot'}).waitFor();
+  await adminPanel.getByRole('button',{name:'Use as comparison reference',exact:true}).click();await adminPanel.getByRole('region',{name:'Case revision comparison'}).getByRole('heading',{name:'0 changed items between selected revisions',exact:true}).waitFor();assert.equal(patches.length,0);
+  ok('shop references use the scoped admin endpoint and keep case comparison read-only');
   if(measuredCase){
     const explorer=adminPanel.getByRole('region',{name:'Measurement channel explorer',exact:true});await explorer.getByLabel('Find a channel',{exact:true}).fill('Spark');
     await explorer.getByRole('button',{name:'Inspect Spark [deg]',exact:true}).click();assert.match(await explorer.getByRole('region',{name:'Selected channel details',exact:true}).textContent(),/Numeric:/);assert.equal(patches.length,0);

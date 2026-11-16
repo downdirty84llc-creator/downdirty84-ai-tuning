@@ -1,0 +1,1 @@
+export function mountCaseComparison(root:HTMLElement,getCurrent:()=>unknown,options?:{getRevision?:()=>number;save?:(value:unknown,filename:string)=>Promise<{status:string}>}):(()=>void)&{invalidate:()=>void;setReference:(value:unknown,label?:string)=>Promise<void>};
