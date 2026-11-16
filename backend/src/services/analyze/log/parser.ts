@@ -1,8 +1,6 @@
 import {
   resolveChannel,
   isPlausible,
-  detectLambda,
-  STOICH_GASOLINE,
   type Channel
 } from "./channels.js";
 import { isHplFile, readHplInventory, describeHpl } from "./hpl.js";
@@ -197,11 +195,20 @@ export function parseLog(content: string | Buffer): ParsedLog {
   const claimed = new Set<Channel>();
   header.forEach((name, idx) => {
     if (name === "") return;
+    // Lambda and equivalence ratio are not interchangeable. Until explicit
+    // channel units/basis are supported, never infer a fuel conversion.
+    if (/lambda|equiv|eqratio/i.test(name.replace(/[^a-z0-9]/gi, ""))) {
+      throw new LogParseError("Fuel channel units are unsupported or ambiguous (lambda/equivalence ratio). Supply a reviewer-verified AFR export with matching commanded and measured scale; do not relabel values.");
+    }
     const ch = resolveChannel(name);
     if (!ch) { unmappedColumns.push(name); return; }
     if (claimed.has(ch)) {
       unmappedColumns.push(`${name} (duplicate of ${ch})`);
       return;
+    }
+    if ((ch === "afr_wb" || ch === "afr_cmd") &&
+        rows.slice(headerIdx + 1, firstDataIdx).some(row => /lambda|equiv|eqratio/i.test((row[idx] ?? "").replace(/[^a-z0-9]/gi, "")))) {
+      throw new LogParseError("Fuel channel units row specifies unsupported lambda/equivalence ratio. Do not relabel units to bypass this check.");
     }
     claimed.add(ch);
     colToChannel.set(idx, ch);
@@ -228,16 +235,12 @@ export function parseLog(content: string | Buffer): ParsedLog {
   const sampleCount = series.t?.length ?? Object.values(series)[0]?.length ?? 0;
   if (sampleCount === 0) throw new LogParseError("No usable data rows found.");
 
-  // Lambda logged on an AFR channel -> convert, and say so. Must happen before
-  // the plausibility pass, since lambda values sit well below the AFR range.
+  // Numeric inference cannot establish channel semantics or fuel scale.
+  // Reject even for gasoline: commanded equivalence ratio is not lambda.
   for (const ch of ["afr_wb", "afr_cmd"] as const) {
     const vals = series[ch];
-    if (vals && detectLambda(vals)) {
-      series[ch] = vals.map((v) => (Number.isFinite(v) ? v * STOICH_GASOLINE : v));
-      notes.push(
-        `${ch} appeared to be lambda; converted to AFR using gasoline stoich (${STOICH_GASOLINE}). ` +
-          `If this log is E85 or diesel, that conversion is wrong.`
-      );
+    if (vals && vals.some((v) => Number.isFinite(v) && v > 0.5 && v < 1.6)) {
+      throw new LogParseError(`${ch} has ambiguous dimensionless fuel values. Automatic lambda-to-AFR conversion is disabled; obtain a reviewer-verified AFR export.`);
     }
   }
 
