@@ -246,7 +246,7 @@ qi ? ok(`queue item assembled for ${qi.customerEmail}`) : bad("queue item", "non
 check("carries the change summary", typeof qi?.summary?.largestChangePct, "number");
 check("carries the safety verdict", typeof qi?.safety?.blockers, "number");
 check("boosted gasoline remains unconfirmed", qi?.safety?.thresholdProfile, "BOOSTED_GAS");
-check("flags unconfirmed thresholds for attention", (qi?.attention ?? []).some(a => /unconfirmed/i.test(a)), true);
+check("flags unconfirmed thresholds for attention", (qi?.attention ?? []).some(a => /not confirmed/i.test(a)), true);
 check("knows how long it has waited", typeof qi?.waitingHours, "number");
 ok(`attention flags: ${JSON.stringify(qi?.attention ?? [])}`);
 
