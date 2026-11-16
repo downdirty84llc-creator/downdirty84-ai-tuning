@@ -4,8 +4,7 @@ import { withTransaction } from "../db.js";
 import { classifyCheckout, type CheckoutLine } from "../config/stripe_catalog.js";
 import {
   adminRecipients,
-  notify,
-  paymentReceivedEmail
+  notify
 } from "../services/notify/notifications.js";
 import { mintMagicLink } from "../services/auth/auth.service.js";
 import { SERVICE_PRICES, EXPECTED_STRIPE_ACCOUNT } from "../config/stripe_catalog.js";
@@ -14,6 +13,7 @@ import { ensureStripeAccountVerified } from "../services/billing/account_check.j
 import { paymentCredentialsConfigured } from "../config/checkout_availability.js";
 import { CHECKOUT_EVENTS, settledDetails, SettlementVerificationError } from "../services/billing/settlement.js";
 import { getBrandProfile } from "../services/brand/brand_profile.js";
+import { deliverOnboarding } from "../services/billing/onboarding_outbox.js";
 import { wrap } from "../util/http.js";
 
 export type StripeWebhookClient = {
@@ -200,11 +200,24 @@ export function createStripeRouter(overrides: Partial<StripeWebhookDependencies>
         [userId, classification.service, platform, vehicle, noteParts.join(" | "), fuel, induction]
       );
 
+      const label = Object.values(SERVICE_PRICES).find(e => e.service === classification.service)?.label ?? classification.service;
+      await tx.query(`INSERT INTO payment_onboarding_outbox
+        (stripe_session_id, order_id, customer_email, service_label, amount_cents, currency)
+        VALUES ($1,$2,$3,$4,$5,$6)`, [session.id, inserted[0].id, email, label, amount, currency]);
       return { duplicate: false as const, jobId: jobs[0].id };
     });
 
+    // Retry persisted onboarding intent even when order/job is already handled.
+    // Provider retries remain active until delivery succeeds. No intent means
+    // an old order or non-tuning purchase, never permission for a retro-email.
+    try {
+      await deliverOnboarding(session.id, { transaction, mintLink, send });
+    } catch {
+      console.error(`[DD84] payment onboarding pending. session=${session.id}`);
+      return res.status(503).json({ error: "ONBOARDING_DELIVERY_PENDING" });
+    }
     if (result.duplicate) {
-      // Already handled. Ack so Stripe stops retrying.
+      // Order/job and any existing onboarding intent are handled.
       return res.json({ received: true, duplicate: true });
     }
 
@@ -226,34 +239,6 @@ export function createStripeRouter(overrides: Partial<StripeWebhookDependencies>
       );
       await alertOwner(email, amount, currency, classification.reason, session.id, "UNCLASSIFIED", send, recipients());
       return res.json({ received: true, jobCreated: false, reason: "UNCLASSIFIED" });
-    }
-
-    // Confirm the payment and hand them the way in. Without this the customer
-    // pays and hears nothing at all: no receipt, no route into the app, and no
-    // idea what to do next. Bundling the sign-in link removes the step people
-    // abandon — going to find a login page and requesting one.
-    //
-    // After the transaction committed, so a mail failure cannot undo a paid job.
-    // A job only exists when a service was recognised, but that is two branches
-    // back — narrow it here rather than asserting, so a future edit that changes
-    // the invariant fails to compile instead of emailing "undefined".
-    const { service } = classification;
-    const label = service
-      ? Object.values(SERVICE_PRICES).find((e) => e.service === service)?.label ?? service
-      : "your order";
-
-    const link = await mintLink(email);
-    if (link) {
-      await send(
-        paymentReceivedEmail({
-          to: email,
-          serviceLabel: label,
-          amountCents: amount,
-          currency,
-          signInUrl: link.url,
-          ttlMinutes: link.ttlMinutes
-        })
-      );
     }
 
     return res.json({ received: true, jobCreated: true, jobId: result.jobId });
