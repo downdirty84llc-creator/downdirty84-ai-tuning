@@ -2,6 +2,8 @@
 
 Customers can now explicitly attach saved troubleshooting cases to their jobs, and the shop can review immutable snapshots alongside internal notes. See the [case-sharing workflow and verification](docs/JOB-TROUBLESHOOTING.md). Windows Studio 0.28 case files are compatible.
 
+Windows Studio **0.37** is an unsigned development preview. Its local project recovery and native save/reopen acceptance are recorded in [the exact-candidate results](docs/STUDIO-0.37-ACCEPTANCE.md). Use the [Windows release handoff](docs/WINDOWS-RELEASE-HANDOFF.md) to complete the remaining clean-machine and distribution checks. Native HPT/Holley writing and vehicle flashing are not available.
+
 > **Status: implementation available; deployment verification required.** With
 > payment credentials, account verification and delivery checks completed, payment creates a job,
 > the customer uploads a log, it is parsed, validated, checked against safety
