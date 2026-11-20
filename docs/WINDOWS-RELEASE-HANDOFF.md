@@ -3,6 +3,9 @@
 Studio 0.37 is a portable, unsigned preview. The calibration sample's native
 save/cancel/overwrite/reopen and keep-editing paths have passed on the development
 PC. [Exact artifact and evidence](STUDIO-0.37-ACCEPTANCE.md).
+Measured-case source rechecks, note-only revisions, comparison export and native
+save/reopen also passed on this candidate on November 20:
+[measured-case acceptance](STUDIO-0.37-MEASURED-ACCEPTANCE.md).
 
 ## Next test: a separate Windows 11 x64 computer
 
@@ -41,6 +44,7 @@ do not upload customer tunes or logs automatically.
 | Gate | Current position | Evidence required to close it |
 |---|---|---|
 | Calibration sample native file workflow | Passed on the identified development-PC candidate | Retain its exact hashes; rerun affected paths after application changes |
+| Measured-case native file workflow | Scoped source rechecks, note editing, case/comparison saves and byte-identical reopening passed | Retain candidate and output hashes; automated Windows coverage now repeats these paths |
 | Clean-machine first launch and workflow | Not completed | Separate Windows environment, no development dependency installation, recorded extraction/launch/save/reopen results |
 | Accessibility and display coverage | Scoped keyboard focus and app zoom checks passed | Full keyboard-only workflows and Windows display scaling on declared supported configurations |
 | Every workspace on the final candidate | Automated coverage and scoped historical native passes | Exact-candidate native import/save/reopen checks for the remaining workflows |
