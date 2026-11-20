@@ -6,6 +6,12 @@ Windows Studio **0.37** is an unsigned development preview. Its local project re
 
 The [November 20 measured-case acceptance](docs/STUDIO-0.37-MEASURED-ACCEPTANCE.md) verifies native source rechecks, case revisions, comparison exports and byte-identical reopening on that same preview. Windows CI now repeats the packaged measured-case workflow.
 
+Studio now has a per-user **Windows installer with a Start menu shortcut**, plus
+the portable ZIP. The [distribution acceptance](docs/STUDIO-0.37-INSTALLER-ACCEPTANCE.md)
+records the exact artifacts and install/reinstall/removal checks. Both remain
+unsigned previews. [Build instructions](tools/studio-installer/README.md).
+Customers can follow the [Windows quick-start guide](docs/STUDIO-PREVIEW-QUICKSTART.md).
+
 > **Status: implementation available; deployment verification required.** With
 > payment credentials, account verification and delivery checks completed, payment creates a job,
 > the customer uploads a log, it is parsed, validated, checked against safety

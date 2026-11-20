@@ -50,6 +50,11 @@ async function uninstall(args=[]){checkedInstall();uninstallCopy??=path.join(out
 try {
   assert.equal((await run(setup,['/S','/D='+checkedInstall()])).code,0);installed=true;
   await verifyInstalled();assert(await fs.stat(shortcut));
+  const link=JSON.parse((await exec('powershell.exe',['-NoProfile','-NonInteractive','-Command',
+    '$link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:DD84_ACCEPTANCE_LINK); @{target=$link.TargetPath;icon=$link.IconLocation} | ConvertTo-Json -Compress'],
+    {windowsHide:true,env:{...process.env,DD84_ACCEPTANCE_LINK:shortcut}})).stdout);
+  assert.equal(path.resolve(link.target).toLowerCase(),path.resolve(exe).toLowerCase(),'Start menu shortcut must target the installed executable');
+  assert.equal(link.icon.toLowerCase(),(exe+',0').toLowerCase(),'Shortcut must use the branded executable icon');
   assert.match((await exec(reg,['query',locationKey,'/v','InstallLocation','/reg:64'],{windowsHide:true})).stdout,new RegExp(install.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   await fs.mkdir(path.dirname(sentinel));await fs.writeFile(sentinel,saved);await fs.writeFile(outside,saved);
   // Exercise the complete packaged app via its installed location.
@@ -77,7 +82,7 @@ try {
   assert(!(await fs.stat(shortcut).catch(()=>null)));assert(await absentRegistry(key));assert(await absentRegistry(locationKey));
   const proof={checkedAt:new Date().toISOString(),windows:os.release(),version:manifest.version,installerSha256:artifact.sha256,
     portableZipSha256:zip.sha256,portableZipFilesVerified:manifest.files.length,
-    installedFilesVerified:manifest.files.length,installedAppNativeHarnessPassed:true,startMenuCreatedAndRemoved:true,
+    installedFilesVerified:manifest.files.length,installedAppNativeHarnessPassed:true,startMenuCreatedAndRemoved:true,startMenuTargetAndIconVerified:true,
     runningInstallAndUninstallBlocked:true,unsavedEditorSurvived:true,sameVersionReinstallPassed:true,
     syntheticDowngradeGuardPassed:true,deleteAppDataSwitchRejected:true,unknownSavedFilesPreserved:true,
     registrationRemoved:true,cleanMachineAcceptance:false,realCrossVersionMigrationTested:false,hardwareAccessed:false,customerFilesAccessed:false};
