@@ -10,6 +10,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {_electron} from 'playwright';
 import {sample,edit,review} from '../products/dd84-desktop/project.mjs';
+import {testNativeCases} from './test-native-cases.mjs';
 assert.equal(process.platform,'win32','Packaged GUI acceptance requires Windows');
 assert(process.argv[2],'Supply the packaged DD84 executable path');
 const exe=path.resolve(process.argv[2]),asar=path.join(path.dirname(exe),'resources/app.asar');
@@ -49,9 +50,12 @@ try{
   const reviewStarted=Date.now(),savedReview=await saveTo(reviewFile,page.locator('#export')),expectedReview=await review(expected.project,expected.note);
   assert(Date.parse(savedReview.createdAt)>=reviewStarted&&Date.parse(savedReview.createdAt)<=Date.now());expectedReview.createdAt=savedReview.createdAt;assert.deepEqual(savedReview,expectedReview);await page.locator('#identity').filter({hasText:'Project loaded / saved'}).waitFor();
   await page.locator('#open').setInputFiles(projectFile);await page.waitForFunction(()=>document.querySelector('#note')?.value==='');const second=path.join(output,'native-project-resaved.json');assert.deepEqual(await saveTo(second,page.locator('#save')),expected.project);assert.equal(hash(await fs.readFile(second)),hash(await fs.readFile(projectFile)));
+  const measuredCases=await testNativeCases({app,page,output,saveTo});
+  await page.locator('#nav-open').click();
   const zoomResults=[];for(const zoom of [100,125,150,200]){await page.locator('#view-size').selectOption(String(zoom));const actual=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getZoomFactor());assert.equal(actual,zoom/100);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));zoomResults.push(zoom);}
   await page.locator('#view-size').selectOption('100');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(700,550));await page.locator('#nav-open').focus();await page.keyboard.press('Tab');assert(await page.evaluate(()=>document.activeElement?.tagName==='BUTTON'));assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(output,'native-minimum-window.png')});
   assert.deepEqual(errors,[]);assert.equal(hash(await fs.readFile(asar)),asarHash);
   const proof={version,checkedAt:new Date().toISOString(),windows:os.release(),asarSha256:asarHash,profileIsolated:true,singleInstanceEnforced:true,systemNodeRemovedFromPath:true,incrementalRecoveryUpdated:true,abruptExitAndRestorePassed:true,completeProjectAndReviewSaved:true,projectResaveByteIdentical:true,originalValuesPreserved:true,nativeDestinationSelectionControlled:true,zoomResults,minimumWindow:[700,550],pageErrors:errors,hardwareAccessed:false,customerFilesAccessed:false,cleanMachineAcceptance:false,manualSystemDialogAcceptance:false};
+  proof.measuredCases=measuredCases;
   await fs.writeFile(path.join(output,'native-proof.json'),JSON.stringify(proof,null,2)+'\n');console.log(JSON.stringify({output,...proof}));
 }finally{if(app){await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}}

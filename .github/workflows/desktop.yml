@@ -22,7 +22,7 @@ jobs:
       - name: Install packaged GUI test driver
         run: npm ci
         working-directory: .
-      - name: Verify native recovery and saved files
+      - name: Verify native recovery, measured cases and saved files
         run: node scripts/test-native-studio.mjs products/dd84-desktop/dist/DD84-Calibration-Studio-win32-x64/DD84-Calibration-Studio.exe
         working-directory: .
         env:
@@ -33,6 +33,8 @@ jobs:
           path: |
             ${{ runner.temp }}/dd84-native-*/native-proof.json
             ${{ runner.temp }}/dd84-native-*/native-minimum-window.png
+            ${{ runner.temp }}/dd84-native-*/native-case-*.json
+            ${{ runner.temp }}/dd84-native-*/native-case-comparison.png
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@v4

@@ -4,6 +4,8 @@ Customers can now explicitly attach saved troubleshooting cases to their jobs, a
 
 Windows Studio **0.37** is an unsigned development preview. Its local project recovery and native save/reopen acceptance are recorded in [the exact-candidate results](docs/STUDIO-0.37-ACCEPTANCE.md). Use the [Windows release handoff](docs/WINDOWS-RELEASE-HANDOFF.md) to complete the remaining clean-machine and distribution checks. Native HPT/Holley writing and vehicle flashing are not available.
 
+The [November 20 measured-case acceptance](docs/STUDIO-0.37-MEASURED-ACCEPTANCE.md) verifies native source rechecks, case revisions, comparison exports and byte-identical reopening on that same preview. Windows CI now repeats the packaged measured-case workflow.
+
 > **Status: implementation available; deployment verification required.** With
 > payment credentials, account verification and delivery checks completed, payment creates a job,
 > the customer uploads a log, it is parsed, validated, checked against safety
