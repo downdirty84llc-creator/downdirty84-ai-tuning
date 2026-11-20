@@ -45,3 +45,32 @@ jobs:
             products/dd84-desktop/dist/package-verification.json
           if-no-files-found: error
           retention-days: 14
+      - name: Install isolated Windows distribution tools
+        run: npm ci --ignore-scripts
+        working-directory: tools/studio-installer
+      - name: Audit Windows distribution tools
+        run: npm audit --audit-level=low
+        working-directory: tools/studio-installer
+      - name: Verify distribution file policy
+        run: node --test tools/studio-installer/payload-files.test.mjs
+        working-directory: .
+      - name: Build installer and portable ZIP from verified package
+        run: node tools/studio-installer/build.mjs products/dd84-desktop/dist/DD84-Calibration-Studio-win32-x64 products/dd84-desktop/dist/distribution
+        working-directory: .
+      - name: Verify install, reinstall, running-app protection and removal
+        run: node scripts/test-studio-installer.mjs products/dd84-desktop/dist/distribution/distribution-manifest.json
+        working-directory: .
+        env:
+          DD84_INSTALLER_OUTPUT: ${{ runner.temp }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DD84-Windows-distribution-preview
+          path: |
+            products/dd84-desktop/dist/distribution/*-Setup.exe
+            products/dd84-desktop/dist/distribution/*.zip
+            products/dd84-desktop/dist/distribution/*.sha256
+            products/dd84-desktop/dist/distribution/distribution-manifest.json
+            ${{ runner.temp }}/dd84-installer-*/installer-proof.json
+            ${{ runner.temp }}/dd84-installer-*/dd84-native-*/native-proof.json
+          if-no-files-found: error
+          retention-days: 14

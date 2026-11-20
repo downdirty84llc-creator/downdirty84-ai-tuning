@@ -1,0 +1,15 @@
+{
+  "name": "dd84-calibration-studio",
+  "version": "0.37.0",
+  "private": true,
+  "description": "DD84 Windows distribution build tools",
+  "author": "Down Dirty 84 LLC",
+  "license": "UNLICENSED",
+  "type": "module",
+  "devDependencies": {
+    "electron-builder": "26.18.0"
+  },
+  "overrides": {
+    "minimatch@>=7 <11": "11.0.4"
+  }
+}
