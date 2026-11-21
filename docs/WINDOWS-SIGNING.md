@@ -5,6 +5,22 @@ purchased, certificate issued, identity submitted or Studio binary signed.**
 No signing certificate, Azure signing environment or signing CLI was configured
 on the development PC during the read-only inventory.
 
+Later in this preparation, official NuGet packages were extracted into the local
+acceptance evidence folder, without an installer, administrator change or global
+PATH change: **Microsoft.Windows.SDK.BuildTools 10.0.28000.2957** and
+**Microsoft.ArtifactSigning.Client 1.0.151**. Both x64 SignTool and Dlib passed
+Windows Authenticode checks as Microsoft Corporation. The current Dlib's packaged
+runtime configuration requires .NET 10; this PC already has .NET 10.0.8. Use the
+runtime required by the exact downloaded client, not an older documentation
+example's .NET version. Azure CLI/account setup remains pending.
+
+Read-only tests using that real SignTool accepted the Microsoft Dlib as a normal
+Authenticode positive control. The Studio verifier rejected both the unsigned
+Studio executable and the Microsoft-signed Dlib with its non-Artifact-Signing
+root. No signing/cloud request was made. `signing-tools/tool-verification.json`
+and `signing-tools/verifier-proof.json` under
+`c/outputs/studio-release-2026-11-21/` retain the tool hashes and checks.
+
 ## Proposed service for owner review
 
 Microsoft Azure Artifact Signing (formerly Trusted Signing), Basic, in East US,
@@ -81,3 +97,5 @@ guarantee that Windows reputation checks will show no warning.
 - [Account, identity validation and Public Trust prerequisites](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart)
 - [Official client installation, SignTool arguments and timestamp requirements](https://learn.microsoft.com/en-us/azure/artifact-signing/how-to-signing-integrations)
 - [Public and private trust models](https://learn.microsoft.com/en-us/azure/artifact-signing/concept-trust-models)
+- [Microsoft Artifact Signing client 1.0.151 and its runtime requirement](https://www.nuget.org/packages/Microsoft.ArtifactSigning.Client/1.0.151)
+- [Microsoft Windows SDK BuildTools 10.0.28000.2957](https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.28000.2957)
