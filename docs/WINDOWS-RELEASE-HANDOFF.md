@@ -9,11 +9,16 @@ PC. [Exact artifact and evidence](STUDIO-0.37-ACCEPTANCE.md).
 Measured-case source rechecks, note-only revisions, comparison export and native
 save/reopen also passed on this candidate on November 20:
 [measured-case acceptance](STUDIO-0.37-MEASURED-ACCEPTANCE.md).
+November 21 expanded installed-app workflow checks and verified a keyboard
+sample edit with real save/reopen dialogs at 200% Windows display scale:
+[workflow acceptance](STUDIO-0.37-WORKFLOW-ACCEPTANCE.md).
 
-## Next test: a separate Windows 11 x64 computer
+## Next test: a clean Windows 11 x64 environment
 
-Use a computer that has not run Studio and does not have its development tools
-installed. Do not install Node or other development tools to make the test pass.
+Use a computer or new Windows guest that has not run Studio and has no development
+tools. The owner has no second PC; the prepared
+[one-computer VM route](WINDOWS-CLEAN-TEST.md) has not been installed or run.
+Do not install Node or other development tools to make the test pass.
 The existing PC's Windows 11 Home build 26300 is the only OS/build qualified by
 the recorded manual pass; broader supported-OS claims remain pending.
 
@@ -55,10 +60,10 @@ do not upload customer tunes or logs automatically.
 | Calibration sample native file workflow | Passed on the identified development-PC candidate | Retain its exact hashes; rerun affected paths after application changes |
 | Measured-case native file workflow | Scoped source rechecks, note editing, case/comparison saves and byte-identical reopening passed | Retain candidate and output hashes; automated Windows coverage now repeats these paths |
 | Clean-machine first launch and workflow | Not completed | Separate Windows environment, no development dependency installation, recorded extraction/launch/save/reopen results |
-| Accessibility and display coverage | Scoped keyboard focus and app zoom checks passed | Full keyboard-only workflows and Windows display scaling on declared supported configurations |
-| Every workspace on the final candidate | Automated coverage and scoped historical native passes | Exact-candidate native import/save/reopen checks for the remaining workflows |
-| Signing and distribution | Unsigned installer plus portable ZIP with SHA-256 manifests | Owner-selected signing method, any required account/purchase approval, signed artifact and verified first launch |
-| Installer lifecycle | Installed bytes, Start menu, launch, running-app refusal, same-version reinstall and removal passed locally | Repeat interactive installation/removal on separate Windows hardware; test a real cross-version migration when a newer runtime exists |
+| Accessibility and display coverage | Scoped keyboard sample editing and native save/reopen at 200% OS scale, plus automated app zoom checks passed | Full keyboard-only workflows and additional Windows display configurations |
+| Every workspace on the final candidate | Expanded installed-app save/reopen checks passed for file pairs, CSV logs/segments, learning records, exported-value drafts and software bench reports | Remaining human native-dialog workflows, including learning measurements, and clean-environment checks |
+| Signing and distribution | Unsigned installer plus ZIP; explicit [signing integration prepared](WINDOWS-SIGNING.md), no account/certificate yet | Recurring-cost approval, owner identity validation, actual public signing and signed-candidate acceptance |
+| Installer lifecycle | Installed bytes, Start menu, launch, running-app refusal, same-version reinstall and removal passed locally | Repeat interactive installation/removal in clean Windows; test a real cross-version migration when a newer runtime exists |
 | Updating | Manual installer updates; no automatic updater | Version-to-version migration and recovery acceptance before promising unattended updates |
 | Controller support | Only defined simulation and supported exported-value drafts are editable | Validated controller/OS definitions, authorized format access, full round-trip/checksum tests and original preservation |
 | Physical vehicle writes | Unavailable | Controller-specific bench communication plus interrupted-write/recovery validation before vehicle use |

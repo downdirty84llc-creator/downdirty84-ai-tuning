@@ -35,6 +35,7 @@ jobs:
             ${{ runner.temp }}/dd84-native-*/native-minimum-window.png
             ${{ runner.temp }}/dd84-native-*/native-case-*.json
             ${{ runner.temp }}/dd84-native-*/native-case-comparison.png
+            ${{ runner.temp }}/dd84-native-*/native-workflow-*.json
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@v4
@@ -52,11 +53,17 @@ jobs:
         run: npm audit --audit-level=low
         working-directory: tools/studio-installer
       - name: Verify distribution file policy
-        run: node --test tools/studio-installer/payload-files.test.mjs
+        run: node --test tools/studio-installer/payload-files.test.mjs tools/studio-installer/signing.test.mjs
         working-directory: .
+        env:
+          DD84_UNSIGNED_TEST_EXE: products/dd84-desktop/dist/DD84-Calibration-Studio-win32-x64/DD84-Calibration-Studio.exe
       - name: Build installer and portable ZIP from verified package
         run: node tools/studio-installer/build.mjs products/dd84-desktop/dist/DD84-Calibration-Studio-win32-x64 products/dd84-desktop/dist/distribution
         working-directory: .
+        env:
+          # A stale certificate setting must never change this unsigned build.
+          WIN_CSC_LINK: deliberately-invalid-cached-certificate.pfx
+          CSC_LINK: deliberately-invalid-cached-certificate.pfx
       - name: Verify install, reinstall, running-app protection and removal
         run: node scripts/test-studio-installer.mjs products/dd84-desktop/dist/distribution/distribution-manifest.json
         working-directory: .
@@ -72,5 +79,6 @@ jobs:
             products/dd84-desktop/dist/distribution/distribution-manifest.json
             ${{ runner.temp }}/dd84-installer-*/installer-proof.json
             ${{ runner.temp }}/dd84-installer-*/dd84-native-*/native-proof.json
+            ${{ runner.temp }}/dd84-installer-*/dd84-native-*/native-workflow-*.json
           if-no-files-found: error
           retention-days: 14
