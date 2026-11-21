@@ -1,3 +1,4 @@
+import { FUEL_POLICY, currentFuelPolicy } from "../services/diffgen/fuel_policy.js";
 import { Router } from "express";
 import { requireAuth } from "../middleware/session.js";
 import { requireAdmin, isAdminEmail } from "../middleware/admin.js";
@@ -66,6 +67,10 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
     return badRequest(res, "Run not completed.", { runStatus: run.status });
   }
 
+  if (!currentFuelPolicy(run.validation)) {
+    return forbidden(res, "This run predates current fuel-unit validation. Re-analyse before generating suggestions.");
+  }
+
   // The safety verdict recorded by the run decides whether a calibration
   // change may be proposed at all. Refusing here rather than at export means
   // the unsafe proposal is never written down in the first place.
@@ -104,13 +109,18 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
     });
   }
 
-  const parsed = parseLog(content);
+  let parsed;
+  try { parsed = parseLog(content); }
+  catch (err) { return badRequest(res, "Unsupported or ambiguous fuel units.", { reason: String((err as Error).message) }); }
 
   // Reuse the profile the run recorded rather than recomputing it. If the job
   // were edited between analysis and generation, recomputing would silently
   // produce suggestions clamped by different limits than the safety verdict
   // that authorised them.
   const runProfile = (run.validation?.thresholdProfile ?? null) as ProfileKey | null;
+  if (runProfile !== "NA_GAS" && runProfile !== "BOOSTED_GAS") {
+    return forbidden(res, "Fuel scale/profile is unsupported or ambiguous. Re-analyse with verified supported metadata.");
+  }
   const { thresholds } = resolveThresholds(runProfile);
   const result = generateMafSuggestions(parsed, thresholds.diffgen);
 
@@ -120,6 +130,8 @@ diffsetsRouter.post("/jobs/:jobId/diffsets/generate", requireAuth, wrap(async (r
 
   const payload = {
     ...result.diffSet,
+    fuelPolicy: FUEL_POLICY,
+    thresholdProfile: runProfile,
     jobId,
     runId,
     createdAt: new Date().toISOString()
@@ -223,6 +235,10 @@ diffsetsRouter.post("/diffsets/:diffSetId/release", requireAuth, requireAdmin, w
 
   const existing = await findDiffSetById(req.params.diffSetId, req.user!.id, { asAdmin: true });
   if (!existing) return notFound(res, "DiffSet not found.");
+
+  if (decision === "RELEASE" && !currentFuelPolicy(existing.payload)) {
+    return forbidden(res, "This proposal predates current fuel-unit validation. Re-analyse and regenerate; do not backfill approval.");
+  }
 
   // Re-enforce the allowlist at the moment of release. The generator already
   // checked it, but this is the gate that matters — the last point before

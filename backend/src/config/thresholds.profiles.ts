@@ -56,6 +56,9 @@ export function selectProfile(job: {
   // STAGE1_BOOST is an explicit statement that the car is boosted, so it is
   // usable evidence. STAGE1_NA likewise. LOG_REVIEW says nothing either way.
   let induction = normaliseInduction(job.induction);
+  if (job.induction?.trim() && !induction) return null;
+  if (induction === "NA" && job.service_type === "STAGE1_BOOST") return null;
+  if (induction === "FORCED" && job.service_type === "STAGE1_NA") return null;
   if (!induction && job.service_type === "STAGE1_BOOST") induction = "FORCED";
   if (!induction && job.service_type === "STAGE1_NA") induction = "NA";
 
@@ -66,7 +69,7 @@ export function selectProfile(job: {
 export function normaliseFuel(v: string | null | undefined): Fuel | null {
   const s = (v ?? "").trim().toUpperCase();
   if (s === "GASOLINE" || s === "GAS" || s === "PUMP" || s === "PETROL") return "GASOLINE";
-  if (s === "E85" || s === "ETHANOL" || s === "FLEX") return "E85";
+  if (s === "E85") return "E85"; // FLEX/ETHANOL do not specify a blend.
   return null;
 }
 

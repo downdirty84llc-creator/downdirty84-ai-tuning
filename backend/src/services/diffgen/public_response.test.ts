@@ -5,7 +5,7 @@ import { publicDiffSet } from "./public_response.js";
 const record: DiffSetRecord = {
   diffSetId: "diff", runId: "run", jobId: "job", userId: "private-owner",
   name: "proposal", source: "source", generator: "GM_LS_MAF_V1",
-  payload: { items: [{ after: 1.04 }], futureCalibrationField: "secret", releaseStatus: "RELEASED" },
+  payload: { fuelPolicy: "GAS_AFR_FAILCLOSED_V1", thresholdProfile: "NA_GAS", items: [{ after: 1.04 }], futureCalibrationField: "secret", releaseStatus: "RELEASED" },
   releaseStatus: "OWNER_REVIEW", releasedBy: "private-admin", releasedAt: null,
   releaseNote: null, createdAt: "2026-11-16"
 };
@@ -25,4 +25,10 @@ test("trusted admin can inspect unreleased proposal; stored status beats payload
   const result = publicDiffSet(record, true);
   assert.deepEqual(result.items, record.payload.items);
   assert.equal(result.releaseStatus, "OWNER_REVIEW");
+});
+
+test("legacy released proposal remains private; admins may inspect", () => {
+  const legacy = { ...record, releaseStatus: "RELEASED" as const, payload: { items: [{ after: 1.1 }] } };
+  assert.equal(publicDiffSet(legacy).items, undefined);
+  assert.ok(publicDiffSet(legacy, true).items);
 });

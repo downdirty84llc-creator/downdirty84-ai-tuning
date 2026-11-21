@@ -103,10 +103,8 @@ test("turns implausible values into NaN rather than clamping them", () => {
   assert.ok(Number.isFinite(log.series.rpm![6]));
 });
 
-test("converts lambda to AFR and says so", () => {
-  const log = parseLog(makeSyntheticLog({ commandedAfr: 1.0 }));
-  assert.ok(log.notes.some((n) => n.includes("lambda")));
-  assert.ok(Math.abs(log.series.afr_cmd![0] - 14.7) < 0.01);
+test("rejects inferred lambda rather than guessing AFR scale", () => {
+  assert.throws(() => parseLog(makeSyntheticLog({ commandedAfr: 1.0 })), /ambiguous dimensionless/);
 });
 
 test("rejects empty and headerless input", () => {
@@ -495,11 +493,11 @@ test("the shipped defaults actually detect a real lean event", () => {
 test("pipeline runs parse -> validate -> rules end to end", async () => {
   const { analyzeLogContent } = await import("./pipeline.js");
   const csv = makeSyntheticLog({ mafErrorAt: () => 0.04, noise: 0.2 });
-  const out = analyzeLogContent(csv, "pipeline-1");
+  const out = analyzeLogContent(csv, "pipeline-1", "NA_GAS");
   assert.equal(out.ok, true);
   if (!out.ok) return;
   assert.equal(out.validation.status, "PASS");
-  assert.equal(out.thresholdSource, "CONSERVATIVE_DEFAULTS");
+  assert.equal(out.thresholdSource, "OWNER_CONFIRMED");
   assert.ok(out.rules.findings.length > 0);
 });
 
@@ -531,7 +529,7 @@ test("multi-upload picks the largest parseable log and names what it skipped", a
       { uploadId: "u-junk", filename: "junk.csv", content: junk },
       { uploadId: "u-good", filename: "good.csv", content: good }
     ],
-    "pipeline-4"
+    "pipeline-4", "NA_GAS"
   );
   assert.equal(out.outcome.ok, true);
   assert.equal(out.usedUploadId, "u-good");

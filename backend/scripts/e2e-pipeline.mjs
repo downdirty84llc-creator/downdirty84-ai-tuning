@@ -118,6 +118,14 @@ check("records which threshold profile judged the run", validation.json?.thresho
 check("records the thresholds as owner-confirmed", validation.json?.thresholdSource, "OWNER_CONFIRMED");
 check("not a fixture: platform is null, not 'GM'", validation.json?.vehicleProfileDetected?.platform, null);
 
+// A historical verdict cannot be laundered into a current-policy proposal.
+psql(`UPDATE runs SET validation_json = validation_json - 'fuelPolicy' WHERE id='${started.json.runId}';`);
+check("legacy run cannot generate", (await req("POST", `/api/v1/jobs/${jobId}/diffsets/generate`, {
+  token: OWNER, body: {runId: started.json.runId, generator: "GM_LS_MAF_V1", uploadId}
+})).status, 403);
+// Test-fixture restoration only; production records must never be backfilled.
+psql(`UPDATE runs SET validation_json = validation_json || '{"fuelPolicy":"GAS_AFR_FAILCLOSED_V1"}'::jsonb WHERE id='${started.json.runId}';`);
+
 const gen = await req("POST", `/api/v1/jobs/${jobId}/diffsets/generate`, {
   token: OWNER,
   body: { runId: started.json.runId, generator: "GM_LS_MAF_V1", uploadId }
@@ -140,6 +148,10 @@ check("carries real provenance", typeof items[0]?.provenance?.samples === "numbe
 
 check("export blocked before release", (await req("POST", `/api/v1/diffsets/${dsId}/export/csv`, { token: OWNER, body: {} })).status, 403);
 
+psql(`UPDATE diffsets SET payload_json = payload_json - 'fuelPolicy' WHERE id='${dsId}';`);
+check("legacy proposal cannot release", (await req("POST", `/api/v1/diffsets/${dsId}/release`, { token: ADMIN, body: {decision: "RELEASE"} })).status, 403);
+psql(`UPDATE diffsets SET payload_json = payload_json || '{"fuelPolicy":"GAS_AFR_FAILCLOSED_V1"}'::jsonb WHERE id='${dsId}';`);
+
 const rel = await req("POST", `/api/v1/diffsets/${dsId}/release`, { token: ADMIN, body: { decision: "RELEASE", note: "reviewed" } });
 check("admin releases", rel.status, 200);
 const customerReleased = await req("GET", `/api/v1/diffsets/${dsId}`, { token: OWNER });
@@ -155,10 +167,18 @@ csvRes.text.includes("${") ? bad("csv clean", "template leak") : ok("csv has no 
 check("csv rows carry the real diffSetId", csvRes.text.split("\n")[1].startsWith(dsId), true);
 console.log("       " + csvRes.text.split("\n")[1]);
 
+// Previously released legacy payloads must not bypass either download path.
+psql(`UPDATE diffsets SET payload_json = payload_json - 'fuelPolicy' WHERE id='${dsId}';`);
+check("legacy released customer payload hidden", (await req("GET", `/api/v1/diffsets/${dsId}`, {token:OWNER})).json?.items, undefined);
+for (const format of ["csv", "summary"]) {
+  check(`legacy released ${format} blocked`, (await req("POST", `/api/v1/diffsets/${dsId}/export/${format}`, {token:OWNER,body:{}})).status, 403);
+}
+psql(`UPDATE diffsets SET payload_json = payload_json || '{"fuelPolicy":"GAS_AFR_FAILCLOSED_V1"}'::jsonb WHERE id='${dsId}';`);
+
 /* ══════════════ 2. UNSAFE LOG: blocker must stop diffgen ═══════════════ */
 console.log("── log with a sustained lean event under load");
 
-const job2 = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidOwner}','LOG_REVIEW','GM') RETURNING id;`);
+const job2 = psql(`INSERT INTO jobs (user_id,service_type,platform,fuel,induction) VALUES ('${uidOwner}','LOG_REVIEW','GM','GASOLINE','NA') RETURNING id;`);
 const leanCsv = makeSyntheticLog({
   plateaus: [{ hz: 3000, rpm: 4200, tps: 80, seconds: 60 }],
   mafErrorAt: () => 0.02,
@@ -206,9 +226,8 @@ ok(`reason: ${run3?.errors?.[0]?.code}`);
 /* ══════════════ 4. OWNER REVIEW QUEUE ═════════════════════════════════ */
 console.log("── owner review queue");
 
-// Deliberately does NOT state fuel or induction, so this exercises the
-// unknown-platform path: strictest values, reported as unconfirmed.
-const job4 = psql(`INSERT INTO jobs (user_id,service_type,platform) VALUES ('${uidOwner}','LOG_REVIEW','GM') RETURNING id;`);
+// Explicit boosted gasoline exercises a supported scale with unconfirmed thresholds.
+const job4 = psql(`INSERT INTO jobs (user_id,service_type,platform,fuel,induction) VALUES ('${uidOwner}','LOG_REVIEW','GM','GASOLINE','FORCED') RETURNING id;`);
 const up4 = await upload(OWNER, job4, "queue.csv", makeSyntheticLog({ mafErrorAt: () => 0.05, noise: 0.2 }));
 const s4 = await req("POST", `/api/v1/jobs/${job4}/analyze`, { token: OWNER, body: { logUploadIds: [up4.json.uploadId] } });
 await poll(s4.json.runId, OWNER);
@@ -226,8 +245,8 @@ const qi = (q.json?.items ?? [])[0];
 qi ? ok(`queue item assembled for ${qi.customerEmail}`) : bad("queue item", "none");
 check("carries the change summary", typeof qi?.summary?.largestChangePct, "number");
 check("carries the safety verdict", typeof qi?.safety?.blockers, "number");
-check("unknown platform is judged unconfirmed, not by the confirmed profile", qi?.safety?.thresholdProfile, "null");
-check("flags unconfirmed thresholds for attention", (qi?.attention ?? []).some(a => /unconfirmed/i.test(a)), true);
+check("boosted gasoline remains unconfirmed", qi?.safety?.thresholdProfile, "BOOSTED_GAS");
+check("flags unconfirmed thresholds for attention", (qi?.attention ?? []).some(a => /not confirmed/i.test(a)), true);
 check("knows how long it has waited", typeof qi?.waitingHours, "number");
 ok(`attention flags: ${JSON.stringify(qi?.attention ?? [])}`);
 

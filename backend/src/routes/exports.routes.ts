@@ -1,3 +1,4 @@
+import { currentFuelPolicy } from "../services/diffgen/fuel_policy.js";
 import { Router } from "express";
 import type { Response } from "express";
 import { requireAuth } from "../middleware/session.js";
@@ -18,11 +19,11 @@ export const exportsRouter = Router();
  * so a new export format cannot accidentally bypass the gate.
  */
 function assertReleased(res: Response, diff: DiffSetRecord): boolean {
-  if (diff.releaseStatus === "RELEASED") return true;
+  if (diff.releaseStatus === "RELEASED" && currentFuelPolicy(diff.payload)) return true;
 
   forbidden(
     res,
-    "This change list has not been released by Down Dirty 84 and cannot be exported yet.",
+    "This change list requires current fuel-unit validation and owner release before export.",
     { releaseStatus: diff.releaseStatus }
   );
   return false;

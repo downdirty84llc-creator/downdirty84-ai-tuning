@@ -53,6 +53,10 @@ export function analyzeLogContent(
   }
 
   const validation = validateLog(log);
+  if (profile !== "NA_GAS" && profile !== "BOOSTED_GAS") {
+    validation.status = "FAIL";
+    validation.notes.push("Fuel/induction or AFR scale is unsupported or ambiguous. E85, unknown and contradictory profiles require explicit reviewed fuel-scale support before actionable analysis.");
+  }
   if (validation.status === "FAIL") {
     return {
       ok: false,

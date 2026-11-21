@@ -1,3 +1,4 @@
+import { FUEL_POLICY } from "../services/diffgen/fuel_policy.js";
 import { Router } from "express";
 import { requireAuth } from "../middleware/session.js";
 import { v4 as uuid, validate as validUuid } from "uuid";
@@ -202,7 +203,8 @@ async function executeAnalysis(
       skippedUploads: skipped,
       unreadableUploads: unreadable,
       thresholdSource: outcome.thresholdSource,
-      thresholdProfile: outcome.thresholdProfile
+      thresholdProfile: outcome.thresholdProfile,
+      fuelPolicy: FUEL_POLICY
     },
     findings: {
       summary: outcome.rules.summary,
@@ -210,7 +212,8 @@ async function executeAnalysis(
       chartSpecs: [],
       diffgen: outcome.diffgen,
       thresholdSource: outcome.rules.thresholdSource,
-      thresholdProfile: outcome.thresholdProfile
+      thresholdProfile: outcome.thresholdProfile,
+      fuelPolicy: FUEL_POLICY
     }
   });
 }

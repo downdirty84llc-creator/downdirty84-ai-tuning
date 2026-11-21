@@ -133,7 +133,7 @@ export function runRules(
             {
               type: "NOTE",
               priority: 1,
-              text: "Owner: confirm thresholds in backend/src/config/thresholds.ts and set OWNER_CONFIRMED_THRESHOLDS."
+              text: "Owner: confirm thresholds in backend/src/config/thresholds.ts with explicit reviewed values and the matching OWNER_CONFIRMED_PROFILES flag."
             }
           ]
         }
