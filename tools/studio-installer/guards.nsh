@@ -40,6 +40,11 @@
 
 !macro customWelcomePage
   !define MUI_WELCOMEPAGE_TITLE "DD84 Calibration Studio ${VERSION} Preview"
-  !define MUI_WELCOMEPAGE_TEXT "Install Studio for your Windows account and add a Start menu shortcut.$\r$\n$\r$\nThis is an unsigned development preview. It supports local evidence review and defined calibration drafts. Native HPT/Holley writing and vehicle flashing are unavailable.$\r$\n$\r$\nSave your work and close Studio before installing or updating. Your saved projects and application data are preserved during normal removal."
+  !ifdef DD84_SIGNED_BUILD
+    !define DD84_SIGNING_LABEL "a signed development preview"
+  !else
+    !define DD84_SIGNING_LABEL "an unsigned development preview"
+  !endif
+  !define MUI_WELCOMEPAGE_TEXT "Install Studio for your Windows account and add a Start menu shortcut.$\r$\n$\r$\nThis is ${DD84_SIGNING_LABEL}. It supports local evidence review and defined calibration drafts. Native HPT/Holley writing and vehicle flashing are unavailable.$\r$\n$\r$\nSave your work and close Studio before installing or updating. Your saved projects and application data are preserved during normal removal."
   !insertmacro MUI_PAGE_WELCOME
 !macroend

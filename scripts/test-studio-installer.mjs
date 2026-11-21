@@ -9,11 +9,17 @@ import {promisify} from 'node:util';
 import {createHash} from 'node:crypto';
 import {_electron} from 'playwright';
 import {inventory} from '../tools/studio-installer/build.mjs';
+import {createVerifier} from '../tools/studio-installer/signing.mjs';
 const exec=promisify(execFile),hash=b=>createHash('sha256').update(b).digest('hex');
 assert.equal(process.platform,'win32');assert(process.argv[2],'Supply distribution-manifest.json');
 const manifestPath=path.resolve(process.argv[2]),dist=path.dirname(manifestPath),manifest=JSON.parse(await fs.readFile(manifestPath));
 const artifact=manifest.artifacts.find(x=>x.name.endsWith('-Setup.exe'));assert(artifact);
 const setup=path.join(dist,artifact.name);assert.equal(hash(await fs.readFile(setup)),artifact.sha256);
+let signatures=null;
+if(manifest.unsignedPreview===false){
+  assert(process.argv[3],'A signed distribution requires its separate owner signing config');
+  signatures=await createVerifier(process.argv[3]);assert.equal(manifest.signing.publisher,signatures.publisher);await signatures.verify(setup);
+}else assert.equal(manifest.unsignedPreview,true,'Manifest must declare its signing state');
 const reg=path.join(process.env.SystemRoot,'System32/reg.exe');
 const key='HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\'+manifest.guid;
 const locationKey='HKCU\\Software\\'+manifest.guid;
@@ -29,6 +35,7 @@ await exec('powershell.exe',['-NoProfile','-NonInteractive','-Command',
   '$ErrorActionPreference="Stop"; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($env:DD84_ACCEPTANCE_ZIP,$env:DD84_ACCEPTANCE_EXTRACT)'],
 {windowsHide:true,timeout:120000,env:{...process.env,DD84_ACCEPTANCE_ZIP:path.join(dist,zip.name),DD84_ACCEPTANCE_EXTRACT:extracted}});
 assert.deepEqual(await inventory(extracted),manifest.files,'Portable ZIP must contain exactly the same program files as the installer');
+if(signatures)await signatures.verify(path.join(extracted,'DD84-Calibration-Studio.exe'));
 const install=path.join(output,'app'),exe=path.join(install,'DD84-Calibration-Studio.exe');
 // Every uninstall target is resolved and checked inside this exact test root.
 function checkedInstall(){assert(path.resolve(install).startsWith(path.resolve(output)+path.sep));assert.notEqual(path.resolve(install),path.resolve(output));return install;}
@@ -50,6 +57,7 @@ async function uninstall(args=[]){checkedInstall();uninstallCopy??=path.join(out
 try {
   assert.equal((await run(setup,['/S','/D='+checkedInstall()])).code,0);installed=true;
   await verifyInstalled();assert(await fs.stat(shortcut));
+  if(signatures){await signatures.verify(exe);await signatures.verify(path.join(install,'Uninstall DD84-Calibration-Studio.exe'));}
   const link=JSON.parse((await exec('powershell.exe',['-NoProfile','-NonInteractive','-Command',
     '$link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:DD84_ACCEPTANCE_LINK); @{target=$link.TargetPath;icon=$link.IconLocation} | ConvertTo-Json -Compress'],
     {windowsHide:true,env:{...process.env,DD84_ACCEPTANCE_LINK:shortcut}})).stdout);
@@ -81,7 +89,7 @@ try {
   assert.equal(await fs.readFile(sentinel,'utf8'),saved);assert.equal(await fs.readFile(outside,'utf8'),saved);
   assert(!(await fs.stat(shortcut).catch(()=>null)));assert(await absentRegistry(key));assert(await absentRegistry(locationKey));
   const proof={checkedAt:new Date().toISOString(),windows:os.release(),version:manifest.version,installerSha256:artifact.sha256,
-    portableZipSha256:zip.sha256,portableZipFilesVerified:manifest.files.length,
+    portableZipSha256:zip.sha256,portableZipFilesVerified:manifest.files.length,publicSignaturesVerified:!!signatures,
     installedFilesVerified:manifest.files.length,installedAppNativeHarnessPassed:true,startMenuCreatedAndRemoved:true,startMenuTargetAndIconVerified:true,
     runningInstallAndUninstallBlocked:true,unsavedEditorSurvived:true,sameVersionReinstallPassed:true,
     syntheticDowngradeGuardPassed:true,deleteAppDataSwitchRejected:true,unknownSavedFilesPreserved:true,

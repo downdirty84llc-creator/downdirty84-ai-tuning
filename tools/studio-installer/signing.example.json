@@ -1,0 +1,8 @@
+{
+  "endpoint": "https://eus.codesigning.azure.net",
+  "account": "replace-with-approved-account",
+  "profile": "replace-with-public-trust-profile",
+  "publisher": "<exact verified legal publisher name>",
+  "signtool": "C:\\REPLACE\\x64\\signtool.exe",
+  "dlib": "C:\\REPLACE\\x64\\Azure.CodeSigning.Dlib.dll"
+}
